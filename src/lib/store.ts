@@ -1,4 +1,4 @@
-import { User, Request, Attachment, StatusHistory, AuditLog, Notification, AuditAction, RequestStatus } from '@/types';
+import { User, UserRole, Request, Attachment, StatusHistory, AuditLog, Notification, AuditAction, RequestStatus } from '@/types';
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
 
@@ -125,4 +125,53 @@ export function markNotificationsRead(userId: string) {
 function addNotification(userId: string, message: string) {
   const notif: Notification = { id: generateId(), userId, message, read: false, createdAt: new Date().toISOString() };
   setStore('gc_notifications', [...getStore<Notification>('gc_notifications'), notif]);
+}
+
+// Clear all notifications for a user
+export function clearNotifications(userId: string) {
+  const all = getStore<Notification>('gc_notifications');
+  setStore('gc_notifications', all.filter(n => n.userId !== userId));
+}
+
+// Update user profile
+export function updateUserProfile(userId: string, data: { name?: string; department?: string }) {
+  const users = getUsers();
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx === -1) return;
+  if (data.name) users[idx].name = data.name;
+  if (data.department) users[idx].department = data.department;
+  setStore('gc_users', users);
+  // Update current user in localStorage if applicable
+  const saved = localStorage.getItem('gc_current_user');
+  if (saved) {
+    try {
+      const current = JSON.parse(saved);
+      if (current.id === userId) {
+        localStorage.setItem('gc_current_user', JSON.stringify(users[idx]));
+      }
+    } catch {}
+  }
+}
+
+// Change password
+export function changePassword(userId: string, currentPwd: string, newPwd: string): { success: boolean; error?: string } {
+  const users = getUsers();
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx === -1) return { success: false, error: 'Usuário não encontrado' };
+  if (users[idx].password !== currentPwd) return { success: false, error: 'Senha atual incorreta' };
+  users[idx].password = newPwd;
+  setStore('gc_users', users);
+  addAuditLog(userId, 'LOGIN', 'user', userId, 'Senha alterada');
+  return { success: true };
+}
+
+// Update user role (admin only)
+export function updateUserRole(userId: string, newRole: UserRole) {
+  const users = getUsers();
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx === -1) return;
+  const oldRole = users[idx].role;
+  users[idx].role = newRole;
+  setStore('gc_users', users);
+  addAuditLog(userId, 'REGISTER', 'user', userId, `Perfil alterado: ${oldRole} → ${newRole}`);
 }

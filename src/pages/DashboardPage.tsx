@@ -4,11 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getRequests, getRequestsByUser, getUserById } from '@/lib/store';
 import { Request, REQUEST_TYPE_LABELS, STATUS_LABELS, STATUS_VARIANT, RequestStatus, RequestType } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Search, PlusCircle, Fuel, Receipt, Banknote, TrendingUp, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, PlusCircle, Fuel, Receipt, Banknote, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 function StatusBadge({ status }: { status: RequestStatus }) {
   const variant = STATUS_VARIANT[status];
@@ -24,6 +24,8 @@ function TypeIcon({ type }: { type: RequestType }) {
   if (type === 'REIMBURSEMENT') return <Receipt className="w-4 h-4 text-status-pending" />;
   return <Banknote className="w-4 h-4 text-status-approved" />;
 }
+
+const CHART_COLORS = ['hsl(145, 63%, 32%)', 'hsl(38, 92%, 50%)', 'hsl(210, 80%, 52%)', 'hsl(0, 72%, 51%)', 'hsl(280, 60%, 50%)'];
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -61,6 +63,25 @@ export default function DashboardPage() {
     const completed = allRequests.filter(r => r.status === 'CONCLUIDO').length;
     const totalValue = allRequests.reduce((sum, r) => sum + r.valor, 0);
     return { total, pending, completed, totalValue };
+  }, [allRequests]);
+
+  // Chart data
+  const typeChartData = useMemo(() => {
+    const map: Record<string, number> = {};
+    allRequests.forEach(r => {
+      const label = REQUEST_TYPE_LABELS[r.type];
+      map[label] = (map[label] || 0) + r.valor;
+    });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [allRequests]);
+
+  const statusChartData = useMemo(() => {
+    const map: Record<string, number> = {};
+    allRequests.forEach(r => {
+      const label = STATUS_LABELS[r.status];
+      map[label] = (map[label] || 0) + 1;
+    });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [allRequests]);
 
   return (
@@ -122,6 +143,56 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Charts */}
+      {allRequests.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Valor por Tipo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={typeChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip 
+                    formatter={(value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Distribuição por Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={statusChartData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
+                    {statusChartData.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-3 mt-2 justify-center">
+                {statusChartData.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-1.5 text-xs">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    <span className="text-muted-foreground">{d.name} ({d.value})</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Filters */}
       <Card>

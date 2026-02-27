@@ -1,38 +1,47 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUnreadCount, markNotificationsRead, getNotifications } from '@/lib/store';
-import { LayoutDashboard, PlusCircle, FileText, Shield, LogOut, Bell, Menu, X, Fuel, ChevronDown } from 'lucide-react';
+import { getUnreadCount, markNotificationsRead, getNotifications, clearNotifications } from '@/lib/store';
+import { LayoutDashboard, PlusCircle, Shield, LogOut, Bell, Menu, User, Settings, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
 import { ROLE_LABELS } from '@/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import logo from '@/assets/logo.png';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifKey, setNotifKey] = useState(0);
 
   if (!user) return null;
 
   const unreadCount = getUnreadCount(user.id);
-  const notifications = getNotifications(user.id).slice(0, 8);
-  const canViewAudit = ['ADMINISTRATIVO', 'ADMIN'].includes(user.role);
+  const notifications = getNotifications(user.id).slice(0, 10);
+  const canViewAudit = ['ADMINISTRATIVO', 'ADMIN', 'ADM'].includes(user.role);
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/nova-solicitacao', label: 'Nova Solicitação', icon: PlusCircle },
+    { to: '/perfil', label: 'Meu Perfil', icon: User },
   ];
 
   if (canViewAudit) {
     navItems.push({ to: '/auditoria', label: 'Auditoria', icon: Shield });
+    navItems.push({ to: '/configuracoes', label: 'Configurações', icon: Settings });
   }
 
   const isActive = (path: string) => location.pathname === path;
 
   const handleNotifClick = () => {
     markNotificationsRead(user.id);
+    setNotifKey(k => k + 1);
+  };
+
+  const handleClearAll = () => {
+    clearNotifications(user.id);
+    setNotifKey(k => k + 1);
   };
 
   return (
@@ -46,12 +55,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-accent">
-              <Fuel className="w-5 h-5 text-sidebar-primary" />
-            </div>
+            <img src={logo} alt="SV Engenharia" className="w-10 h-10 rounded-full object-contain bg-white p-0.5" />
             <div>
-              <h1 className="text-base font-bold text-sidebar-primary">Gestão Corp</h1>
-              <p className="text-[11px] text-sidebar-muted">Controle corporativo</p>
+              <h1 className="text-base font-bold text-sidebar-primary">SV Engenharia</h1>
+              <p className="text-[11px] text-sidebar-muted">Gestão Corporativa</p>
             </div>
           </div>
 
@@ -128,15 +135,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80 p-0" align="end">
-                <div className="p-3 border-b border-border">
+                <div className="p-3 border-b border-border flex items-center justify-between">
                   <p className="text-sm font-semibold">Notificações</p>
+                  {notifications.length > 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={handleClearAll}>
+                      <Trash2 className="w-3 h-3" /> Limpar
+                    </Button>
+                  )}
                 </div>
                 <div className="max-h-64 overflow-y-auto">
                   {notifications.length === 0 ? (
                     <p className="p-4 text-sm text-muted-foreground text-center">Nenhuma notificação</p>
                   ) : (
                     notifications.map(n => (
-                      <div key={n.id} className={`px-3 py-2.5 border-b border-border last:border-0 ${!n.read ? 'bg-muted/50' : ''}`}>
+                      <div key={n.id} className={`px-3 py-2.5 border-b border-border last:border-0 ${!n.read ? 'bg-primary/5' : ''}`}>
                         <p className="text-sm text-foreground">{n.message}</p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">{new Date(n.createdAt).toLocaleString('pt-BR')}</p>
                       </div>

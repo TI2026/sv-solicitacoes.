@@ -1,4 +1,4 @@
-export type UserRole = 'COLABORADOR' | 'DIRETOR' | 'ADMINISTRATIVO' | 'ADMIN';
+export type UserRole = 'COLABORADOR' | 'DIRETOR' | 'ADMINISTRATIVO' | 'ADMIN' | 'ADM';
 
 export type RequestType = 'FUEL' | 'REIMBURSEMENT' | 'ALLOWANCE';
 
@@ -105,6 +105,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   DIRETOR: 'Diretor',
   ADMINISTRATIVO: 'Administrativo',
   ADMIN: 'Administrador',
+  ADM: 'ADM',
 };
 
 export const REIMBURSEMENT_CATEGORIES = ['Viagem', 'Alimentação', 'Hospedagem', 'Transporte', 'Outros'];

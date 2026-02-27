@@ -7,6 +7,7 @@ interface AuthContextType {
   login: (email: string, password: string) => { success: boolean; error?: string };
   register: (name: string, email: string, password: string, role: User['role'], department: string) => { success: boolean; error?: string };
   logout: () => void;
+  refreshUser: () => void;
   isAuthenticated: boolean;
 }
 
@@ -48,8 +49,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('gc_current_user');
   }, [user]);
 
+  const refreshUser = useCallback(() => {
+    const saved = localStorage.getItem('gc_current_user');
+    if (saved) {
+      try { setUser(JSON.parse(saved)); } catch {}
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, register, logout, refreshUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

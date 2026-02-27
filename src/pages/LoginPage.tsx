@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Fuel, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { UserRole, ROLE_LABELS } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import logo from '@/assets/logo.png';
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -58,11 +59,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-primary mb-4">
-            <Fuel className="w-7 h-7 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Gestão Corp</h1>
-          <p className="text-sm text-muted-foreground mt-1">Controle de despesas corporativas</p>
+          <img src={logo} alt="SV Engenharia" className="w-20 h-20 rounded-full object-contain bg-white shadow-md border-2 border-primary/20 p-1 mb-4" />
+          <h1 className="text-2xl font-bold text-foreground">SV Engenharia</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gestão Corporativa</p>
         </div>
 
         <Card className="shadow-lg border-border">
