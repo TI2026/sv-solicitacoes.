@@ -1,17 +1,30 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useFuelRequests } from '../hooks/useFleetQueries';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS } from '@/lib/constants';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Loader2, Fuel, Calendar, DollarSign } from 'lucide-react';
+import { PlusCircle, Loader2, Fuel, Calendar } from 'lucide-react';
 
 export default function FleetListPage() {
   const { user, hasAnyRole } = useAuth();
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const { data: requests, isLoading } = useFuelRequests(user?.id, isAdmin);
   const navigate = useNavigate();
+
+  // Realtime: auto-refresh list when fuel_requests change
+  useRealtimeSubscription({
+    channelName: 'fleet-list-realtime',
+    enabled: !!user,
+    tables: [
+      {
+        table: 'fuel_requests',
+        queryKeys: [['fuel_requests'], ['fuel_metrics']],
+      },
+    ],
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">

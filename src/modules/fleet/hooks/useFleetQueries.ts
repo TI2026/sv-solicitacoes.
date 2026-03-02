@@ -6,13 +6,10 @@ export function useFuelRequests(userId?: string, isAdmin?: boolean) {
   return useQuery({
     queryKey: ['fuel_requests', userId, isAdmin],
     queryFn: async () => {
-      let q = supabase
+      const { data, error } = await supabase
         .from('fuel_requests')
-        .select('*, profiles!fuel_requests_requester_user_id_fkey(full_name, email)')
+        .select('*, profiles(full_name, email)')
         .order('created_at', { ascending: false });
-      
-      // RLS already filters, but for clarity
-      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
@@ -26,7 +23,7 @@ export function useFuelRequest(id: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fuel_requests')
-        .select('*, profiles!fuel_requests_requester_user_id_fkey(full_name, email)')
+        .select('*, profiles(full_name, email)')
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -58,7 +55,7 @@ export function useFuelReviews(requestId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fuel_reviews')
-        .select('*, profiles!fuel_reviews_reviewer_user_id_fkey(full_name)')
+        .select('*, profiles(full_name)')
         .eq('fuel_request_id', requestId)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -90,6 +87,7 @@ export function useCreateFuelRequest() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fuel_requests'] });
+      qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
       toast({ title: 'Solicitação criada!' });
     },
     onError: (err: any) => {
@@ -118,6 +116,8 @@ export function useFuelSetStatus() {
       qc.invalidateQueries({ queryKey: ['fuel_requests'] });
       qc.invalidateQueries({ queryKey: ['fuel_request'] });
       qc.invalidateQueries({ queryKey: ['fuel_reviews'] });
+      qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
+      qc.invalidateQueries({ queryKey: ['status_history'] });
       toast({ title: 'Status atualizado!' });
     },
     onError: (err: any) => {

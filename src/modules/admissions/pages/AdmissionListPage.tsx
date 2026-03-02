@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmissionRequests } from '../hooks/useAdmissionQueries';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -12,6 +13,18 @@ export default function AdmissionListPage() {
   const { data: requests, isLoading } = useAdmissionRequests();
   const navigate = useNavigate();
   const canCreate = hasAnyRole(['diretoria', 'administrativo', 'rh']);
+
+  // Realtime: auto-refresh list when admission_requests change
+  useRealtimeSubscription({
+    channelName: 'admissions-list-realtime',
+    enabled: !!user,
+    tables: [
+      {
+        table: 'admission_requests',
+        queryKeys: [['admission_requests'], ['admission_metrics']],
+      },
+    ],
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">
