@@ -7,15 +7,29 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
-import NewRequestPage from "@/pages/NewRequestPage";
-import RequestDetailsPage from "@/pages/RequestDetailsPage";
 import AuditLogsPage from "@/pages/AuditLogsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+// Fleet module
+import FleetListPage from "@/modules/fleet/pages/FleetListPage";
+import FleetNewPage from "@/modules/fleet/pages/FleetNewPage";
+import FleetDetailPage from "@/modules/fleet/pages/FleetDetailPage";
+
+// Admissions module
+import AdmissionListPage from "@/modules/admissions/pages/AdmissionListPage";
+import AdmissionNewPage from "@/modules/admissions/pages/AdmissionNewPage";
+import AdmissionDetailPage from "@/modules/admissions/pages/AdmissionDetailPage";
+import CandidateDetailPage from "@/modules/admissions/pages/CandidateDetailPage";
+import PublicCandidatePage from "@/modules/admissions/pages/PublicCandidatePage";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 2, staleTime: 30_000 },
+  },
+});
 
 function LoadingScreen() {
   return (
@@ -41,14 +55,31 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 
 const AppRoutes = () => (
   <Routes>
+    {/* Public */}
     <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
+    <Route path="/public/candidate/:token" element={<PublicCandidatePage />} />
+
+    {/* Protected */}
     <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-    <Route path="/nova-solicitacao" element={<ProtectedRoute><NewRequestPage /></ProtectedRoute>} />
-    <Route path="/solicitacao/:id" element={<ProtectedRoute><RequestDetailsPage /></ProtectedRoute>} />
-    <Route path="/auditoria" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
     <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+    <Route path="/auditoria" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+
+    {/* Fleet */}
+    <Route path="/fleet" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />
+    <Route path="/fleet/new" element={<ProtectedRoute><FleetNewPage /></ProtectedRoute>} />
+    <Route path="/fleet/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
+
+    {/* Admissions */}
+    <Route path="/admissions" element={<ProtectedRoute><AdmissionListPage /></ProtectedRoute>} />
+    <Route path="/admissions/new" element={<ProtectedRoute><AdmissionNewPage /></ProtectedRoute>} />
+    <Route path="/admissions/:id" element={<ProtectedRoute><AdmissionDetailPage /></ProtectedRoute>} />
+    <Route path="/admissions/candidate/:candidateId" element={<ProtectedRoute><CandidateDetailPage /></ProtectedRoute>} />
+
+    {/* Redirects */}
     <Route path="/" element={<Navigate to="/dashboard" replace />} />
+    <Route path="/nova-solicitacao" element={<Navigate to="/fleet/new" replace />} />
+    <Route path="/solicitacao/:id" element={<Navigate to="/fleet" replace />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
