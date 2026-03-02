@@ -1,63 +1,154 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { User } from '@/types';
-import { getUserByEmail, createUser, initializeStore, addAuditLog } from '@/lib/store';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { AppRole, Profile, UserWithRoles } from '@/types';
 
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => { success: boolean; error?: string };
-  register: (name: string, email: string, password: string, role: User['role'], department: string) => { success: boolean; error?: string };
-  logout: () => void;
-  refreshUser: () => void;
+  session: Session | null;
+  user: UserWithRoles | null;
+  loading: boolean;
   isAuthenticated: boolean;
+  hasRole: (role: AppRole) => boolean;
+  hasAnyRole: (roles: AppRole[]) => boolean;
+  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, fullName: string, department?: string) => Promise<{ error?: string }>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+async function fetchUserWithRoles(authUser: User): Promise<UserWithRoles | null> {
+  // Fetch profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', authUser.id)
+    .single();
+
+  if (!profile) return null;
+
+  // Fetch roles via security definer function
+  const { data: rolesData } = await supabase.rpc('get_user_roles', { _user_id: authUser.id });
+
+  const roles: AppRole[] = (rolesData as AppRole[]) || [];
+
+  return {
+    ...(profile as Profile),
+    roles,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<UserWithRoles | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadUser = useCallback(async (authUser: User | null) => {
+    if (!authUser) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    try {
+      const userWithRoles = await fetchUserWithRoles(authUser);
+      setUser(userWithRoles);
+    } catch (err) {
+      console.error('Error loading user profile:', err);
+      setUser(null);
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    initializeStore();
-    const saved = localStorage.getItem('gc_current_user');
-    if (saved) {
-      try { setUser(JSON.parse(saved)); } catch { /* ignore */ }
-    }
-  }, []);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+        } else if (session?.user) {
+          // Use setTimeout to avoid Supabase deadlock
+          setTimeout(() => loadUser(session.user), 0);
+        }
+      }
+    );
 
-  const login = useCallback((email: string, password: string) => {
-    const found = getUserByEmail(email);
-    if (!found) return { success: false, error: 'Usuário não encontrado' };
-    if (found.password !== password) return { success: false, error: 'Senha incorreta' };
-    setUser(found);
-    localStorage.setItem('gc_current_user', JSON.stringify(found));
-    addAuditLog(found.id, 'LOGIN', 'user', found.id, `Login realizado: ${found.email}`);
-    return { success: true };
-  }, []);
+    // THEN check existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        loadUser(session.user);
+      } else {
+        setLoading(false);
+      }
+    });
 
-  const register = useCallback((name: string, email: string, password: string, role: User['role'], department: string) => {
-    const exists = getUserByEmail(email);
-    if (exists) return { success: false, error: 'Email já cadastrado' };
-    const newUser = createUser({ name, email, password, role, department });
-    setUser(newUser);
-    localStorage.setItem('gc_current_user', JSON.stringify(newUser));
-    return { success: true };
-  }, []);
+    return () => subscription.unsubscribe();
+  }, [loadUser]);
 
-  const logout = useCallback(() => {
-    if (user) addAuditLog(user.id, 'LOGOUT', 'user', user.id, 'Logout');
-    setUser(null);
-    localStorage.removeItem('gc_current_user');
+  const hasRole = useCallback((role: AppRole) => {
+    return user?.roles.includes(role) ?? false;
   }, [user]);
 
-  const refreshUser = useCallback(() => {
-    const saved = localStorage.getItem('gc_current_user');
-    if (saved) {
-      try { setUser(JSON.parse(saved)); } catch {}
-    }
+  const hasAnyRole = useCallback((roles: AppRole[]) => {
+    return roles.some(r => user?.roles.includes(r)) ?? false;
+  }, [user]);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+    return {};
   }, []);
 
+  const signUp = useCallback(async (email: string, password: string, fullName: string, department?: string) => {
+    const { error, data } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: window.location.origin,
+      },
+    });
+    if (error) return { error: error.message };
+
+    // Update department if provided (profile already created by trigger)
+    if (department && data.user) {
+      await supabase
+        .from('profiles')
+        .update({ department })
+        .eq('id', data.user.id);
+    }
+
+    return {};
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    if (session?.user) {
+      await loadUser(session.user);
+    }
+  }, [session, loadUser]);
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, refreshUser, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{
+      session,
+      user,
+      loading,
+      isAuthenticated: !!session && !!user,
+      hasRole,
+      hasAnyRole,
+      signIn,
+      signUp,
+      signOut,
+      refreshProfile,
+    }}>
       {children}
     </AuthContext.Provider>
   );
