@@ -69,7 +69,15 @@ export type Database = {
           tipo_contrato?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admission_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -363,7 +371,15 @@ export type Database = {
           updated_at?: string
           valor?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fuel_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fuel_reviews: {
         Row: {
@@ -396,6 +412,13 @@ export type Database = {
             columns: ["fuel_request_id"]
             isOneToOne: false
             referencedRelation: "fuel_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_reviews_reviewer_user_id_fkey"
+            columns: ["reviewer_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

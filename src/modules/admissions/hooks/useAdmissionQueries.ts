@@ -8,7 +8,7 @@ export function useAdmissionRequests() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('admission_requests')
-        .select('*, profiles!admission_requests_requester_user_id_fkey(full_name)')
+        .select('*, profiles(full_name)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -22,7 +22,7 @@ export function useAdmissionRequest(id: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('admission_requests')
-        .select('*, profiles!admission_requests_requester_user_id_fkey(full_name)')
+        .select('*, profiles(full_name)')
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -71,8 +71,7 @@ export function useCandidateDocuments(candidateId: string) {
       const { data, error } = await supabase
         .from('candidate_documents')
         .select('*, documents(key, label, required)')
-        .eq('candidate_id', candidateId)
-        .order('documents(label)', { ascending: true });
+        .eq('candidate_id', candidateId);
       if (error) throw error;
       return data || [];
     },
@@ -150,6 +149,7 @@ export function useCreateAdmission() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admission_requests'] });
+      qc.invalidateQueries({ queryKey: ['admission_metrics'] });
       toast({ title: 'Solicitação de admissão criada!' });
     },
     onError: (err: any) => {
@@ -177,6 +177,8 @@ export function useAdmissionSetStatus() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admission_requests'] });
       qc.invalidateQueries({ queryKey: ['admission_request'] });
+      qc.invalidateQueries({ queryKey: ['admission_metrics'] });
+      qc.invalidateQueries({ queryKey: ['status_history'] });
       toast({ title: 'Status atualizado!' });
     },
     onError: (err: any) => {
@@ -199,7 +201,7 @@ export function useCreateCandidate() {
       if (error) throw error;
       return result;
     },
-    onSuccess: (_, vars) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['candidates'] });
       toast({ title: 'Candidato cadastrado!' });
     },
