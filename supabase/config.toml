@@ -1,1 +1,10 @@
 project_id = "zeaerqlvhrbcuubueolh"
+
+[functions.admissions-validate-token]
+verify_jwt = false
+
+[functions.admissions-create-signed-upload]
+verify_jwt = false
+
+[functions.notify-status-change]
+verify_jwt = true

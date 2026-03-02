@@ -738,6 +738,33 @@ export type Database = {
       }
     }
     Functions: {
+      admission_set_status: {
+        Args: {
+          _metadata?: Json
+          _reason?: string
+          _request_id: string
+          _to_status: Database["public"]["Enums"]["admission_status"]
+        }
+        Returns: Json
+      }
+      current_has_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
+      current_user_id: { Args: never; Returns: string }
+      fuel_set_status: {
+        Args: {
+          _metadata?: Json
+          _reason?: string
+          _request_id: string
+          _to_status: Database["public"]["Enums"]["fuel_status"]
+        }
+        Returns: Json
+      }
+      generate_candidate_token: {
+        Args: { _candidate_id: string; _days_valid?: number }
+        Returns: Json
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]

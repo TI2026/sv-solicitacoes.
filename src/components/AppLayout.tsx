@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
-import { LayoutDashboard, PlusCircle, Shield, LogOut, Bell, Menu, User, Settings, X, UserPlus } from 'lucide-react';
+import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, Settings, X, Fuel, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,18 +17,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const canManage = hasAnyRole(['diretoria', 'administrativo']);
-  const canViewAdmission = hasAnyRole(['diretoria', 'rh']);
+  const canViewAdmission = hasAnyRole(['diretoria', 'rh', 'administrativo']);
   const primaryRole = user?.roles[0];
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
-    { to: '/nova-solicitacao', label: 'Nova Solicitação', icon: PlusCircle, show: true },
+    { to: '/fleet', label: 'Abastecimento', icon: Fuel, show: true },
+    { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
     { to: '/perfil', label: 'Meu Perfil', icon: User, show: true },
     { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
     { to: '/configuracoes', label: 'Configurações', icon: Settings, show: hasAnyRole(['diretoria']) },
   ].filter(item => item.show);
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
   // Fetch notifications
   useEffect(() => {
@@ -39,13 +40,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
       setNotifications(data || []);
       setUnreadCount(data?.filter(n => !n.read).length || 0);
     };
     fetchNotifications();
 
-    // Realtime subscription
     const channel = supabase
       .channel('notifications')
       .on('postgres_changes', {
@@ -53,9 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${user.id}`,
-      }, () => {
-        fetchNotifications();
-      })
+      }, () => { fetchNotifications(); })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -63,21 +61,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const markAllRead = async () => {
     if (!user) return;
-    await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('user_id', user.id)
-      .eq('read', false);
+    await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
   };
 
   const clearAll = async () => {
     if (!user) return;
-    await supabase
-      .from('notifications')
-      .delete()
-      .eq('user_id', user.id);
+    await supabase.from('notifications').delete().eq('user_id', user.id);
     setNotifications([]);
     setUnreadCount(0);
   };
@@ -93,7 +84,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-sidebar-border">
             <div className="flex items-center gap-3">
               <img src={logo} alt="SV Engenharia" className="w-10 h-10 rounded-full object-contain bg-white p-0.5" />
@@ -107,8 +97,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
 
-          {/* Nav */}
-          <nav className="flex-1 px-3 py-4 space-y-1">
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             {navItems.map(item => (
               <Link
                 key={item.to}
@@ -126,7 +115,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
-          {/* User section */}
           <div className="px-3 py-4 border-t border-sidebar-border">
             <div className="flex items-center gap-3 px-3 py-2">
               <div className="flex items-center justify-center w-8 h-8 rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-sm font-semibold">
@@ -134,9 +122,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-primary truncate">{user.full_name || user.email}</p>
-                <p className="text-[11px] text-sidebar-muted">
-                  {primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'}
-                </p>
+                <p className="text-[11px] text-sidebar-muted">{primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'}</p>
               </div>
             </div>
             <Button
@@ -144,21 +130,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onClick={async () => { await signOut(); navigate('/login'); }}
               className="w-full justify-start gap-3 px-3 mt-1 text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/50"
             >
-              <LogOut className="w-4 h-4" />
-              Sair
+              <LogOut className="w-4 h-4" /> Sair
             </Button>
           </div>
         </div>
       </aside>
 
-      {/* Overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-foreground/20 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
+      {sidebarOpen && <div className="fixed inset-0 z-40 bg-foreground/20 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
         <header className="flex items-center justify-between px-4 lg:px-8 py-3 bg-card border-b border-border">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
@@ -169,46 +149,41 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </h2>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative" onClick={markAllRead}>
-                  <Bell className="w-5 h-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-destructive text-destructive-foreground">
-                      {unreadCount}
-                    </span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="end">
-                <div className="p-3 border-b border-border flex items-center justify-between">
-                  <p className="text-sm font-semibold">Notificações</p>
-                  {notifications.length > 0 && (
-                    <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearAll}>
-                      Limpar
-                    </Button>
-                  )}
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <p className="p-4 text-sm text-muted-foreground text-center">Nenhuma notificação</p>
-                  ) : (
-                    notifications.map(n => (
-                      <div key={n.id} className={`px-3 py-2.5 border-b border-border last:border-0 ${!n.read ? 'bg-primary/5' : ''}`}>
-                        <p className="text-sm font-medium text-foreground">{n.title}</p>
-                        <p className="text-xs text-muted-foreground">{n.message}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">{new Date(n.created_at).toLocaleString('pt-BR')}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative" onClick={markAllRead}>
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-destructive text-destructive-foreground">
+                    {unreadCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="end">
+              <div className="p-3 border-b border-border flex items-center justify-between">
+                <p className="text-sm font-semibold">Notificações</p>
+                {notifications.length > 0 && (
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearAll}>Limpar</Button>
+                )}
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="p-4 text-sm text-muted-foreground text-center">Nenhuma notificação</p>
+                ) : (
+                  notifications.map(n => (
+                    <div key={n.id} className={`px-3 py-2.5 border-b border-border last:border-0 ${!n.read ? 'bg-primary/5' : ''}`}>
+                      <p className="text-sm font-medium text-foreground">{n.title}</p>
+                      <p className="text-xs text-muted-foreground">{n.message}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{new Date(n.created_at).toLocaleString('pt-BR')}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         </header>
 
-        {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           {children}
         </main>
