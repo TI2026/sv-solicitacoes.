@@ -1,5 +1,39 @@
-export type UserRole = 'COLABORADOR' | 'DIRETOR' | 'ADMINISTRATIVO' | 'ADMIN' | 'ADM';
+// =============================================
+// RBAC Types
+// =============================================
+export type AppRole = 'diretoria' | 'administrativo' | 'colaborador' | 'rh';
 
+export const ROLE_LABELS: Record<AppRole, string> = {
+  diretoria: 'Diretoria',
+  administrativo: 'Administrativo',
+  colaborador: 'Colaborador',
+  rh: 'Recursos Humanos',
+};
+
+export const ROLE_HIERARCHY: Record<AppRole, number> = {
+  diretoria: 100,
+  administrativo: 50,
+  rh: 40,
+  colaborador: 10,
+};
+
+export interface Profile {
+  id: string;
+  full_name: string;
+  email: string;
+  department: string;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserWithRoles extends Profile {
+  roles: AppRole[];
+}
+
+// =============================================
+// Fleet Module Types (Solicitações)
+// =============================================
 export type RequestType = 'FUEL' | 'REIMBURSEMENT' | 'ALLOWANCE';
 
 export type RequestStatus =
@@ -12,67 +46,6 @@ export type RequestStatus =
   | 'REJEITADO';
 
 export type AttachmentType = 'FOTO_PAINEL' | 'NOTA_FISCAL' | 'RECIBO' | 'OUTRO';
-
-export type AuditAction = 'LOGIN' | 'LOGOUT' | 'CREATE_REQUEST' | 'UPDATE_STATUS' | 'ADD_ATTACHMENT' | 'REGISTER';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  password: string;
-  role: UserRole;
-  department: string;
-}
-
-export interface Request {
-  id: string;
-  type: RequestType;
-  category: string;
-  solicitanteId: string;
-  veiculoPlaca?: string;
-  kmAtual?: number;
-  valor: number;
-  status: RequestStatus;
-  dataSolicitacao: string;
-  descricao?: string;
-}
-
-export interface Attachment {
-  id: string;
-  solicitacaoId: string;
-  tipoDocumento: AttachmentType;
-  url: string;
-  fileName: string;
-  dataUpload: string;
-}
-
-export interface StatusHistory {
-  id: string;
-  solicitacaoId: string;
-  statusAnterior: RequestStatus | null;
-  statusNovo: RequestStatus;
-  data: string;
-  usuarioResponsavel: string;
-  comentario?: string;
-}
-
-export interface AuditLog {
-  id: string;
-  userId: string;
-  action: AuditAction;
-  entityType: string;
-  entityId: string;
-  details: string;
-  timestamp: string;
-}
-
-export interface Notification {
-  id: string;
-  userId: string;
-  message: string;
-  read: boolean;
-  createdAt: string;
-}
 
 export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
   FUEL: 'Abastecimento',
@@ -98,14 +71,6 @@ export const STATUS_VARIANT: Record<RequestStatus, string> = {
   CONCLUIDO: 'approved',
   DEVOLVIDO: 'pending',
   REJEITADO: 'rejected',
-};
-
-export const ROLE_LABELS: Record<UserRole, string> = {
-  COLABORADOR: 'Colaborador',
-  DIRETOR: 'Diretor',
-  ADMINISTRATIVO: 'Administrativo',
-  ADMIN: 'Administrador',
-  ADM: 'ADM',
 };
 
 export const REIMBURSEMENT_CATEGORIES = ['Viagem', 'Alimentação', 'Hospedagem', 'Transporte', 'Outros'];

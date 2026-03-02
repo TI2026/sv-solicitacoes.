@@ -5,9 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, EyeOff } from 'lucide-react';
-import { UserRole, ROLE_LABELS } from '@/types';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.png';
 
@@ -15,43 +13,49 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [role, setRole] = useState<UserRole>('COLABORADOR');
+  const [fullName, setFullName] = useState('');
   const [department, setDepartment] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { login, register } = useAuth();
+  const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
+    try {
       if (isLogin) {
-        const result = login(email, password);
-        if (result.success) {
-          navigate('/dashboard');
-        } else {
+        const result = await signIn(email, password);
+        if (result.error) {
           toast({ title: 'Erro', description: result.error, variant: 'destructive' });
+        } else {
+          navigate('/dashboard');
         }
       } else {
-        if (!name || !department) {
-          toast({ title: 'Erro', description: 'Preencha todos os campos', variant: 'destructive' });
+        if (!fullName) {
+          toast({ title: 'Erro', description: 'Preencha o nome completo', variant: 'destructive' });
           setLoading(false);
           return;
         }
-        const result = register(name, email, password, role, department);
-        if (result.success) {
-          navigate('/dashboard');
-        } else {
+        const result = await signUp(email, password, fullName, department);
+        if (result.error) {
           toast({ title: 'Erro', description: result.error, variant: 'destructive' });
+        } else {
+          toast({
+            title: 'Conta criada!',
+            description: 'Verifique seu email para confirmar o cadastro, ou faça login se a confirmação estiver desabilitada.',
+          });
+          setIsLogin(true);
         }
       }
+    } catch {
+      toast({ title: 'Erro', description: 'Erro inesperado. Tente novamente.', variant: 'destructive' });
+    } finally {
       setLoading(false);
-    }, 300);
+    }
   };
 
   return (
@@ -68,7 +72,9 @@ export default function LoginPage() {
           <CardHeader className="pb-4">
             <CardTitle className="text-xl">{isLogin ? 'Entrar' : 'Criar conta'}</CardTitle>
             <CardDescription>
-              {isLogin ? 'Acesse sua conta para continuar' : 'Preencha os dados para se registrar'}
+              {isLogin
+                ? 'Acesse sua conta para continuar'
+                : 'O primeiro cadastro recebe acesso total (Diretoria)'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -76,25 +82,12 @@ export default function LoginPage() {
               {!isLogin && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nome completo</Label>
-                    <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" required />
+                    <Label htmlFor="fullName">Nome completo</Label>
+                    <Input id="fullName" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Seu nome" required />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="role">Perfil</Label>
-                      <Select value={role} onValueChange={v => setRole(v as UserRole)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(ROLE_LABELS) as UserRole[]).map(r => (
-                            <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="department">Departamento</Label>
-                      <Input id="department" value={department} onChange={e => setDepartment(e.target.value)} placeholder="Ex: TI" required />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Departamento</Label>
+                    <Input id="department" value={department} onChange={e => setDepartment(e.target.value)} placeholder="Ex: Operações" />
                   </div>
                 </>
               )}
@@ -112,7 +105,8 @@ export default function LoginPage() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••"
+                    placeholder="Mínimo 6 caracteres"
+                    minLength={6}
                     required
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -122,6 +116,7 @@ export default function LoginPage() {
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 {loading ? 'Aguarde...' : isLogin ? 'Entrar' : 'Criar conta'}
               </Button>
             </form>
@@ -135,17 +130,6 @@ export default function LoginPage() {
                 {isLogin ? 'Não tem conta? Criar agora' : 'Já tem conta? Fazer login'}
               </button>
             </div>
-
-            {isLogin && (
-              <div className="mt-6 p-3 rounded-lg bg-muted">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Contas de teste:</p>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p><span className="font-medium">Admin:</span> admin@gestcorp.com / admin123</p>
-                  <p><span className="font-medium">Colaborador:</span> joao@gestcorp.com / 123456</p>
-                  <p><span className="font-medium">Diretor:</span> carlos@gestcorp.com / 123456</p>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

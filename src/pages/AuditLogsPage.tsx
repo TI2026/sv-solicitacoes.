@@ -1,26 +1,33 @@
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAuditLogs, getUserById } from '@/lib/store';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Shield } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { Shield, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function AuditLogsPage() {
-  const { user } = useAuth();
+  const { hasAnyRole } = useAuth();
   const navigate = useNavigate();
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const logs = useMemo(() => getAuditLogs(), []);
+  useEffect(() => {
+    const fetchLogs = async () => {
+      const { data } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      setLogs(data || []);
+      setLoading(false);
+    };
+    fetchLogs();
+  }, []);
 
-  if (!user || !['ADMINISTRATIVO', 'ADMIN'].includes(user.role)) {
-    return (
-      <div className="text-center py-12">
-        <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">Acesso restrito</p>
-        <Button variant="ghost" className="mt-4" onClick={() => navigate('/dashboard')}>Voltar</Button>
-      </div>
-    );
+  if (!hasAnyRole(['diretoria', 'administrativo'])) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -30,36 +37,35 @@ export default function AuditLogsPage() {
         <p className="text-sm text-muted-foreground mt-1">Registro de todas as ações do sistema</p>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data/Hora</TableHead>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead>Ação</TableHead>
-                  <TableHead>Entidade</TableHead>
-                  <TableHead>Detalhes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Nenhum registro encontrado
-                    </TableCell>
+                    <TableHead>Data/Hora</TableHead>
+                    <TableHead>Ação</TableHead>
+                    <TableHead>Entidade</TableHead>
+                    <TableHead>Detalhes</TableHead>
                   </TableRow>
-                ) : (
-                  logs.map(log => {
-                    const logUser = getUserById(log.userId);
-                    return (
+                </TableHeader>
+                <TableBody>
+                  {logs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Nenhum registro encontrado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    logs.map(log => (
                       <TableRow key={log.id}>
                         <TableCell className="text-sm whitespace-nowrap">
-                          {new Date(log.timestamp).toLocaleString('pt-BR')}
-                        </TableCell>
-                        <TableCell className="text-sm font-medium">
-                          {logUser?.name || log.userId}
+                          {new Date(log.created_at).toLocaleString('pt-BR')}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
@@ -67,20 +73,20 @@ export default function AuditLogsPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {log.entityType}
+                          {log.entity_type}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                          {log.details}
+                          {log.details ? JSON.stringify(log.details) : '—'}
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
