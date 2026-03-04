@@ -507,6 +507,7 @@ export type Database = {
         Row: {
           candidate_id: string
           clinic_id: string | null
+          clinic_name: string | null
           guide_pdf_path: string | null
           id: string
           restrictions: string | null
@@ -517,6 +518,7 @@ export type Database = {
         Insert: {
           candidate_id: string
           clinic_id?: string | null
+          clinic_name?: string | null
           guide_pdf_path?: string | null
           id?: string
           restrictions?: string | null
@@ -527,6 +529,7 @@ export type Database = {
         Update: {
           candidate_id?: string
           clinic_id?: string | null
+          clinic_name?: string | null
           guide_pdf_path?: string | null
           id?: string
           restrictions?: string | null

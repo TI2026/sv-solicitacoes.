@@ -1,30 +1,31 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useGenerateToken, useUpdateCandidate, useMedicalExam, useClinics } from '../hooks/useAdmissionQueries';
+import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useGenerateToken, useUpdateCandidate, useMedicalExam } from '../hooks/useAdmissionQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { StatusBadge } from '@/components/StatusBadge';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { AdmissionStepper } from '../components/AdmissionStepper';
 import { InterviewDialog } from '../components/InterviewDialog';
 import { ADMISSION_STATUS_LABELS, CANDIDATE_STATUS_LABELS, PRIORITY_LABELS, EXAM_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, Building2, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, MessageCircle, Ban } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function AdmissionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasAnyRole } = useAuth();
   const { toast } = useToast();
+  const qc = useQueryClient();
   const { data: req, isLoading } = useAdmissionRequest(id!);
   const { data: candidates } = useCandidates(id!);
   const createCandidate = useCreateCandidate();
@@ -35,15 +36,18 @@ export default function AdmissionDetailPage() {
   const isRH = hasAnyRole(['diretoria', 'rh', 'administrativo']);
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [candidateForm, setCandidateForm] = useState({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
-  const [tokenLink, setTokenLink] = useState<string | null>(null);
   const [interviewCandidate, setInterviewCandidate] = useState<any | null>(null);
-  const [docsConfirmed, setDocsConfirmed] = useState(false);
 
-  // Exam state
-  const [examCandidateId, setExamCandidateId] = useState<string | null>(null);
-  const [examClinic, setExamClinic] = useState('');
-  const [examDate, setExamDate] = useState('');
-  const { data: clinics } = useClinics();
+  // Document links state
+  const [docLinks, setDocLinks] = useState<Record<string, string>>({});
+  const docLinksGenRef = useRef(false);
+
+  // Signature links state
+  const [sigLinks, setSigLinks] = useState<Record<string, string>>({});
+  const sigLinksGenRef = useRef(false);
+
+  // Docs confirmed state
+  const [docsConfirmed, setDocsConfirmed] = useState(false);
 
   // Realtime subscriptions
   useRealtimeSubscription({
@@ -78,14 +82,7 @@ export default function AdmissionDetailPage() {
     setCandidateForm({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
   };
 
-  const handleGenerateToken = async (candidateId: string) => {
-    const result = await generateToken.mutateAsync(candidateId);
-    if (result?.token) {
-      const link = `${window.location.origin}/public/candidate/${result.token}`;
-      setTokenLink(link);
-    }
-  };
-
+  // FIX: Do NOT update status_triagem when scheduling interview (avoids trigger error)
   const handleScheduleInterview = async (data: any) => {
     if (!interviewCandidate) return;
     await updateCandidate.mutateAsync({
@@ -96,7 +93,6 @@ export default function AdmissionDetailPage() {
         interview_city: data.interview_city,
         interviewer_name: data.interviewer_name,
         interview_notes: data.interview_notes || null,
-        status_triagem: 'em_triagem' as any,
       },
     });
   };
@@ -112,24 +108,9 @@ export default function AdmissionDetailPage() {
     toast({ title: approved ? 'Candidato aprovado na entrevista!' : 'Candidato eliminado' });
   };
 
-  const handleConfirmDocsWhatsApp = async () => {
-    if (!id) return;
-    setDocsConfirmed(true);
-    await supabase.from('audit_logs').insert({
-      user_id: user?.id,
-      action: 'confirm_docs_whatsapp',
-      entity_type: 'admission_requests',
-      entity_id: id,
-      details: { confirmed_at: new Date().toISOString() },
-    });
-    await handleStatusChange('registros_concluidos');
-  };
-
-  const copyLink = () => {
-    if (tokenLink) {
-      navigator.clipboard.writeText(tokenLink);
-      toast({ title: 'Link copiado!' });
-    }
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Link copiado!' });
   };
 
   // Derived state
@@ -141,7 +122,6 @@ export default function AdmissionDetailPage() {
     candidates?.filter((c: any) => c.interview_approved === true) || []
   , [candidates]);
 
-  // Check if all active candidates have interview result
   const allActiveHaveInterviewResult = useMemo(() => {
     if (!candidates || candidates.length === 0) return false;
     const active = candidates.filter((c: any) => c.status_triagem !== 'desistente');
@@ -150,13 +130,11 @@ export default function AdmissionDetailPage() {
 
   const hasApprovedCandidates = approvedCandidates.length > 0;
 
-  // Check if a candidate's interview date/time has passed
   const isInterviewPast = (interviewAt: string | null): boolean => {
     if (!interviewAt) return false;
     return new Date(interviewAt) <= new Date();
   };
 
-  // Check candidate interview status label
   const getInterviewStatusLabel = (c: any): { label: string; variant: string } => {
     if (!c.interview_at) return { label: 'Não agendada', variant: 'pending' };
     if (c.interview_approved === true) return { label: 'Aprovado', variant: 'approved' };
@@ -164,6 +142,44 @@ export default function AdmissionDetailPage() {
     if (!isInterviewPast(c.interview_at)) return { label: 'Aguardando data/hora', variant: 'info' };
     return { label: 'Liberado para decisão', variant: 'pending' };
   };
+
+  // Auto-generate document links when entering documentos_em_analise step
+  useEffect(() => {
+    if (req?.status === 'documentos_em_analise' && approvedCandidates.length > 0 && !docLinksGenRef.current) {
+      docLinksGenRef.current = true;
+      (async () => {
+        const links: Record<string, string> = {};
+        for (const c of approvedCandidates) {
+          try {
+            const result = await generateToken.mutateAsync(c.id);
+            if (result?.token) {
+              links[c.id] = `${window.location.origin}/envio-documentos?token=${result.token}`;
+            }
+          } catch (e) { console.error('Token gen error:', e); }
+        }
+        setDocLinks(links);
+      })();
+    }
+  }, [req?.status, approvedCandidates.length]);
+
+  // Auto-generate signature links when entering aguardando_registro step
+  useEffect(() => {
+    if (req?.status === 'aguardando_registro' && approvedCandidates.length > 0 && !sigLinksGenRef.current) {
+      sigLinksGenRef.current = true;
+      (async () => {
+        const links: Record<string, string> = {};
+        for (const c of approvedCandidates) {
+          try {
+            const result = await generateToken.mutateAsync(c.id);
+            if (result?.token) {
+              links[c.id] = `${window.location.origin}/assinatura-documentos?token=${result.token}`;
+            }
+          } catch (e) { console.error('Token gen error:', e); }
+        }
+        setSigLinks(links);
+      })();
+    }
+  }, [req?.status, approvedCandidates.length]);
 
   if (isLoading) {
     return (
@@ -220,14 +236,14 @@ export default function AdmissionDetailPage() {
             status={req.status}
             candidateCount={candidates?.length || 0}
             hasInterview={candidates?.some((c: any) => c.interview_at) ?? false}
-            hasDocuments={status === 'registros_concluidos' || status === 'concluido'}
-            hasExam={['exame_realizado', 'aguardando_registro', 'registros_concluidos', 'concluido'].includes(status)}
-            hasRegistration={['registros_concluidos', 'concluido'].includes(status)}
+            hasDocuments={['aguardando_exame', 'exame_realizado', 'aguardando_registro', 'registros_concluidos', 'concluido'].includes(status)}
+            hasExam={['aguardando_registro', 'registros_concluidos', 'concluido'].includes(status)}
+            hasRegistration={['concluido'].includes(status)}
           />
         </CardContent>
       </Card>
 
-      {/* ETAPA 0: Enviar para triagem (requester draft) */}
+      {/* ===== ETAPA 0: Enviar para triagem ===== */}
       {req.requester_user_id === user?.id && status === 'rascunho' && (
         <Card>
           <CardContent className="p-4">
@@ -238,7 +254,7 @@ export default function AdmissionDetailPage() {
         </Card>
       )}
 
-      {/* ETAPA 1: Iniciar Triagem */}
+      {/* ===== ETAPA 1: Iniciar Triagem ===== */}
       {isRH && status === 'aguardando_triagem' && (
         <Card>
           <CardContent className="p-4 space-y-3">
@@ -250,12 +266,12 @@ export default function AdmissionDetailPage() {
         </Card>
       )}
 
-      {/* ETAPA 2: Candidatos (em_triagem) */}
+      {/* ===== ETAPA 1b: Candidatos (em_triagem) ===== */}
       {isRH && status === 'em_triagem' && (
         <Card>
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Etapa 2 — Candidatos ({candidates?.length || 0})</h3>
+              <h3 className="text-sm font-semibold text-foreground">Etapa 1 — Triagem + Candidatos ({candidates?.length || 0})</h3>
               <Button variant="outline" size="sm" onClick={() => setShowAddCandidate(true)} className="gap-1">
                 <UserPlus className="w-3 h-3" /> Adicionar
               </Button>
@@ -292,13 +308,13 @@ export default function AdmissionDetailPage() {
         </Card>
       )}
 
-      {/* ETAPA 3: Entrevista (aguardando_documentos / documentos_em_analise) */}
-      {isRH && (status === 'aguardando_documentos' || status === 'documentos_em_analise') && (
+      {/* ===== ETAPA 2: Entrevista (aguardando_documentos) ===== */}
+      {isRH && status === 'aguardando_documentos' && (
         <Card>
           <CardContent className="p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Etapa 3 — Entrevista</h3>
+            <h3 className="text-sm font-semibold text-foreground">Etapa 2 — Entrevista</h3>
             <p className="text-xs text-muted-foreground">
-              Agende a entrevista para cada candidato. Após a data/hora da entrevista, decida: Continuar ou Eliminar.
+              Agende a entrevista para cada candidato. Após a data/hora, decida: Continuar ou Eliminar.
             </p>
 
             {candidates?.map((c: any) => {
@@ -326,7 +342,6 @@ export default function AdmissionDetailPage() {
                     </div>
                   </div>
 
-                  {/* Show interview details */}
                   {c.interview_at && (
                     <div className="bg-muted/50 rounded-lg p-2 text-xs text-muted-foreground space-y-0.5">
                       <p className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> {new Date(c.interview_at).toLocaleString('pt-BR')}</p>
@@ -341,14 +356,12 @@ export default function AdmissionDetailPage() {
                   )}
 
                   <div className="flex gap-1 flex-wrap">
-                    {/* Schedule / Reschedule */}
                     {(!c.interview_at || (c.interview_approved == null && !isInterviewPast(c.interview_at))) && (
                       <Button variant="ghost" size="sm" onClick={() => setInterviewCandidate(c)} className="gap-1 text-xs">
                         <CalendarClock className="w-3 h-3" /> {c.interview_at ? 'Reagendar' : 'Agendar Entrevista'}
                       </Button>
                     )}
 
-                    {/* Decision buttons: only if interview date passed and no decision yet */}
                     {canDecide && (
                       <>
                         <Button variant="default" size="sm" onClick={() => handleInterviewResult(c.id, true)} className="text-xs gap-1">
@@ -364,17 +377,16 @@ export default function AdmissionDetailPage() {
               );
             })}
 
-            {/* Advance button */}
-            {status === 'aguardando_documentos' && allActiveHaveInterviewResult && hasApprovedCandidates && (
+            {allActiveHaveInterviewResult && hasApprovedCandidates && (
               <Button onClick={() => handleStatusChange('documentos_em_analise')} className="gap-2 w-full" size="sm">
-                <CheckCircle className="w-4 h-4" /> Avançar candidatos aprovados
+                <CheckCircle className="w-4 h-4" /> Avançar aprovados para Documentos
               </Button>
             )}
 
-            {status === 'aguardando_documentos' && allActiveHaveInterviewResult && !hasApprovedCandidates && (
+            {allActiveHaveInterviewResult && !hasApprovedCandidates && (
               <div className="text-center py-3">
                 <p className="text-xs text-destructive flex items-center justify-center gap-1 mb-2">
-                  <AlertTriangle className="w-3 h-3" /> Nenhum candidato aprovado. Não é possível avançar.
+                  <AlertTriangle className="w-3 h-3" /> Nenhum candidato aprovado.
                 </p>
                 <Button onClick={() => handleStatusChange('cancelado')} variant="destructive" size="sm" className="gap-2">
                   <XCircle className="w-4 h-4" /> Encerrar processo
@@ -382,94 +394,138 @@ export default function AdmissionDetailPage() {
               </div>
             )}
 
-            {status === 'aguardando_documentos' && !allActiveHaveInterviewResult && (
+            {!allActiveHaveInterviewResult && (
               <p className="text-xs text-muted-foreground text-center py-2">
                 <AlertTriangle className="w-3 h-3 inline mr-1" />
-                Registre o resultado (Continuar/Eliminar) para todos os candidatos após a data da entrevista para avançar.
+                Registre o resultado (Continuar/Eliminar) para todos os candidatos após a data da entrevista.
               </p>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* ETAPA 4: Exame (documentos_em_analise / aguardando_exame / exame_realizado) */}
-      {isRH && (status === 'documentos_em_analise' || status === 'aguardando_exame' || status === 'exame_realizado') && (
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Etapa 4 — Exame Admissional</h3>
-            <p className="text-xs text-muted-foreground">
-              Agende o exame para cada candidato aprovado. O resultado só pode ser registrado após a data/hora do exame.
-            </p>
-
-            {approvedCandidates.map((c: any) => (
-              <ExamSection key={c.id} candidateId={c.id} candidateName={c.nome} clinics={clinics} onAdvance={() => {}} />
-            ))}
-
-            {status === 'documentos_em_analise' && (
-              <Button onClick={() => handleStatusChange('aguardando_exame')} className="gap-2 w-full" size="sm">
-                <CheckCircle className="w-4 h-4" /> Confirmar agendamento de exames
-              </Button>
-            )}
-
-            {status === 'exame_realizado' && (
-              <Button onClick={() => handleStatusChange('aguardando_registro')} className="gap-2 w-full" size="sm">
-                <CheckCircle className="w-4 h-4" /> Prosseguir para Confirmação de Docs
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ETAPA 5: Confirmação Docs WhatsApp (aguardando_registro) */}
-      {isRH && status === 'aguardando_registro' && (
+      {/* ===== ETAPA 3: Documentos - Link Externo (documentos_em_analise) ===== */}
+      {isRH && status === 'documentos_em_analise' && (
         <Card>
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" /> Etapa 5 — Confirmação de Documentos (WhatsApp)
+              <FileText className="w-4 h-4" /> Etapa 3 — Documentos (Link Externo)
             </h3>
             <p className="text-xs text-muted-foreground">
-              Confirme que recebeu os documentos pessoais do(s) candidato(s) aprovado(s) via WhatsApp.
+              Links gerados automaticamente para cada candidato aprovado. O candidato pode enviar documentos pessoais, dados bancários e certidões.
             </p>
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="docs-whatsapp"
-                checked={docsConfirmed}
-                onCheckedChange={(checked) => setDocsConfirmed(!!checked)}
-              />
-              <Label htmlFor="docs-whatsapp" className="text-sm">
-                Confirmar recebimento dos documentos (WhatsApp)
-              </Label>
-            </div>
+
+            {approvedCandidates.map((c: any) => {
+              const link = docLinks[c.id];
+              return (
+                <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{c.nome}</p>
+                  </div>
+                  {link ? (
+                    <div className="flex gap-2 items-center">
+                      <Input value={link} readOnly className="text-xs flex-1" />
+                      <Button variant="outline" size="sm" onClick={() => copyToClipboard(link)} className="gap-1 text-xs shrink-0">
+                        <Copy className="w-3 h-3" /> Copiar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span className="text-xs text-muted-foreground">Gerando link...</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {Object.keys(docLinks).length > 0 && (
+              <>
+                <div className="flex items-center gap-3 pt-2">
+                  <Checkbox
+                    id="docs-confirmed"
+                    checked={docsConfirmed}
+                    onCheckedChange={(checked) => setDocsConfirmed(!!checked)}
+                  />
+                  <Label htmlFor="docs-confirmed" className="text-sm">
+                    Confirmar recebimento de todos os documentos
+                  </Label>
+                </div>
+                <Button
+                  onClick={() => handleStatusChange('aguardando_exame')}
+                  disabled={!docsConfirmed || statusMutation.isPending}
+                  className="gap-2 w-full"
+                  size="sm"
+                >
+                  {statusMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <CheckCircle className="w-4 h-4" /> Confirmar e Avançar para Exame
+                </Button>
+              </>
+            )}
+
             <Button
-              onClick={handleConfirmDocsWhatsApp}
-              disabled={!docsConfirmed || statusMutation.isPending}
-              className="gap-2 w-full"
+              variant="outline"
               size="sm"
+              onClick={() => {
+                docLinksGenRef.current = false;
+                setDocLinks({});
+                // Trigger regeneration
+                setTimeout(() => {
+                  docLinksGenRef.current = false;
+                  window.location.reload();
+                }, 100);
+              }}
+              className="text-xs gap-1"
             >
-              {statusMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              <CheckCircle className="w-4 h-4" /> Confirmar e Avançar
+              <Link2 className="w-3 h-3" /> Regenerar links
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* ETAPA 6: Assinatura Link Externo (registros_concluidos) */}
-      {isRH && status === 'registros_concluidos' && (
+      {/* ===== ETAPA 4: Exame Admissional (aguardando_exame / exame_realizado) ===== */}
+      {isRH && (status === 'aguardando_exame' || status === 'exame_realizado') && (
         <Card>
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Link2 className="w-4 h-4" /> Etapa 6 — Assinatura (Link Externo)
+              <Stethoscope className="w-4 h-4" /> Etapa 4 — Exame Admissional
             </h3>
             <p className="text-xs text-muted-foreground">
-              Gere um link seguro para cada candidato aprovado. O candidato pode baixar documentos e reenviar assinados. Válido por 7 dias.
+              Digite o nome da clínica, data e hora. Após a data/hora, registre o resultado.
             </p>
+
             {approvedCandidates.map((c: any) => (
-              <div key={c.id} className="border border-border rounded-lg p-3 flex items-center justify-between">
-                <span className="text-sm font-medium">{c.nome}</span>
-                <Button variant="outline" size="sm" onClick={() => handleGenerateToken(c.id)} className="gap-1 text-xs">
-                  <Link2 className="w-3 h-3" /> Gerar Link
-                </Button>
-              </div>
+              <ExamSection key={c.id} candidateId={c.id} candidateName={c.nome} />
+            ))}
+
+            {status === 'exame_realizado' && (
+              <Button onClick={() => handleStatusChange('aguardando_registro')} className="gap-2 w-full" size="sm">
+                <CheckCircle className="w-4 h-4" /> Avançar para Assinatura
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ===== ETAPA 5: Assinatura - Link Externo (aguardando_registro) ===== */}
+      {isRH && status === 'aguardando_registro' && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Link2 className="w-4 h-4" /> Etapa 5 — Assinatura (Link Externo)
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Faça upload dos documentos internos para assinatura. Gere o link e envie ao candidato para baixar, assinar via CDGov e reenviar.
+            </p>
+
+            {approvedCandidates.map((c: any) => (
+              <SignatureSection
+                key={c.id}
+                candidateId={c.id}
+                candidateName={c.nome}
+                link={sigLinks[c.id]}
+                onCopyLink={() => sigLinks[c.id] && copyToClipboard(sigLinks[c.id])}
+              />
             ))}
 
             <Button onClick={() => handleStatusChange('concluido')} className="gap-2 w-full" size="sm">
@@ -479,12 +535,12 @@ export default function AdmissionDetailPage() {
         </Card>
       )}
 
-      {/* ETAPA 7: Concluído */}
-      {status === 'concluido' && (
+      {/* ===== ETAPA 6: Concluído ===== */}
+      {(status === 'concluido' || status === 'registros_concluidos') && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-4 text-center">
             <CheckCircle className="w-8 h-8 mx-auto text-primary mb-2" />
-            <p className="text-sm font-semibold text-foreground">Admissão Concluída</p>
+            <p className="text-sm font-semibold text-foreground">Admissão Concluída — Admitido</p>
             <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
               <p>Cargo: {req.cargo_funcao}</p>
               <p>Local: {req.local_contratacao}</p>
@@ -495,20 +551,6 @@ export default function AdmissionDetailPage() {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Token Link dialog */}
-      {tokenLink && (
-        <Dialog open={!!tokenLink} onOpenChange={() => setTokenLink(null)}>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Link para Candidato</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">Envie este link ao candidato para assinatura de documentos. Válido por 7 dias.</p>
-            <div className="flex gap-2">
-              <Input value={tokenLink} readOnly className="text-xs" />
-              <Button onClick={copyLink} size="sm" className="gap-1"><Copy className="w-3 h-3" /> Copiar</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       )}
 
       {/* Add candidate dialog */}
@@ -552,29 +594,15 @@ export default function AdmissionDetailPage() {
   );
 }
 
-// Inline ExamSection component for each candidate
-function ExamSection({ candidateId, candidateName, clinics, onAdvance }: { candidateId: string; candidateName: string; clinics: any; onAdvance: () => void }) {
+// ===== ExamSection: Free-text clinic + date/time + result =====
+function ExamSection({ candidateId, candidateName }: { candidateId: string; candidateName: string }) {
   const { data: exam } = useMedicalExam(candidateId);
   const { toast } = useToast();
-  const [examClinic, setExamClinic] = useState('');
+  const qc = useQueryClient();
+  const [clinicName, setClinicName] = useState('');
   const [examDate, setExamDate] = useState('');
-
-  const handleCreateExam = async () => {
-    const { error } = await supabase.from('medical_exams').insert({
-      candidate_id: candidateId,
-      clinic_id: examClinic || null,
-      scheduled_at: examDate || null,
-    });
-    if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    else toast({ title: 'Exame agendado' });
-  };
-
-  const handleExamResult = async (status: string) => {
-    if (!exam) return;
-    const { error } = await supabase.from('medical_exams').update({ status: status as any }).eq('id', exam.id);
-    if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    else toast({ title: 'Resultado registrado' });
-  };
+  const [examTime, setExamTime] = useState('');
+  const [examNotes, setExamNotes] = useState('');
 
   useRealtimeSubscription({
     channelName: `exam-${candidateId}`,
@@ -584,6 +612,36 @@ function ExamSection({ candidateId, candidateName, clinics, onAdvance }: { candi
     ],
   });
 
+  const handleCreateExam = async () => {
+    if (!clinicName || !examDate || !examTime) {
+      toast({ title: 'Preencha clínica, data e hora', variant: 'destructive' });
+      return;
+    }
+    const scheduledAt = `${examDate}T${examTime}:00`;
+    const { error } = await supabase.from('medical_exams').insert({
+      candidate_id: candidateId,
+      clinic_id: null,
+      clinic_name: clinicName,
+      scheduled_at: scheduledAt,
+      restrictions: examNotes || null,
+    } as any);
+    if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    else {
+      toast({ title: 'Exame agendado' });
+      qc.invalidateQueries({ queryKey: ['medical_exam', candidateId] });
+    }
+  };
+
+  const handleExamResult = async (result: string) => {
+    if (!exam) return;
+    const { error } = await supabase.from('medical_exams').update({ status: result as any }).eq('id', exam.id);
+    if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    else {
+      toast({ title: 'Resultado registrado' });
+      qc.invalidateQueries({ queryKey: ['medical_exam', candidateId] });
+    }
+  };
+
   const isExamPast = exam?.scheduled_at && new Date(exam.scheduled_at) <= new Date();
 
   return (
@@ -591,8 +649,8 @@ function ExamSection({ candidateId, candidateName, clinics, onAdvance }: { candi
       <p className="text-sm font-medium">{candidateName}</p>
       {exam ? (
         <div className="space-y-2">
-          <div className="text-xs text-muted-foreground">
-            <p>Clínica: {(exam as any).clinics?.nome || '—'}</p>
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            <p>Clínica: {(exam as any).clinic_name || (exam as any).clinics?.nome || '—'}</p>
             <p>Data: {exam.scheduled_at ? new Date(exam.scheduled_at).toLocaleString('pt-BR') : '—'}</p>
             <StatusBadge status={exam.status} label={EXAM_STATUS_LABELS[exam.status] || exam.status} />
             {exam.status === 'aguardando' && !isExamPast && (
@@ -611,22 +669,111 @@ function ExamSection({ candidateId, candidateName, clinics, onAdvance }: { candi
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Clínica</Label>
-              <Select value={examClinic} onValueChange={setExamClinic}>
-                <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                <SelectContent>
-                  {clinics?.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nome da clínica *</Label>
+            <Input value={clinicName} onChange={e => setClinicName(e.target.value)} placeholder="Ex: Clínica São Lucas" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Data *</Label>
+              <Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Data/Hora</Label>
-              <Input type="datetime-local" value={examDate} onChange={e => setExamDate(e.target.value)} />
+            <div className="space-y-1.5">
+              <Label className="text-xs">Hora *</Label>
+              <Input type="time" value={examTime} onChange={e => setExamTime(e.target.value)} />
             </div>
           </div>
-          <Button size="sm" onClick={handleCreateExam}>Agendar Exame</Button>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Observações</Label>
+            <Input value={examNotes} onChange={e => setExamNotes(e.target.value)} placeholder="Opcional" />
+          </div>
+          <Button size="sm" onClick={handleCreateExam} disabled={!clinicName || !examDate || !examTime}>
+            <Stethoscope className="w-3 h-3 mr-1" /> Agendar Exame
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== SignatureSection: Admin upload + candidate link =====
+function SignatureSection({ candidateId, candidateName, link, onCopyLink }: {
+  candidateId: string;
+  candidateName: string;
+  link?: string;
+  onCopyLink: () => void;
+}) {
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const [adminFiles, setAdminFiles] = useState<string[]>([]);
+
+  // Load admin-uploaded files
+  useEffect(() => {
+    loadAdminFiles();
+  }, [candidateId]);
+
+  const loadAdminFiles = async () => {
+    const { data } = await supabase.storage.from('admissions').list(`candidates/${candidateId}/signature-outgoing`);
+    setAdminFiles((data || []).filter(f => f.name !== '.emptyFolderPlaceholder').map(f => f.name));
+  };
+
+  const handleAdminUpload = async (file: File) => {
+    setUploading(true);
+    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `candidates/${candidateId}/signature-outgoing/${Date.now()}_${sanitized}`;
+    const { error } = await supabase.storage.from('admissions').upload(path, file);
+    if (error) {
+      toast({ title: 'Erro no upload', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Documento enviado para assinatura!' });
+      loadAdminFiles();
+    }
+    setUploading(false);
+  };
+
+  return (
+    <div className="border border-border rounded-lg p-3 space-y-2">
+      <p className="text-sm font-medium">{candidateName}</p>
+
+      {/* Admin upload section */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-medium">Documentos internos (para o candidato assinar)</Label>
+        {adminFiles.length > 0 && (
+          <div className="space-y-1">
+            {adminFiles.map(f => (
+              <p key={f} className="text-xs text-muted-foreground flex items-center gap-1">
+                <FileText className="w-3 h-3" /> {f}
+              </p>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <Input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            disabled={uploading}
+            onChange={e => { if (e.target.files?.[0]) handleAdminUpload(e.target.files[0]); }}
+            className="text-xs"
+          />
+          {uploading && <Loader2 className="w-4 h-4 animate-spin" />}
+        </div>
+      </div>
+
+      {/* Link for candidate */}
+      {link ? (
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Link para o candidato</Label>
+          <div className="flex gap-2 items-center">
+            <Input value={link} readOnly className="text-xs flex-1" />
+            <Button variant="outline" size="sm" onClick={onCopyLink} className="gap-1 text-xs shrink-0">
+              <Copy className="w-3 h-3" /> Copiar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <span className="text-xs text-muted-foreground">Gerando link de assinatura...</span>
         </div>
       )}
     </div>

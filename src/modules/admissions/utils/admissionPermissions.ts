@@ -8,7 +8,7 @@ const ADMISSION_TRANSITIONS: Record<string, string[]> = {
   documentos_em_analise: ['aguardando_exame', 'aguardando_documentos', 'cancelado', 'arquivado'],
   aguardando_exame: ['exame_realizado', 'cancelado', 'arquivado'],
   exame_realizado: ['aguardando_registro', 'cancelado', 'arquivado'],
-  aguardando_registro: ['registros_concluidos', 'cancelado', 'arquivado'],
+  aguardando_registro: ['registros_concluidos', 'concluido', 'cancelado', 'arquivado'],
   registros_concluidos: ['concluido', 'cancelado', 'arquivado'],
   concluido: ['arquivado'],
   cancelado: ['arquivado'],
@@ -47,12 +47,11 @@ export function getNextStatusLabel(status: string): string | null {
   const labels: Record<string, string> = {
     aguardando_triagem: 'Enviar para Triagem',
     em_triagem: 'Iniciar Triagem',
-    aguardando_documentos: 'Avançar Candidatos',
-    documentos_em_analise: 'Confirmar Docs WhatsApp',
-    aguardando_exame: 'Agendar Exame',
-    exame_realizado: 'Registrar Exame',
-    aguardando_registro: 'Gerar Link Assinatura',
-    registros_concluidos: 'Concluir Registros',
+    aguardando_documentos: 'Avançar para Entrevista',
+    documentos_em_analise: 'Avançar para Documentos',
+    aguardando_exame: 'Avançar para Exame',
+    exame_realizado: 'Registrar Resultado',
+    aguardando_registro: 'Avançar para Assinatura',
     concluido: 'Concluir Admissão',
   };
   return labels[next] || next;
