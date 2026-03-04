@@ -55,11 +55,27 @@ export default function FleetDetailPage() {
     const file = e.target.files[0];
     setUploading(true);
     try {
-      const path = `requests/${id}/${type}/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage.from('fleet').upload(path, file);
+      // Step 1: Get signed upload URL from edge function (server-side validation)
+      const { data: signedData, error: fnError } = await supabase.functions.invoke('fleet-create-signed-upload', {
+        body: {
+          fuel_request_id: id,
+          file_type: file.type,
+          file_name: file.name,
+          file_size: file.size,
+          attachment_type: type,
+        },
+      });
+      if (fnError || signedData?.error) throw new Error(signedData?.error || fnError?.message || 'Erro ao gerar URL');
+
+      // Step 2: Upload file using signed URL
+      const { error: uploadError } = await supabase.storage.from('fleet').uploadToSignedUrl(
+        signedData.path, signedData.token, file
+      );
       if (uploadError) throw uploadError;
+
+      // Step 3: Record attachment in DB
       const { error: insertError } = await supabase.from('fuel_attachments').insert({
-        fuel_request_id: id, type: type as any, file_path: path,
+        fuel_request_id: id, type: type as any, file_path: signedData.path,
       });
       if (insertError) throw insertError;
       toast({ title: 'Arquivo enviado!' });

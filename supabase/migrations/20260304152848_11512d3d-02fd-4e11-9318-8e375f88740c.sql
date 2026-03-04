@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Public can read valid tokens" ON public.public_tokens;
