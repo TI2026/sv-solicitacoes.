@@ -27,6 +27,7 @@ export type Database = {
           justificativa: string | null
           local_contratacao: string
           motivo: string
+          priority: string
           requester_user_id: string
           salario_previsto: number | null
           status: Database["public"]["Enums"]["admission_status"]
@@ -45,6 +46,7 @@ export type Database = {
           justificativa?: string | null
           local_contratacao?: string
           motivo?: string
+          priority?: string
           requester_user_id: string
           salario_previsto?: number | null
           status?: Database["public"]["Enums"]["admission_status"]
@@ -63,6 +65,7 @@ export type Database = {
           justificativa?: string | null
           local_contratacao?: string
           motivo?: string
+          priority?: string
           requester_user_id?: string
           salario_previsto?: number | null
           status?: Database["public"]["Enums"]["admission_status"]
@@ -171,6 +174,12 @@ export type Database = {
           experiencia: string | null
           id: string
           indicacao_interna: boolean
+          interview_address: string | null
+          interview_approved: boolean | null
+          interview_at: string | null
+          interview_city: string | null
+          interview_notes: string | null
+          interviewer_name: string | null
           nome: string
           observacoes: string | null
           status_triagem: Database["public"]["Enums"]["candidate_status"]
@@ -187,6 +196,12 @@ export type Database = {
           experiencia?: string | null
           id?: string
           indicacao_interna?: boolean
+          interview_address?: string | null
+          interview_approved?: boolean | null
+          interview_at?: string | null
+          interview_city?: string | null
+          interview_notes?: string | null
+          interviewer_name?: string | null
           nome: string
           observacoes?: string | null
           status_triagem?: Database["public"]["Enums"]["candidate_status"]
@@ -203,6 +218,12 @@ export type Database = {
           experiencia?: string | null
           id?: string
           indicacao_interna?: boolean
+          interview_address?: string | null
+          interview_approved?: boolean | null
+          interview_at?: string | null
+          interview_city?: string | null
+          interview_notes?: string | null
+          interviewer_name?: string | null
           nome?: string
           observacoes?: string | null
           status_triagem?: Database["public"]["Enums"]["candidate_status"]

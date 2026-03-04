@@ -76,9 +76,21 @@ export const DIARIA_CATEGORIAS = [
   { value: 'outros', label: 'Outros' },
 ];
 
+export const PRIORITY_LABELS: Record<string, string> = {
+  alta: 'Alta',
+  media: 'Média',
+  baixa: 'Baixa',
+};
+
 export function getStatusVariant(status: string): 'pending' | 'approved' | 'rejected' | 'info' {
   if (['concluido', 'aprovado', 'encerrado', 'apto', 'approved', 'registros_concluidos', 'ativa'].includes(status)) return 'approved';
   if (['rejeitado', 'reprovado', 'cancelado', 'inapto', 'rejected'].includes(status)) return 'rejected';
   if (['aguardando_fotos', 'aguardando_documentos', 'submitted'].includes(status)) return 'info';
+  return 'pending';
+}
+
+export function getPriorityVariant(priority: string): 'pending' | 'approved' | 'rejected' | 'info' {
+  if (priority === 'alta') return 'rejected';
+  if (priority === 'baixa') return 'approved';
   return 'pending';
 }

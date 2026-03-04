@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCandidate, useCandidateDocuments, useDocuments, useMedicalExam, useSystemRegistration, useClinics } from '../hooks/useAdmissionQueries';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,9 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DOC_STATUS_LABELS, EXAM_STATUS_LABELS, CANDIDATE_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, CheckCircle, XCircle, FileText, Stethoscope, ClipboardList, User } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle, XCircle, FileText, Stethoscope, ClipboardList, User, CalendarClock, MapPin, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CandidateDetailPage() {
   const { candidateId } = useParams<{ candidateId: string }>();
@@ -27,6 +29,17 @@ export default function CandidateDetailPage() {
   const { data: clinics } = useClinics();
   const [examClinic, setExamClinic] = useState('');
   const [examDate, setExamDate] = useState('');
+
+  // Realtime for candidate documents and exams
+  useRealtimeSubscription({
+    channelName: `candidate-detail-${candidateId}`,
+    enabled: !!candidateId,
+    tables: [
+      { table: 'candidate_documents', filter: `candidate_id=eq.${candidateId}`, queryKeys: [['candidate_documents', candidateId!]] },
+      { table: 'medical_exams', filter: `candidate_id=eq.${candidateId}`, queryKeys: [['medical_exam', candidateId!]] },
+      { table: 'candidates', queryKeys: [['candidate', candidateId!]] },
+    ],
+  });
 
   // Initialize candidate_documents if not yet created
   useEffect(() => {
@@ -90,10 +103,18 @@ export default function CandidateDetailPage() {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank');
   };
 
-  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-32 w-full rounded-lg" />
+        <Skeleton className="h-48 w-full rounded-lg" />
+      </div>
+    );
+  }
   if (!candidate) return <p className="text-center py-12 text-muted-foreground">Candidato não encontrado</p>;
 
-  // hooks moved to top
+  const isPendingExam = exam?.scheduled_at && exam.status === 'aguardando' && new Date(exam.scheduled_at) > new Date();
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
@@ -114,6 +135,23 @@ export default function CandidateDetailPage() {
           {candidate.telefone && <p>Telefone: {candidate.telefone}</p>}
           {candidate.cpf && <p>CPF: {candidate.cpf}</p>}
           {candidate.cidade && <p>Cidade: {candidate.cidade}</p>}
+
+          {/* Interview info */}
+          {(candidate as any).interview_at && (
+            <div className="mt-2 p-2.5 rounded-lg bg-muted/50 space-y-0.5">
+              <p className="flex items-center gap-1 font-medium text-foreground"><CalendarClock className="w-3.5 h-3.5" /> Entrevista</p>
+              <p>Data: {new Date((candidate as any).interview_at).toLocaleString('pt-BR')}</p>
+              {(candidate as any).interview_address && <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {(candidate as any).interview_address}{(candidate as any).interview_city ? `, ${(candidate as any).interview_city}` : ''}</p>}
+              {(candidate as any).interviewer_name && <p>Entrevistador: {(candidate as any).interviewer_name}</p>}
+              {(candidate as any).interview_approved == null && (
+                <p className="flex items-center gap-1 text-[hsl(var(--status-pending-foreground))]">
+                  <AlertTriangle className="w-3 h-3" /> Aguardando confirmação da diretoria
+                </p>
+              )}
+              {(candidate as any).interview_approved === true && <p className="text-primary">✅ Aprovado na entrevista</p>}
+              {(candidate as any).interview_approved === false && <p className="text-destructive">❌ Reprovado na entrevista</p>}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -164,6 +202,11 @@ export default function CandidateDetailPage() {
                 <p>Clínica: {(exam as any).clinics?.nome || '—'}</p>
                 <p>Data: {exam.scheduled_at ? new Date(exam.scheduled_at).toLocaleString('pt-BR') : '—'}</p>
                 <StatusBadge status={exam.status} label={EXAM_STATUS_LABELS[exam.status] || exam.status} />
+                {isPendingExam && (
+                  <p className="flex items-center gap-1 mt-1 text-xs text-[hsl(var(--status-pending-foreground))]">
+                    <AlertTriangle className="w-3 h-3" /> Pendente até {new Date(exam.scheduled_at!).toLocaleDateString('pt-BR')}
+                  </p>
+                )}
               </div>
               {exam.status === 'aguardando' && (
                 <div className="flex gap-2 flex-wrap">
@@ -193,6 +236,24 @@ export default function CandidateDetailPage() {
               <Button size="sm" onClick={() => handleCreateExam(examClinic, examDate)}>Agendar Exame</Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* External Documents Checklist (informational) */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2"><ClipboardList className="w-4 h-4" /> Confirmação Externa</h3>
+          <p className="text-xs text-muted-foreground">Itens de responsabilidade externa (não obrigatório upload pelo candidato):</p>
+          {[
+            { label: 'ASO (Atestado de Saúde Ocupacional)', key: 'aso' },
+            { label: 'Ficha de EPI', key: 'epi' },
+            { label: 'Termo de Ciência de Riscos (NR-01/PGR)', key: 'nr01' },
+          ].map(item => (
+            <div key={item.key} className="flex items-center gap-3">
+              <Checkbox disabled />
+              <span className="text-sm text-muted-foreground">{item.label}</span>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

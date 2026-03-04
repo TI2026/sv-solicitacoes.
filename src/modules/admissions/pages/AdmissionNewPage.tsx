@@ -28,6 +28,7 @@ export default function AdmissionNewPage() {
     gestor_responsavel: '',
     motivo: '',
     justificativa: '',
+    priority: 'media',
   });
 
   const set = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
@@ -48,6 +49,7 @@ export default function AdmissionNewPage() {
         gestor_responsavel: form.gestor_responsavel,
         motivo: form.motivo,
         justificativa: form.justificativa || null,
+        priority: form.priority,
         status: 'rascunho' as any,
       };
       const result = await createMutation.mutateAsync(payload);
@@ -114,6 +116,17 @@ export default function AdmissionNewPage() {
             <div className="space-y-2">
               <Label>Gestor Responsável</Label>
               <Input value={form.gestor_responsavel} onChange={e => set('gestor_responsavel', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Prioridade</Label>
+              <Select value={form.priority} onValueChange={v => set('priority', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alta">Alta</SelectItem>
+                  <SelectItem value="media">Média</SelectItem>
+                  <SelectItem value="baixa">Baixa</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="space-y-2">

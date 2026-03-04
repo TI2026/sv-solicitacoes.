@@ -4,9 +4,10 @@ import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
-import { ADMISSION_STATUS_LABELS } from '@/lib/constants';
+import { ADMISSION_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/constants';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Loader2, UserPlus, Building2, Calendar } from 'lucide-react';
+import { PlusCircle, Loader2, UserPlus, Building2, Calendar, AlertTriangle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdmissionListPage() {
   const { user, hasAnyRole } = useAuth();
@@ -21,7 +22,11 @@ export default function AdmissionListPage() {
     tables: [
       {
         table: 'admission_requests',
-        queryKeys: [['admission_requests'], ['admission_metrics']],
+        queryKeys: [['admission_requests'], ['admission_metrics'], ['adm_all']],
+      },
+      {
+        table: 'candidates',
+        queryKeys: [['candidates']],
       },
     ],
   });
@@ -42,7 +47,9 @@ export default function AdmissionListPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+        <div className="space-y-3">
+          {[1,2,3].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
+        </div>
       ) : !requests || requests.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -62,11 +69,17 @@ export default function AdmissionListPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium text-foreground">{req.cargo_funcao || 'Cargo não definido'}</span>
                         <StatusBadge status={req.status} label={ADMISSION_STATUS_LABELS[req.status] || req.status} />
+                        {req.priority === 'alta' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium status-rejected">
+                            <AlertTriangle className="w-3 h-3" /> Alta
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{req.centro_custo || '—'}</span>
                         <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(req.created_at).toLocaleDateString('pt-BR')}</span>
                         {req.profiles && <span>{req.profiles.full_name}</span>}
+                        {req.salario_previsto && <span>R$ {Number(req.salario_previsto).toLocaleString('pt-BR')}</span>}
                       </div>
                     </div>
                   </div>
