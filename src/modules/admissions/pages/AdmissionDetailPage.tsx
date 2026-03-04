@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useUpdateCandidate, useMedicalExam, useGeneratePublicLink, useAdmissionPublicLinks, useAdmissionFiles } from '../hooks/useAdmissionQueries';
+import { Switch } from '@/components/ui/switch';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,24 @@ const DOC_KEY_LABELS: Record<string, string> = {
   PIS_PASEP: 'PIS/PASEP', DEP_CERTIDAO: 'Certidão (dependente)', DEP_CPF: 'CPF (dependente)',
   DEP_VACINA: 'Vacinação (dependente)', DEP_MATRICULA: 'Matrícula (dependente)',
   DEP_LAUDO: 'Laudo médico (dependente)', generic: 'Documento',
+  // Admin signature doc keys
+  CONTRATO_TRABALHO_ADMIN: 'Contrato de trabalho',
+  FICHA_REGISTRO_ADMIN: 'Ficha de registro do empregado',
+  DECLARACAO_DEPENDENTES_IRRF_ADMIN: 'Declaração de dependentes para IRRF',
+  AUTORIZACAO_DESCONTO_VT_ADMIN: 'Autorização de desconto (VT, etc.)',
+  TERMO_RESPONSABILIDADE_EQUIP_ADMIN: 'Termo de responsabilidade de equipamentos',
+  TERMO_CONFIDENCIALIDADE_ADMIN: 'Termo de confidencialidade',
 };
+
+// Fixed slots for admin signature documents
+const ADMIN_SIGNATURE_DOCS: Array<{ key: string; label: string; optional: boolean }> = [
+  { key: 'CONTRATO_TRABALHO_ADMIN', label: 'Contrato de trabalho', optional: false },
+  { key: 'FICHA_REGISTRO_ADMIN', label: 'Ficha de registro do empregado', optional: false },
+  { key: 'DECLARACAO_DEPENDENTES_IRRF_ADMIN', label: 'Declaração de dependentes para IRRF', optional: false },
+  { key: 'AUTORIZACAO_DESCONTO_VT_ADMIN', label: 'Autorização de desconto (VT, etc.)', optional: false },
+  { key: 'TERMO_RESPONSABILIDADE_EQUIP_ADMIN', label: 'Termo de responsabilidade de equipamentos', optional: true },
+  { key: 'TERMO_CONFIDENCIALIDADE_ADMIN', label: 'Termo de confidencialidade', optional: true },
+];
 
 export default function AdmissionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -814,7 +832,7 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
   );
 }
 
-// ===== SignatureSection: Admin upload + candidate link =====
+// ===== SignatureSection: Admin upload per doc_key slot + candidate link =====
 function SignatureSection({ admissionId, candidateId, candidateName, link, linkExists, onCopyLink }: {
   admissionId: string;
   candidateId: string;
@@ -824,15 +842,30 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
   onCopyLink: () => void;
 }) {
   const { toast } = useToast();
-  const [uploading, setUploading] = useState(false);
+  const qc = useQueryClient();
+  const [uploading, setUploading] = useState<string | null>(null);
   const { data: files } = useAdmissionFiles(admissionId, 'SIGNATURE');
   const adminFiles = files?.filter(f => f.candidate_id === candidateId && f.uploaded_by === 'ADMIN') || [];
   const signedFiles = files?.filter(f => f.candidate_id === candidateId && f.uploaded_by === 'CANDIDATE') || [];
+  const [skipped, setSkipped] = useState<Record<string, boolean>>({});
 
-  const handleAdminUpload = async (file: File) => {
-    setUploading(true);
+  const getFileForKey = (docKey: string) => adminFiles.find(f => f.file_type === docKey);
+
+  const handleAdminUpload = async (file: File, docKey: string) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: 'Arquivo muito grande (máx. 10MB)', variant: 'destructive' });
+      return;
+    }
+    setUploading(docKey);
     const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const path = `signature/admin/${admissionId}/${candidateId}/${Date.now()}_${sanitized}`;
+    const path = `signature/admin/${admissionId}/${candidateId}/${docKey}-${Date.now()}-${sanitized}`;
+
+    const existing = getFileForKey(docKey);
+    if (existing) {
+      await supabase.storage.from('admissions').remove([existing.storage_path]);
+      await supabase.from('admission_files').delete().eq('id', existing.id);
+    }
+
     const { error } = await supabase.storage.from('admissions').upload(path, file);
     if (error) {
       toast({ title: 'Erro no upload', description: error.message, variant: 'destructive' });
@@ -840,15 +873,16 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
       await supabase.from('admission_files').insert({
         admission_request_id: admissionId,
         candidate_id: candidateId,
-        file_type: 'internal_doc',
+        file_type: docKey,
         storage_path: path,
         original_filename: sanitized,
         uploaded_by: 'ADMIN',
         link_type: 'SIGNATURE',
       } as any);
-      toast({ title: 'Documento enviado para assinatura!' });
+      toast({ title: 'Documento anexado!' });
+      qc.invalidateQueries({ queryKey: ['admission_files', admissionId] });
     }
-    setUploading(false);
+    setUploading(null);
   };
 
   const handleDownload = async (storagePath: string) => {
@@ -861,42 +895,80 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
   };
 
   return (
-    <div className="border border-border rounded-lg p-3 space-y-2">
+    <div className="border border-border rounded-lg p-3 space-y-3">
       <p className="text-sm font-medium">{candidateName}</p>
 
-      {/* Admin upload section */}
-      <div className="space-y-1.5">
-        <Label className="text-xs font-medium">Documentos internos (para o candidato assinar)</Label>
-        {adminFiles.length > 0 && (
-          <div className="space-y-1">
-            {adminFiles.map(f => (
-              <div key={f.id} className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
-                <span className="flex items-center gap-1 truncate">
-                  <FileText className="w-3 h-3" /> {f.original_filename || 'doc'}
-                </span>
-                <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => handleDownload(f.storage_path)}>
-                  <Download className="w-3 h-3" />
-                </Button>
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold uppercase text-muted-foreground">Documentos internos (para o candidato assinar)</Label>
+        {ADMIN_SIGNATURE_DOCS.map(doc => {
+          const existingFile = getFileForKey(doc.key);
+          const isSkipped = skipped[doc.key] || false;
+          const isUploading = uploading === doc.key;
+
+          return (
+            <div key={doc.key} className="border border-border rounded-lg p-2.5 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-foreground">{doc.label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {doc.optional && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-muted-foreground">Aplicável?</span>
+                      <Switch
+                        checked={!isSkipped}
+                        onCheckedChange={v => setSkipped(prev => ({ ...prev, [doc.key]: !v }))}
+                        className="scale-75"
+                      />
+                    </div>
+                  )}
+                  {existingFile ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium status-approved">
+                      <CheckCircle className="w-3 h-3" /> Anexado
+                    </span>
+                  ) : isSkipped ? (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">N/A</span>
+                  ) : (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium status-pending">Pendente</span>
+                  )}
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <Input
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            disabled={uploading}
-            onChange={e => { if (e.target.files?.[0]) handleAdminUpload(e.target.files[0]); }}
-            className="text-xs"
-          />
-          {uploading && <Loader2 className="w-4 h-4 animate-spin" />}
-        </div>
+
+              {!isSkipped && (
+                <>
+                  {existingFile && (
+                    <div className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
+                      <span className="flex items-center gap-1 truncate">
+                        <FileText className="w-3 h-3 text-muted-foreground" />
+                        {existingFile.original_filename || 'doc'}
+                      </span>
+                      <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => handleDownload(existingFile.storage_path)}>
+                        <Download className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept=".pdf"
+                      disabled={isUploading}
+                      onChange={e => { if (e.target.files?.[0]) handleAdminUpload(e.target.files[0], doc.key); }}
+                      className="text-xs h-8"
+                    />
+                    {isUploading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Signed docs received */}
+      {/* Signed docs received from candidate */}
       {signedFiles.length > 0 && (
         <div className="space-y-1">
-          <Label className="text-xs font-medium text-primary">Documentos assinados recebidos</Label>
+          <Label className="text-xs font-semibold uppercase text-primary">Documentos assinados recebidos</Label>
           {signedFiles.map(f => (
             <div key={f.id} className="flex items-center justify-between text-xs bg-primary/5 rounded px-2 py-1">
               <span className="flex items-center gap-1 truncate">

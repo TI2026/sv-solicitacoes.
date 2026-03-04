@@ -19,14 +19,16 @@ interface SignatureData {
   candidate_uploaded_at: string | null;
 }
 
-const INTERNAL_DOCS_CHECKLIST = [
-  'Contrato de trabalho',
-  'Ficha de registro do empregado',
-  'Declaração de dependentes para IRRF',
-  'Autorização de desconto (VT, etc.)',
-  'Termo de responsabilidade de equipamentos',
-  'Termo de confidencialidade',
-];
+const INTERNAL_DOCS_MAP: Record<string, string> = {
+  CONTRATO_TRABALHO_ADMIN: 'Contrato de trabalho',
+  FICHA_REGISTRO_ADMIN: 'Ficha de registro do empregado',
+  DECLARACAO_DEPENDENTES_IRRF_ADMIN: 'Declaração de dependentes para IRRF',
+  AUTORIZACAO_DESCONTO_VT_ADMIN: 'Autorização de desconto (VT, etc.)',
+  TERMO_RESPONSABILIDADE_EQUIP_ADMIN: 'Termo de responsabilidade de equipamentos',
+  TERMO_CONFIDENCIALIDADE_ADMIN: 'Termo de confidencialidade',
+};
+
+const INTERNAL_DOC_KEYS = Object.keys(INTERNAL_DOCS_MAP);
 
 export default function PublicSignaturePage() {
   const [searchParams] = useSearchParams();
@@ -182,32 +184,43 @@ export default function PublicSignaturePage() {
             <CardDescription>Baixe os documentos abaixo, assine via CDGov e reenvie na seção seguinte.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {hasDocsToSign ? (
-              data.files_to_sign.map((file, idx) => (
-                <a
-                  key={idx}
-                  href={file.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 border border-border rounded-lg p-3 hover:bg-muted/50 transition-colors"
-                >
-                  <FileText className="w-4 h-4 text-primary" />
-                  <span className="text-sm text-foreground flex-1">{file.name}</span>
-                  <Download className="w-4 h-4 text-muted-foreground" />
-                </a>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhum documento disponível para download ainda. Aguarde o RH enviar os documentos.
-              </p>
-            )}
+            {INTERNAL_DOC_KEYS.map(docKey => {
+              const file = data.files_to_sign?.find(f => f.name === docKey || f.name?.includes(docKey));
+              // Also try matching by URL containing the doc key
+              const fileByUrl = !file ? data.files_to_sign?.find(f => f.url?.includes(docKey)) : file;
+              const matched = file || fileByUrl;
 
-            <div className="mt-3 pt-3 border-t border-border">
-              <p className="text-xs font-semibold text-foreground mb-1">Documentos esperados para assinatura:</p>
-              <ul className="text-xs text-muted-foreground space-y-0.5 pl-4 list-disc">
-                {INTERNAL_DOCS_CHECKLIST.map(item => <li key={item}>{item}</li>)}
-              </ul>
-            </div>
+              return (
+                <div key={docKey} className="flex items-center gap-2 border border-border rounded-lg p-3">
+                  <FileText className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-sm text-foreground flex-1">{INTERNAL_DOCS_MAP[docKey]}</span>
+                  {matched ? (
+                    <a href={matched.url} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" size="sm" className="gap-1 text-xs">
+                        <Download className="w-3 h-3" /> Baixar
+                      </Button>
+                    </a>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">Aguardando</span>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Show any extra files not matching known keys */}
+            {data.files_to_sign?.filter(f => !INTERNAL_DOC_KEYS.some(k => f.name === k || f.name?.includes(k) || f.url?.includes(k))).map((file, idx) => (
+              <a
+                key={idx}
+                href={file.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 border border-border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+              >
+                <FileText className="w-4 h-4 text-primary" />
+                <span className="text-sm text-foreground flex-1">{file.name}</span>
+                <Download className="w-4 h-4 text-muted-foreground" />
+              </a>
+            ))}
           </CardContent>
         </Card>
 
