@@ -150,6 +150,7 @@ export function useCreateAdmission() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admission_requests'] });
       qc.invalidateQueries({ queryKey: ['admission_metrics'] });
+      qc.invalidateQueries({ queryKey: ['adm_all'] });
       toast({ title: 'Solicitação de admissão criada!' });
     },
     onError: (err: any) => {
@@ -178,6 +179,7 @@ export function useAdmissionSetStatus() {
       qc.invalidateQueries({ queryKey: ['admission_requests'] });
       qc.invalidateQueries({ queryKey: ['admission_request'] });
       qc.invalidateQueries({ queryKey: ['admission_metrics'] });
+      qc.invalidateQueries({ queryKey: ['adm_all'] });
       qc.invalidateQueries({ queryKey: ['status_history'] });
       toast({ title: 'Status atualizado!' });
     },
@@ -204,6 +206,32 @@ export function useCreateCandidate() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['candidates'] });
       toast({ title: 'Candidato cadastrado!' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateCandidate() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const { data: result, error } = await supabase
+        .from('candidates')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['candidates'] });
+      qc.invalidateQueries({ queryKey: ['candidate'] });
+      toast({ title: 'Candidato atualizado!' });
     },
     onError: (err: any) => {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
