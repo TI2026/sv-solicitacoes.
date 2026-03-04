@@ -1,7 +1,7 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useGenerateToken, useUpdateCandidate, useMedicalExam } from '../hooks/useAdmissionQueries';
+import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useUpdateCandidate, useMedicalExam, useGeneratePublicLink, useAdmissionPublicLinks, useAdmissionFiles } from '../hooks/useAdmissionQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { StatusTimeline } from '@/components/StatusTimeline';
 import { AdmissionStepper } from '../components/AdmissionStepper';
 import { InterviewDialog } from '../components/InterviewDialog';
 import { ADMISSION_STATUS_LABELS, CANDIDATE_STATUS_LABELS, PRIORITY_LABELS, EXAM_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,20 +31,16 @@ export default function AdmissionDetailPage() {
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
   const statusMutation = useAdmissionSetStatus();
-  const generateToken = useGenerateToken();
+  const generatePublicLink = useGeneratePublicLink();
 
   const isRH = hasAnyRole(['diretoria', 'rh', 'administrativo']);
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [candidateForm, setCandidateForm] = useState({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
   const [interviewCandidate, setInterviewCandidate] = useState<any | null>(null);
 
-  // Document links state
-  const [docLinks, setDocLinks] = useState<Record<string, string>>({});
-  const docLinksGenRef = useRef(false);
-
-  // Signature links state
-  const [sigLinks, setSigLinks] = useState<Record<string, string>>({});
-  const sigLinksGenRef = useRef(false);
+  // Generated links (token -> URL) stored in memory per session
+  const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({});
+  const [linksGenerating, setLinksGenerating] = useState(false);
 
   // Docs confirmed state
   const [docsConfirmed, setDocsConfirmed] = useState(false);
@@ -58,6 +54,8 @@ export default function AdmissionDetailPage() {
       { table: 'candidates', filter: `admission_request_id=eq.${id}`, queryKeys: [['candidates', id!]] },
       { table: 'medical_exams', queryKeys: [['medical_exam']] },
       { table: 'candidate_documents', queryKeys: [['candidate_documents']] },
+      { table: 'admission_public_links', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_public_links', id!]] },
+      { table: 'admission_files', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_files', id!]] },
       { table: 'status_history', queryKeys: [['status_history']] },
       { table: 'notifications', queryKeys: [['notifications']] },
     ],
@@ -82,7 +80,6 @@ export default function AdmissionDetailPage() {
     setCandidateForm({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
   };
 
-  // FIX: Do NOT update status_triagem when scheduling interview (avoids trigger error)
   const handleScheduleInterview = async (data: any) => {
     if (!interviewCandidate) return;
     await updateCandidate.mutateAsync({
@@ -143,43 +140,52 @@ export default function AdmissionDetailPage() {
     return { label: 'Liberado para decisão', variant: 'pending' };
   };
 
-  // Auto-generate document links when entering documentos_em_analise step
-  useEffect(() => {
-    if (req?.status === 'documentos_em_analise' && approvedCandidates.length > 0 && !docLinksGenRef.current) {
-      docLinksGenRef.current = true;
-      (async () => {
-        const links: Record<string, string> = {};
-        for (const c of approvedCandidates) {
-          try {
-            const result = await generateToken.mutateAsync(c.id);
-            if (result?.token) {
-              links[c.id] = `${window.location.origin}/envio-documentos?token=${result.token}`;
-            }
-          } catch (e) { console.error('Token gen error:', e); }
-        }
-        setDocLinks(links);
-      })();
-    }
-  }, [req?.status, approvedCandidates.length]);
+  // Auto-generate links when entering documentos_em_analise or aguardando_registro
+  const generateLinksForCandidates = async (linkType: 'DOCUMENTS' | 'SIGNATURE') => {
+    if (!id || linksGenerating || approvedCandidates.length === 0) return;
+    setLinksGenerating(true);
+    const newLinks: Record<string, string> = {};
+    const path = linkType === 'DOCUMENTS' ? '/envio-documentos' : '/assinatura-documentos';
 
-  // Auto-generate signature links when entering aguardando_registro step
-  useEffect(() => {
-    if (req?.status === 'aguardando_registro' && approvedCandidates.length > 0 && !sigLinksGenRef.current) {
-      sigLinksGenRef.current = true;
-      (async () => {
-        const links: Record<string, string> = {};
-        for (const c of approvedCandidates) {
-          try {
-            const result = await generateToken.mutateAsync(c.id);
-            if (result?.token) {
-              links[c.id] = `${window.location.origin}/assinatura-documentos?token=${result.token}`;
-            }
-          } catch (e) { console.error('Token gen error:', e); }
+    for (const c of approvedCandidates) {
+      const key = `${linkType}-${c.id}`;
+      if (generatedLinks[key]) {
+        newLinks[key] = generatedLinks[key];
+        continue;
+      }
+      try {
+        const result = await generatePublicLink.mutateAsync({
+          admissionRequestId: id,
+          candidateId: c.id,
+          linkType,
+        });
+        if (result && 'token' in result && result.token) {
+          newLinks[key] = `${window.location.origin}${path}?token=${result.token}`;
+        } else if (result && 'alreadyExists' in result) {
+          // Link exists but we don't have the token - show indicator
+          newLinks[key] = 'EXISTS';
         }
-        setSigLinks(links);
-      })();
+      } catch (e) {
+        console.error('Link gen error:', e);
+      }
     }
-  }, [req?.status, approvedCandidates.length]);
+    setGeneratedLinks(prev => ({ ...prev, ...newLinks }));
+    setLinksGenerating(false);
+  };
+
+  const status = req?.status;
+
+  useEffect(() => {
+    if (status === 'documentos_em_analise' && approvedCandidates.length > 0) {
+      generateLinksForCandidates('DOCUMENTS');
+    }
+  }, [status, approvedCandidates.length]);
+
+  useEffect(() => {
+    if (status === 'aguardando_registro' && approvedCandidates.length > 0) {
+      generateLinksForCandidates('SIGNATURE');
+    }
+  }, [status, approvedCandidates.length]);
 
   if (isLoading) {
     return (
@@ -191,8 +197,6 @@ export default function AdmissionDetailPage() {
     );
   }
   if (!req) return <p className="text-center py-12 text-muted-foreground">Não encontrada</p>;
-
-  const status = req.status;
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
@@ -236,9 +240,9 @@ export default function AdmissionDetailPage() {
             status={req.status}
             candidateCount={candidates?.length || 0}
             hasInterview={candidates?.some((c: any) => c.interview_at) ?? false}
-            hasDocuments={['aguardando_exame', 'exame_realizado', 'aguardando_registro', 'registros_concluidos', 'concluido'].includes(status)}
-            hasExam={['aguardando_registro', 'registros_concluidos', 'concluido'].includes(status)}
-            hasRegistration={['concluido'].includes(status)}
+            hasDocuments={['aguardando_exame', 'exame_realizado', 'aguardando_registro', 'registros_concluidos', 'concluido'].includes(status!)}
+            hasExam={['aguardando_registro', 'registros_concluidos', 'concluido'].includes(status!)}
+            hasRegistration={['concluido'].includes(status!)}
           />
         </CardContent>
       </Card>
@@ -416,17 +420,34 @@ export default function AdmissionDetailPage() {
             </p>
 
             {approvedCandidates.map((c: any) => {
-              const link = docLinks[c.id];
+              const linkKey = `DOCUMENTS-${c.id}`;
+              const link = generatedLinks[linkKey];
               return (
                 <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium">{c.nome}</p>
+                    <CandidateDocStatus admissionId={id!} candidateId={c.id} />
                   </div>
-                  {link ? (
+                  {link && link !== 'EXISTS' ? (
                     <div className="flex gap-2 items-center">
                       <Input value={link} readOnly className="text-xs flex-1" />
                       <Button variant="outline" size="sm" onClick={() => copyToClipboard(link)} className="gap-1 text-xs shrink-0">
                         <Copy className="w-3 h-3" /> Copiar
+                      </Button>
+                    </div>
+                  ) : link === 'EXISTS' ? (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-primary" />
+                      <span className="text-xs text-muted-foreground">Link já gerado anteriormente (válido). Regenerar se necessário.</span>
+                      <Button variant="ghost" size="sm" className="text-xs" onClick={async () => {
+                        const result = await generatePublicLink.mutateAsync({
+                          admissionRequestId: id!,
+                          candidateId: c.id,
+                          linkType: 'DOCUMENTS',
+                        });
+                        // Force new generation by invalidating old one first
+                      }}>
+                        <Link2 className="w-3 h-3 mr-1" /> Regenerar
                       </Button>
                     </div>
                   ) : (
@@ -435,11 +456,12 @@ export default function AdmissionDetailPage() {
                       <span className="text-xs text-muted-foreground">Gerando link...</span>
                     </div>
                   )}
+                  <CandidateFilesList admissionId={id!} candidateId={c.id} linkType="DOCUMENTS" />
                 </div>
               );
             })}
 
-            {Object.keys(docLinks).length > 0 && (
+            {Object.keys(generatedLinks).some(k => k.startsWith('DOCUMENTS-')) && (
               <>
                 <div className="flex items-center gap-3 pt-2">
                   <Checkbox
@@ -462,23 +484,6 @@ export default function AdmissionDetailPage() {
                 </Button>
               </>
             )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                docLinksGenRef.current = false;
-                setDocLinks({});
-                // Trigger regeneration
-                setTimeout(() => {
-                  docLinksGenRef.current = false;
-                  window.location.reload();
-                }, 100);
-              }}
-              className="text-xs gap-1"
-            >
-              <Link2 className="w-3 h-3" /> Regenerar links
-            </Button>
           </CardContent>
         </Card>
       )}
@@ -518,15 +523,21 @@ export default function AdmissionDetailPage() {
               Faça upload dos documentos internos para assinatura. Gere o link e envie ao candidato para baixar, assinar via CDGov e reenviar.
             </p>
 
-            {approvedCandidates.map((c: any) => (
-              <SignatureSection
-                key={c.id}
-                candidateId={c.id}
-                candidateName={c.nome}
-                link={sigLinks[c.id]}
-                onCopyLink={() => sigLinks[c.id] && copyToClipboard(sigLinks[c.id])}
-              />
-            ))}
+            {approvedCandidates.map((c: any) => {
+              const linkKey = `SIGNATURE-${c.id}`;
+              const link = generatedLinks[linkKey];
+              return (
+                <SignatureSection
+                  key={c.id}
+                  admissionId={id!}
+                  candidateId={c.id}
+                  candidateName={c.nome}
+                  link={link && link !== 'EXISTS' ? link : undefined}
+                  linkExists={link === 'EXISTS'}
+                  onCopyLink={() => link && link !== 'EXISTS' && copyToClipboard(link)}
+                />
+              );
+            })}
 
             <Button onClick={() => handleStatusChange('concluido')} className="gap-2 w-full" size="sm">
               <CheckCircle className="w-4 h-4" /> Concluir Admissão
@@ -590,6 +601,49 @@ export default function AdmissionDetailPage() {
           <StatusTimeline entityId={id!} entityType="admission_requests" module="admissions" statusLabels={ADMISSION_STATUS_LABELS} />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ===== CandidateDocStatus: Shows uploaded doc count =====
+function CandidateDocStatus({ admissionId, candidateId }: { admissionId: string; candidateId: string }) {
+  const { data: files } = useAdmissionFiles(admissionId, 'DOCUMENTS');
+  const candidateFiles = files?.filter(f => f.candidate_id === candidateId) || [];
+  if (candidateFiles.length === 0) return <span className="text-xs text-muted-foreground">Pendente</span>;
+  return <span className="text-xs text-primary font-medium">{candidateFiles.length} arquivo(s) recebido(s)</span>;
+}
+
+// ===== CandidateFilesList: List files + download =====
+function CandidateFilesList({ admissionId, candidateId, linkType }: { admissionId: string; candidateId: string; linkType: 'DOCUMENTS' | 'SIGNATURE' }) {
+  const { data: files } = useAdmissionFiles(admissionId, linkType);
+  const candidateFiles = files?.filter(f => f.candidate_id === candidateId) || [];
+  const { toast } = useToast();
+
+  const handleDownload = async (storagePath: string, filename: string) => {
+    const { data, error } = await supabase.storage.from('admissions').createSignedUrl(storagePath, 3600);
+    if (error || !data) {
+      toast({ title: 'Erro ao gerar download', variant: 'destructive' });
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
+  };
+
+  if (candidateFiles.length === 0) return null;
+
+  return (
+    <div className="space-y-1 pt-1">
+      <p className="text-[10px] font-medium text-muted-foreground uppercase">Arquivos recebidos</p>
+      {candidateFiles.map(f => (
+        <div key={f.id} className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
+          <span className="flex items-center gap-1 truncate">
+            <FileText className="w-3 h-3 text-muted-foreground" />
+            {f.original_filename || f.storage_path.split('/').pop()}
+          </span>
+          <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => handleDownload(f.storage_path, f.original_filename || 'file')}>
+            <Download className="w-3 h-3" />
+          </Button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -697,38 +751,50 @@ function ExamSection({ candidateId, candidateName }: { candidateId: string; cand
 }
 
 // ===== SignatureSection: Admin upload + candidate link =====
-function SignatureSection({ candidateId, candidateName, link, onCopyLink }: {
+function SignatureSection({ admissionId, candidateId, candidateName, link, linkExists, onCopyLink }: {
+  admissionId: string;
   candidateId: string;
   candidateName: string;
   link?: string;
+  linkExists?: boolean;
   onCopyLink: () => void;
 }) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
-  const [adminFiles, setAdminFiles] = useState<string[]>([]);
-
-  // Load admin-uploaded files
-  useEffect(() => {
-    loadAdminFiles();
-  }, [candidateId]);
-
-  const loadAdminFiles = async () => {
-    const { data } = await supabase.storage.from('admissions').list(`candidates/${candidateId}/signature-outgoing`);
-    setAdminFiles((data || []).filter(f => f.name !== '.emptyFolderPlaceholder').map(f => f.name));
-  };
+  const { data: files } = useAdmissionFiles(admissionId, 'SIGNATURE');
+  const adminFiles = files?.filter(f => f.candidate_id === candidateId && f.uploaded_by === 'ADMIN') || [];
+  const signedFiles = files?.filter(f => f.candidate_id === candidateId && f.uploaded_by === 'CANDIDATE') || [];
 
   const handleAdminUpload = async (file: File) => {
     setUploading(true);
     const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const path = `candidates/${candidateId}/signature-outgoing/${Date.now()}_${sanitized}`;
+    const path = `signature/admin/${admissionId}/${candidateId}/${Date.now()}_${sanitized}`;
     const { error } = await supabase.storage.from('admissions').upload(path, file);
     if (error) {
       toast({ title: 'Erro no upload', description: error.message, variant: 'destructive' });
     } else {
+      // Also record in admission_files
+      await supabase.from('admission_files').insert({
+        admission_request_id: admissionId,
+        candidate_id: candidateId,
+        file_type: 'internal_doc',
+        storage_path: path,
+        original_filename: sanitized,
+        uploaded_by: 'ADMIN',
+        link_type: 'SIGNATURE',
+      } as any);
       toast({ title: 'Documento enviado para assinatura!' });
-      loadAdminFiles();
     }
     setUploading(false);
+  };
+
+  const handleDownload = async (storagePath: string) => {
+    const { data, error } = await supabase.storage.from('admissions').createSignedUrl(storagePath, 3600);
+    if (error || !data) {
+      toast({ title: 'Erro ao gerar download', variant: 'destructive' });
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
   };
 
   return (
@@ -741,9 +807,14 @@ function SignatureSection({ candidateId, candidateName, link, onCopyLink }: {
         {adminFiles.length > 0 && (
           <div className="space-y-1">
             {adminFiles.map(f => (
-              <p key={f} className="text-xs text-muted-foreground flex items-center gap-1">
-                <FileText className="w-3 h-3" /> {f}
-              </p>
+              <div key={f.id} className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
+                <span className="flex items-center gap-1 truncate">
+                  <FileText className="w-3 h-3" /> {f.original_filename || 'doc'}
+                </span>
+                <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => handleDownload(f.storage_path)}>
+                  <Download className="w-3 h-3" />
+                </Button>
+              </div>
             ))}
           </div>
         )}
@@ -759,6 +830,23 @@ function SignatureSection({ candidateId, candidateName, link, onCopyLink }: {
         </div>
       </div>
 
+      {/* Signed docs received */}
+      {signedFiles.length > 0 && (
+        <div className="space-y-1">
+          <Label className="text-xs font-medium text-primary">Documentos assinados recebidos</Label>
+          {signedFiles.map(f => (
+            <div key={f.id} className="flex items-center justify-between text-xs bg-primary/5 rounded px-2 py-1">
+              <span className="flex items-center gap-1 truncate">
+                <CheckCircle className="w-3 h-3 text-primary" /> {f.original_filename || 'doc'}
+              </span>
+              <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => handleDownload(f.storage_path)}>
+                <Download className="w-3 h-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Link for candidate */}
       {link ? (
         <div className="space-y-1.5">
@@ -769,6 +857,11 @@ function SignatureSection({ candidateId, candidateName, link, onCopyLink }: {
               <Copy className="w-3 h-3" /> Copiar
             </Button>
           </div>
+        </div>
+      ) : linkExists ? (
+        <div className="flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-primary" />
+          <span className="text-xs text-muted-foreground">Link já gerado anteriormente (válido).</span>
         </div>
       ) : (
         <div className="flex items-center gap-2">

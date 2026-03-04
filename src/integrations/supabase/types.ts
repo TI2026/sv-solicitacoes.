@@ -14,6 +14,142 @@ export type Database = {
   }
   public: {
     Tables: {
+      admission_files: {
+        Row: {
+          admission_request_id: string
+          candidate_id: string
+          created_at: string
+          file_type: string
+          id: string
+          link_type: string
+          original_filename: string | null
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          admission_request_id: string
+          candidate_id: string
+          created_at?: string
+          file_type?: string
+          id?: string
+          link_type: string
+          original_filename?: string | null
+          storage_path: string
+          uploaded_by: string
+        }
+        Update: {
+          admission_request_id?: string
+          candidate_id?: string
+          created_at?: string
+          file_type?: string
+          id?: string
+          link_type?: string
+          original_filename?: string | null
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admission_files_admission_request_id_fkey"
+            columns: ["admission_request_id"]
+            isOneToOne: false
+            referencedRelation: "admission_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_files_admission_request_id_fkey"
+            columns: ["admission_request_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_files_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_files_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["candidato_id"]
+          },
+        ]
+      }
+      admission_public_links: {
+        Row: {
+          admin_uploaded_at: string | null
+          admission_request_id: string
+          candidate_id: string
+          candidate_uploaded_at: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          link_type: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          admin_uploaded_at?: string | null
+          admission_request_id: string
+          candidate_id: string
+          candidate_uploaded_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          link_type: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          admin_uploaded_at?: string | null
+          admission_request_id?: string
+          candidate_id?: string
+          candidate_uploaded_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          link_type?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admission_public_links_admission_request_id_fkey"
+            columns: ["admission_request_id"]
+            isOneToOne: false
+            referencedRelation: "admission_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_public_links_admission_request_id_fkey"
+            columns: ["admission_request_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_public_links_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_public_links_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["candidato_id"]
+          },
+        ]
+      }
       admission_requests: {
         Row: {
           cargo_funcao: string
@@ -919,10 +1055,6 @@ export type Database = {
           _request_id: string
           _to_status: Database["public"]["Enums"]["fuel_status"]
         }
-        Returns: Json
-      }
-      generate_candidate_token: {
-        Args: { _candidate_id: string; _days_valid?: number }
         Returns: Json
       }
       get_user_roles: {

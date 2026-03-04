@@ -14,3 +14,12 @@ verify_jwt = true
 
 [functions.admissions-finalize-signed-docs]
 verify_jwt = false
+
+[functions.public-link-lookup]
+verify_jwt = false
+
+[functions.public-documents-submit]
+verify_jwt = false
+
+[functions.public-signature-submit]
+verify_jwt = false

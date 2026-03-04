@@ -11,8 +11,12 @@ import logo from '@/assets/logo.png';
 interface SignatureData {
   candidate_id: string;
   candidate_name: string;
+  admission_request_id: string;
+  link_type: string;
   files_to_sign: Array<{ name: string; url: string; size: number }>;
   expires_at: string;
+  admin_uploaded_at: string | null;
+  candidate_uploaded_at: string | null;
 }
 
 const INTERNAL_DOCS_CHECKLIST = [
@@ -39,14 +43,14 @@ export default function PublicSignaturePage() {
 
   useEffect(() => {
     if (!token) { setError('Token não fornecido'); setLoading(false); return; }
-    validateToken();
+    lookupToken();
   }, [token]);
 
-  const validateToken = async () => {
+  const lookupToken = async () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/admissions-validate-token?token=${token}&purpose=signature`,
+        `https://${projectId}.supabase.co/functions/v1/public-link-lookup?token=${token}`,
         { headers: { 'Content-Type': 'application/json' } }
       );
       if (!res.ok) {
@@ -54,8 +58,15 @@ export default function PublicSignaturePage() {
         setError(body.error || 'Token inválido ou expirado');
       } else {
         const result = await res.json();
-        setData(result);
-        setError(null);
+        if (result.link_type !== 'SIGNATURE') {
+          setError('Token inválido para esta página');
+        } else if (result.candidate_uploaded_at) {
+          setSubmitted(true);
+          setData(result);
+        } else {
+          setData(result);
+          setError(null);
+        }
       }
     } catch {
       setError('Erro ao validar token');
@@ -72,11 +83,11 @@ export default function PublicSignaturePage() {
     setUploading(true);
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/admissions-create-signed-upload`,
+        `https://${projectId}.supabase.co/functions/v1/public-signature-submit`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, filename: file.name, content_type: file.type, purpose: 'signature' }),
+          body: JSON.stringify({ token, filename: file.name, content_type: file.type, mode: 'candidate' }),
         }
       );
       if (!res.ok) {
@@ -149,6 +160,8 @@ export default function PublicSignaturePage() {
     );
   }
 
+  const hasDocsToSign = data.files_to_sign && data.files_to_sign.length > 0;
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-lg mx-auto space-y-6 animate-fade-in">
@@ -169,7 +182,7 @@ export default function PublicSignaturePage() {
             <CardDescription>Baixe os documentos abaixo, assine via CDGov e reenvie na seção seguinte.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            {data.files_to_sign.length > 0 ? (
+            {hasDocsToSign ? (
               data.files_to_sign.map((file, idx) => (
                 <a
                   key={idx}
@@ -189,7 +202,6 @@ export default function PublicSignaturePage() {
               </p>
             )}
 
-            {/* Checklist informativo */}
             <div className="mt-3 pt-3 border-t border-border">
               <p className="text-xs font-semibold text-foreground mb-1">Documentos esperados para assinatura:</p>
               <ul className="text-xs text-muted-foreground space-y-0.5 pl-4 list-disc">
