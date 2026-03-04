@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.notify-status-change]
 verify_jwt = true
+
+[functions.admissions-finalize-signed-docs]
+verify_jwt = false

@@ -6,14 +6,15 @@ export const ADMISSION_STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
   aguardando_triagem: 'Aguardando Triagem',
   em_triagem: 'Em Triagem',
-  aguardando_documentos: 'Aguardando Documentos',
-  documentos_em_analise: 'Documentos em Análise',
+  aguardando_documentos: 'Candidatos',
+  documentos_em_analise: 'Entrevista',
   aguardando_exame: 'Aguardando Exame',
   exame_realizado: 'Exame Realizado',
-  aguardando_registro: 'Aguardando Registro',
-  registros_concluidos: 'Registros Concluídos',
+  aguardando_registro: 'Docs WhatsApp',
+  registros_concluidos: 'Assinatura',
   concluido: 'Concluído',
   cancelado: 'Cancelado',
+  arquivado: 'Arquivado',
 };
 
 export const FUEL_STATUS_LABELS: Record<string, string> = {
@@ -84,7 +85,7 @@ export const PRIORITY_LABELS: Record<string, string> = {
 
 export function getStatusVariant(status: string): 'pending' | 'approved' | 'rejected' | 'info' {
   if (['concluido', 'aprovado', 'encerrado', 'apto', 'approved', 'registros_concluidos', 'ativa'].includes(status)) return 'approved';
-  if (['rejeitado', 'reprovado', 'cancelado', 'inapto', 'rejected'].includes(status)) return 'rejected';
+  if (['rejeitado', 'reprovado', 'cancelado', 'inapto', 'rejected', 'arquivado'].includes(status)) return 'rejected';
   if (['aguardando_fotos', 'aguardando_documentos', 'submitted'].includes(status)) return 'info';
   return 'pending';
 }

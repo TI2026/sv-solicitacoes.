@@ -19,7 +19,6 @@ export default function AdmissionNewPage() {
 
   const [form, setForm] = useState({
     local_contratacao: '',
-    centro_custo: '',
     cargo_funcao: '',
     tipo_contrato: 'CLT',
     salario_previsto: '',
@@ -40,7 +39,7 @@ export default function AdmissionNewPage() {
       const payload = {
         requester_user_id: user.id,
         local_contratacao: form.local_contratacao,
-        centro_custo: form.centro_custo,
+        centro_custo: '', // kept as default for backend compatibility
         cargo_funcao: form.cargo_funcao,
         tipo_contrato: form.tipo_contrato,
         salario_previsto: form.salario_previsto ? parseFloat(form.salario_previsto) : null,
@@ -80,10 +79,6 @@ export default function AdmissionNewPage() {
             <div className="space-y-2">
               <Label>Cargo / Função *</Label>
               <Input value={form.cargo_funcao} onChange={e => set('cargo_funcao', e.target.value)} placeholder="Ex: Engenheiro Civil" required />
-            </div>
-            <div className="space-y-2">
-              <Label>Centro de Custo</Label>
-              <Input value={form.centro_custo} onChange={e => set('centro_custo', e.target.value)} placeholder="Ex: Obra 123" />
             </div>
             <div className="space-y-2">
               <Label>Local de Contratação</Label>

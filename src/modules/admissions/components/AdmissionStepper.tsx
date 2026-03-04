@@ -3,76 +3,74 @@ import { Check, Circle, Clock, HelpCircle, ChevronDown, ChevronUp } from 'lucide
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ADMISSION_STATUS_LABELS } from '@/lib/constants';
 
 interface StepDef {
   key: string;
   label: string;
   description: string;
   help: string;
-  statusMatch: string[]; // which admission statuses mean this step is "current" or "done"
+  statusMatch: string[];
 }
 
 const STEPS: StepDef[] = [
   {
     key: 'vaga',
-    label: '1. Vaga Criada',
+    label: '0. Vaga Criada',
     description: 'Definição do cargo, salário e requisitos.',
-    help: 'Preencha os dados da vaga: cargo, centro de custo, tipo de contrato, salário previsto, jornada e gestor responsável. Ao enviar, o processo segue para triagem.',
+    help: 'Preencha os dados da vaga: cargo, tipo de contrato, salário previsto, jornada e gestor responsável. Ao enviar, o processo segue para triagem.',
     statusMatch: ['rascunho', 'aguardando_triagem'],
   },
   {
     key: 'triagem',
-    label: '2. Triagem',
-    description: 'RH/Admin avalia a solicitação.',
-    help: 'O RH revisa os dados da vaga e decide se prossegue. Após aprovação da triagem, é possível adicionar candidatos.',
+    label: '1. Triagem',
+    description: 'Administração avalia a solicitação e inicia o processo.',
+    help: 'O administrativo revisa os dados da vaga e clica "Iniciar Triagem" para habilitar a etapa de candidatos.',
     statusMatch: ['em_triagem'],
   },
   {
     key: 'candidatos',
-    label: '3. Candidatos',
-    description: 'Cadastro e seleção de candidatos.',
-    help: 'Adicione até 8+ candidatos por vaga. Preencha nome, telefone, cidade e demais dados. Candidatos podem ser avançados para entrevista ou eliminados.',
+    label: '2. Candidatos',
+    description: 'Cadastro de candidatos (mínimo 1).',
+    help: 'Adicione quantos candidatos quiser. Preencha nome, telefone, cidade, CPF (opcional), email (opcional). Após adicionar, clique "Concluir candidatos e avançar".',
     statusMatch: ['aguardando_documentos'],
   },
   {
     key: 'entrevista',
-    label: '4. Entrevista',
+    label: '3. Entrevista',
     description: 'Agendamento e resultado da entrevista.',
-    help: 'Agende data, hora, endereço e entrevistador. Após a entrevista, a diretoria confirma aprovação ou reprovação do candidato.',
-    statusMatch: [],
-  },
-  {
-    key: 'documentacao',
-    label: '5. Documentação',
-    description: 'Envio de documentos pelo candidato via link público.',
-    help: 'Gere um link seguro (válido por 7 dias) e envie ao candidato. Ele faz upload de RG, CPF, CTPS, comprovante de residência e outros. O RH vê os docs chegando em tempo real.',
+    help: 'Agende data, hora, endereço e entrevistador para cada candidato. Após a entrevista, registre "Aprovado" ou "Reprovado". Só candidatos aprovados avançam.',
     statusMatch: ['documentos_em_analise'],
   },
   {
     key: 'exame',
-    label: '6. Exame Admissional',
-    description: 'Agendamento e resultado do exame.',
-    help: 'Agende o exame em uma clínica parceira. A etapa fica pendente até o resultado. O RH registra: Apto, Apto com Restrição ou Inapto.',
+    label: '4. Exame Admissional',
+    description: 'Agendamento e resultado do exame médico.',
+    help: 'Agende o exame em uma clínica. Registre resultado: Apto ou Inapto. Candidatos inaptos são eliminados.',
     statusMatch: ['aguardando_exame', 'exame_realizado'],
   },
   {
-    key: 'registros',
-    label: '7. Registros Internos',
-    description: 'Cadastros nos sistemas internos.',
-    help: 'Checklist de cadastros: folha de pagamento, eSocial, ponto, sistema interno e entrega de EPI. Marque cada item conforme concluído.',
-    statusMatch: ['aguardando_registro', 'registros_concluidos'],
+    key: 'docs_whatsapp',
+    label: '5. Confirmação Docs (WhatsApp)',
+    description: 'Confirmação de recebimento dos documentos pessoais via WhatsApp.',
+    help: 'O administrativo recebe documentos por WhatsApp (fora do app). Marque "Confirmar recebimento" para liberar a próxima etapa.',
+    statusMatch: ['aguardando_registro'],
+  },
+  {
+    key: 'assinatura',
+    label: '6. Assinatura (Link Externo)',
+    description: 'Gerar link para o candidato assinar documentos.',
+    help: 'Gere um link seguro (válido 7 dias) e envie ao candidato. Ele baixa documentos e reenvia assinados. Você vê os uploads em tempo real.',
+    statusMatch: ['registros_concluidos'],
   },
   {
     key: 'admitido',
-    label: '8. Admitido',
+    label: '7. Admitido',
     description: 'Contratação confirmada.',
     help: 'Quando todos os passos estiverem completos, confirme a admissão. O solicitante e envolvidos serão notificados.',
     statusMatch: ['concluido'],
   },
 ];
 
-// Map status to step index (which step is the current one)
 function getActiveStepIndex(status: string): number {
   for (let i = STEPS.length - 1; i >= 0; i--) {
     if (STEPS[i].statusMatch.includes(status)) return i;
@@ -102,23 +100,22 @@ export function AdmissionStepper({
   const [helpOpen, setHelpOpen] = useState<string | null>(null);
   const activeIdx = getActiveStepIndex(status);
   const isCancelled = status === 'cancelado';
+  const isArchived = status === 'arquivado';
 
-  // Determine step state based on context
   const getStepState = (idx: number) => {
-    if (isCancelled) return idx <= activeIdx ? 'done' : 'cancelled';
+    if (isCancelled || isArchived) return idx <= activeIdx ? 'done' : 'cancelled';
     if (idx < activeIdx) return 'done';
     if (idx === activeIdx) return 'current';
     return 'pending';
   };
 
-  // Extra info per step
   const getStepSummary = (key: string): string | null => {
     switch (key) {
       case 'candidatos': return candidateCount > 0 ? `${candidateCount} candidato(s)` : null;
       case 'entrevista': return hasInterview ? 'Agendada' : null;
-      case 'documentacao': return hasDocuments ? 'Docs recebidos' : null;
+      case 'docs_whatsapp': return hasDocuments ? 'Confirmado' : null;
       case 'exame': return hasExam ? 'Realizado' : null;
-      case 'registros': return hasRegistration ? 'Completo' : null;
+      case 'assinatura': return hasRegistration ? 'Completo' : null;
       default: return null;
     }
   };
@@ -132,7 +129,6 @@ export function AdmissionStepper({
 
         return (
           <div key={step.key} className="flex gap-3">
-            {/* Vertical line + icon */}
             <div className="flex flex-col items-center w-6">
               <div className={cn(
                 'w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold',
@@ -148,7 +144,6 @@ export function AdmissionStepper({
               )}
             </div>
 
-            {/* Content */}
             <div className="pb-3 flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className={cn(
@@ -166,7 +161,6 @@ export function AdmissionStepper({
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
 
-              {/* Help collapsible */}
               <Collapsible open={isHelpOpen} onOpenChange={() => setHelpOpen(isHelpOpen ? null : step.key)}>
                 <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-6 px-1.5 mt-1 text-[11px] text-muted-foreground gap-1 hover:text-primary">
