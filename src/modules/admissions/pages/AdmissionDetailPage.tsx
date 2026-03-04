@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useUpdateCandidate, useMedicalExam, useGeneratePublicLink, useAdmissionPublicLinks, useAdmissionFiles } from '../hooks/useAdmissionQueries';
@@ -20,6 +20,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
+// Document key labels for admin view
+const DOC_KEY_LABELS: Record<string, string> = {
+  RG_CNH: 'RG ou CNH', CPF: 'CPF', CTPS: 'CTPS Digital', RESIDENCIA: 'Comprovante de residência',
+  CERTIDAO: 'Certidão nasc./casamento', TITULO_ELEITOR: 'Título de eleitor',
+  QUITACAO_ELEITORAL: 'Quitação eleitoral', RESERVISTA: 'Certificado de reservista',
+  PIS_PASEP: 'PIS/PASEP', DEP_CERTIDAO: 'Certidão (dependente)', DEP_CPF: 'CPF (dependente)',
+  DEP_VACINA: 'Vacinação (dependente)', DEP_MATRICULA: 'Matrícula (dependente)',
+  DEP_LAUDO: 'Laudo médico (dependente)', generic: 'Documento',
+};
+
 export default function AdmissionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -37,12 +47,8 @@ export default function AdmissionDetailPage() {
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [candidateForm, setCandidateForm] = useState({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
   const [interviewCandidate, setInterviewCandidate] = useState<any | null>(null);
-
-  // Generated links (token -> URL) stored in memory per session
   const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({});
   const [linksGenerating, setLinksGenerating] = useState(false);
-
-  // Docs confirmed state
   const [docsConfirmed, setDocsConfirmed] = useState(false);
 
   // Realtime subscriptions
@@ -149,25 +155,17 @@ export default function AdmissionDetailPage() {
 
     for (const c of approvedCandidates) {
       const key = `${linkType}-${c.id}`;
-      if (generatedLinks[key]) {
-        newLinks[key] = generatedLinks[key];
-        continue;
-      }
+      if (generatedLinks[key]) { newLinks[key] = generatedLinks[key]; continue; }
       try {
         const result = await generatePublicLink.mutateAsync({
-          admissionRequestId: id,
-          candidateId: c.id,
-          linkType,
+          admissionRequestId: id, candidateId: c.id, linkType,
         });
         if (result && 'token' in result && result.token) {
           newLinks[key] = `${window.location.origin}${path}?token=${result.token}`;
         } else if (result && 'alreadyExists' in result) {
-          // Link exists but we don't have the token - show indicator
           newLinks[key] = 'EXISTS';
         }
-      } catch (e) {
-        console.error('Link gen error:', e);
-      }
+      } catch (e) { console.error('Link gen error:', e); }
     }
     setGeneratedLinks(prev => ({ ...prev, ...newLinks }));
     setLinksGenerating(false);
@@ -416,7 +414,7 @@ export default function AdmissionDetailPage() {
               <FileText className="w-4 h-4" /> Etapa 3 — Documentos (Link Externo)
             </h3>
             <p className="text-xs text-muted-foreground">
-              Links gerados automaticamente para cada candidato aprovado. O candidato pode enviar documentos pessoais, dados bancários e certidões.
+              Links gerados automaticamente. O candidato envia cada documento individualmente (CPF, RG, CTPS, etc.)
             </p>
 
             {approvedCandidates.map((c: any) => {
@@ -438,14 +436,11 @@ export default function AdmissionDetailPage() {
                   ) : link === 'EXISTS' ? (
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-primary" />
-                      <span className="text-xs text-muted-foreground">Link já gerado anteriormente (válido). Regenerar se necessário.</span>
+                      <span className="text-xs text-muted-foreground">Link já gerado anteriormente (válido).</span>
                       <Button variant="ghost" size="sm" className="text-xs" onClick={async () => {
-                        const result = await generatePublicLink.mutateAsync({
-                          admissionRequestId: id!,
-                          candidateId: c.id,
-                          linkType: 'DOCUMENTS',
+                        await generatePublicLink.mutateAsync({
+                          admissionRequestId: id!, candidateId: c.id, linkType: 'DOCUMENTS',
                         });
-                        // Force new generation by invalidating old one first
                       }}>
                         <Link2 className="w-3 h-3 mr-1" /> Regenerar
                       </Button>
@@ -500,14 +495,8 @@ export default function AdmissionDetailPage() {
             </p>
 
             {approvedCandidates.map((c: any) => (
-              <ExamSection key={c.id} candidateId={c.id} candidateName={c.nome} />
+              <ExamSection key={c.id} candidateId={c.id} candidateName={c.nome} admissionId={id!} currentStatus={status!} onAdvance={() => handleStatusChange('aguardando_registro')} />
             ))}
-
-            {status === 'exame_realizado' && (
-              <Button onClick={() => handleStatusChange('aguardando_registro')} className="gap-2 w-full" size="sm">
-                <CheckCircle className="w-4 h-4" /> Avançar para Assinatura
-              </Button>
-            )}
           </CardContent>
         </Card>
       )}
@@ -610,16 +599,16 @@ function CandidateDocStatus({ admissionId, candidateId }: { admissionId: string;
   const { data: files } = useAdmissionFiles(admissionId, 'DOCUMENTS');
   const candidateFiles = files?.filter(f => f.candidate_id === candidateId) || [];
   if (candidateFiles.length === 0) return <span className="text-xs text-muted-foreground">Pendente</span>;
-  return <span className="text-xs text-primary font-medium">{candidateFiles.length} arquivo(s) recebido(s)</span>;
+  return <span className="text-xs text-primary font-medium">{candidateFiles.length} doc(s) recebido(s)</span>;
 }
 
-// ===== CandidateFilesList: List files + download =====
+// ===== CandidateFilesList: List files grouped by doc_key with download =====
 function CandidateFilesList({ admissionId, candidateId, linkType }: { admissionId: string; candidateId: string; linkType: 'DOCUMENTS' | 'SIGNATURE' }) {
   const { data: files } = useAdmissionFiles(admissionId, linkType);
   const candidateFiles = files?.filter(f => f.candidate_id === candidateId) || [];
   const { toast } = useToast();
 
-  const handleDownload = async (storagePath: string, filename: string) => {
+  const handleDownload = async (storagePath: string) => {
     const { data, error } = await supabase.storage.from('admissions').createSignedUrl(storagePath, 3600);
     if (error || !data) {
       toast({ title: 'Erro ao gerar download', variant: 'destructive' });
@@ -630,26 +619,41 @@ function CandidateFilesList({ admissionId, candidateId, linkType }: { admissionI
 
   if (candidateFiles.length === 0) return null;
 
+  // Group by file_type (doc_key)
+  const grouped = candidateFiles.reduce<Record<string, typeof candidateFiles>>((acc, f) => {
+    const key = f.file_type || 'generic';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(f);
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-1 pt-1">
       <p className="text-[10px] font-medium text-muted-foreground uppercase">Arquivos recebidos</p>
-      {candidateFiles.map(f => (
-        <div key={f.id} className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
-          <span className="flex items-center gap-1 truncate">
-            <FileText className="w-3 h-3 text-muted-foreground" />
-            {f.original_filename || f.storage_path.split('/').pop()}
-          </span>
-          <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => handleDownload(f.storage_path, f.original_filename || 'file')}>
-            <Download className="w-3 h-3" />
-          </Button>
+      {Object.entries(grouped).map(([docKey, docFiles]) => (
+        <div key={docKey} className="space-y-0.5">
+          <p className="text-[10px] font-semibold text-foreground">{DOC_KEY_LABELS[docKey] || docKey}</p>
+          {docFiles.map(f => (
+            <div key={f.id} className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
+              <span className="flex items-center gap-1 truncate">
+                <FileText className="w-3 h-3 text-muted-foreground" />
+                {f.original_filename || f.storage_path.split('/').pop()}
+              </span>
+              <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => handleDownload(f.storage_path)}>
+                <Download className="w-3 h-3" />
+              </Button>
+            </div>
+          ))}
         </div>
       ))}
     </div>
   );
 }
 
-// ===== ExamSection: Free-text clinic + date/time + result =====
-function ExamSection({ candidateId, candidateName }: { candidateId: string; candidateName: string }) {
+// ===== ExamSection: Free-text clinic + date/time + result + auto-unlock timer =====
+function ExamSection({ candidateId, candidateName, admissionId, currentStatus, onAdvance }: {
+  candidateId: string; candidateName: string; admissionId: string; currentStatus: string; onAdvance: () => void;
+}) {
   const { data: exam } = useMedicalExam(candidateId);
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -657,6 +661,7 @@ function ExamSection({ candidateId, candidateName }: { candidateId: string; cand
   const [examDate, setExamDate] = useState('');
   const [examTime, setExamTime] = useState('');
   const [examNotes, setExamNotes] = useState('');
+  const [now, setNow] = useState(new Date());
 
   useRealtimeSubscription({
     channelName: `exam-${candidateId}`,
@@ -665,6 +670,30 @@ function ExamSection({ candidateId, candidateName }: { candidateId: string; cand
       { table: 'medical_exams', filter: `candidate_id=eq.${candidateId}`, queryKeys: [['medical_exam', candidateId]] },
     ],
   });
+
+  // Timer: auto-refresh when exam time arrives
+  useEffect(() => {
+    if (!exam?.scheduled_at) return;
+    const scheduled = new Date(exam.scheduled_at);
+    const diff = scheduled.getTime() - Date.now();
+    if (diff <= 0) {
+      // Already past
+      setNow(new Date());
+      return;
+    }
+    // Set a timer for when it becomes past
+    const timer = setTimeout(() => {
+      setNow(new Date());
+      qc.invalidateQueries({ queryKey: ['medical_exam', candidateId] });
+    }, diff + 1000); // +1s buffer
+    return () => clearTimeout(timer);
+  }, [exam?.scheduled_at, candidateId, qc]);
+
+  // Also tick every 60s for countdown display
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleCreateExam = async () => {
     if (!clinicName || !examDate || !examTime) {
@@ -696,7 +725,23 @@ function ExamSection({ candidateId, candidateName }: { candidateId: string; cand
     }
   };
 
-  const isExamPast = exam?.scheduled_at && new Date(exam.scheduled_at) <= new Date();
+  const isExamPast = exam?.scheduled_at ? new Date(exam.scheduled_at) <= now : false;
+  const examResolved = exam?.status && exam.status !== 'aguardando';
+
+  // Compute time remaining
+  const getTimeRemaining = () => {
+    if (!exam?.scheduled_at) return '';
+    const diff = new Date(exam.scheduled_at).getTime() - now.getTime();
+    if (diff <= 0) return '';
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    if (hours > 24) return `Faltam ${Math.floor(hours / 24)}d ${hours % 24}h`;
+    if (hours > 0) return `Faltam ${hours}h ${mins}min`;
+    return `Faltam ${mins}min`;
+  };
+
+  // Can advance to next step?
+  const canAdvance = examResolved && isExamPast;
 
   return (
     <div className="border border-border rounded-lg p-3 space-y-2">
@@ -708,8 +753,18 @@ function ExamSection({ candidateId, candidateName }: { candidateId: string; cand
             <p>Data: {exam.scheduled_at ? new Date(exam.scheduled_at).toLocaleString('pt-BR') : '—'}</p>
             <StatusBadge status={exam.status} label={EXAM_STATUS_LABELS[exam.status] || exam.status} />
             {exam.status === 'aguardando' && !isExamPast && (
-              <p className="flex items-center gap-1 mt-1 text-xs text-[hsl(var(--status-info-foreground))]">
-                <Clock className="w-3 h-3" /> Aguardando data/hora do exame
+              <div className="mt-1 space-y-0.5">
+                <p className="flex items-center gap-1 text-xs text-[hsl(var(--status-info-foreground))]">
+                  <Clock className="w-3 h-3" /> Aguardando data/hora do exame
+                </p>
+                {getTimeRemaining() && (
+                  <p className="text-[10px] text-muted-foreground">{getTimeRemaining()}</p>
+                )}
+              </div>
+            )}
+            {isExamPast && exam.status === 'aguardando' && (
+              <p className="flex items-center gap-1 text-xs text-primary font-medium mt-1">
+                <CheckCircle className="w-3 h-3" /> Liberado — registre o resultado
               </p>
             )}
           </div>
@@ -719,6 +774,11 @@ function ExamSection({ candidateId, candidateName }: { candidateId: string; cand
               <Button size="sm" variant="outline" onClick={() => handleExamResult('apto_com_restricao')}>Apto c/ Restrição</Button>
               <Button size="sm" variant="destructive" onClick={() => handleExamResult('inapto')}>Inapto</Button>
             </div>
+          )}
+          {canAdvance && (
+            <Button onClick={onAdvance} className="gap-2 w-full" size="sm">
+              <CheckCircle className="w-4 h-4" /> Avançar para Assinatura
+            </Button>
           )}
         </div>
       ) : (
@@ -773,7 +833,6 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
     if (error) {
       toast({ title: 'Erro no upload', description: error.message, variant: 'destructive' });
     } else {
-      // Also record in admission_files
       await supabase.from('admission_files').insert({
         admission_request_id: admissionId,
         candidate_id: candidateId,

@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Upload, CheckCircle, ShieldX, FileText, AlertTriangle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, Upload, CheckCircle, ShieldX, FileText, AlertTriangle, X } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.png';
 
@@ -18,17 +20,31 @@ interface LinkData {
   uploaded_files: Array<{ name: string; file_type: string }>;
 }
 
-const DOCUMENT_CHECKLIST = [
-  { category: 'Documentos Pessoais', items: [
-    'RG ou CNH válida', 'CPF', 'CTPS Digital (CPF vinculado)', 'Comprovante de residência atualizado',
-    'Certidão de nascimento ou casamento', 'Título de eleitor', 'Quitação eleitoral',
-    'Certificado de reservista (quando aplicável)', 'Número do PIS/PASEP',
-  ]},
-  { category: 'Dependentes (se aplicável)', items: [
-    'Certidão de nascimento dos filhos', 'CPF dos dependentes',
-    'Carteira de vacinação (até 6 anos)', 'Comprovante de matrícula escolar (7 a 14 anos)',
-    'Laudo médico (dependente com deficiência)',
-  ]},
+interface DocItem {
+  key: string;
+  label: string;
+  required: boolean;
+  category: string;
+}
+
+const PERSONAL_DOCS: DocItem[] = [
+  { key: 'RG_CNH', label: 'RG ou CNH válida', required: true, category: 'pessoal' },
+  { key: 'CPF', label: 'CPF', required: true, category: 'pessoal' },
+  { key: 'CTPS', label: 'CTPS Digital (CPF vinculado)', required: true, category: 'pessoal' },
+  { key: 'RESIDENCIA', label: 'Comprovante de residência atualizado', required: true, category: 'pessoal' },
+  { key: 'CERTIDAO', label: 'Certidão de nascimento ou casamento', required: true, category: 'pessoal' },
+  { key: 'TITULO_ELEITOR', label: 'Título de eleitor', required: true, category: 'pessoal' },
+  { key: 'QUITACAO_ELEITORAL', label: 'Quitação eleitoral', required: true, category: 'pessoal' },
+  { key: 'RESERVISTA', label: 'Certificado de reservista (quando aplicável)', required: false, category: 'pessoal' },
+  { key: 'PIS_PASEP', label: 'Número do PIS/PASEP', required: true, category: 'pessoal' },
+];
+
+const DEPENDENT_DOCS: DocItem[] = [
+  { key: 'DEP_CERTIDAO', label: 'Certidão de nascimento dos filhos', required: true, category: 'dependente' },
+  { key: 'DEP_CPF', label: 'CPF dos dependentes', required: true, category: 'dependente' },
+  { key: 'DEP_VACINA', label: 'Carteira de vacinação (até 6 anos)', required: false, category: 'dependente' },
+  { key: 'DEP_MATRICULA', label: 'Comprovante de matrícula escolar (7 a 14 anos)', required: false, category: 'dependente' },
+  { key: 'DEP_LAUDO', label: 'Laudo médico (dependente com deficiência)', required: false, category: 'dependente' },
 ];
 
 export default function PublicDocumentsPage() {
@@ -38,9 +54,18 @@ export default function PublicDocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<LinkData | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+
+  // Per-item upload state: doc_key -> { file: File | null, uploading, uploaded, filename }
+  const [docStates, setDocStates] = useState<Record<string, {
+    file: File | null;
+    uploading: boolean;
+    uploaded: boolean;
+    filename: string;
+  }>>({});
+
+  const [hasDependents, setHasDependents] = useState(false);
   const [bankInfo, setBankInfo] = useState({ banco: '', agencia: '', conta: '', tipo: 'corrente' });
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'zeaerqlvhrbcuubueolh';
@@ -69,7 +94,14 @@ export default function PublicDocumentsPage() {
           setData(result);
         } else {
           setData(result);
-          setUploadedFiles(result.uploaded_files?.map((f: any) => f.name) || []);
+          // Populate already-uploaded docs
+          const initialStates: Record<string, any> = {};
+          for (const f of (result.uploaded_files || [])) {
+            if (f.file_type && f.file_type !== 'generic') {
+              initialStates[f.file_type] = { file: null, uploading: false, uploaded: true, filename: f.name };
+            }
+          }
+          setDocStates(initialStates);
           setError(null);
         }
       }
@@ -79,7 +111,7 @@ export default function PublicDocumentsPage() {
     setLoading(false);
   };
 
-  const handleUpload = async (file: File, fileType: string = 'generic') => {
+  const uploadFile = useCallback(async (docKey: string, file: File) => {
     if (!token) return;
     if (file.size > 10 * 1024 * 1024) {
       toast({ title: 'Arquivo muito grande', description: 'Máximo 10MB', variant: 'destructive' });
@@ -90,14 +122,16 @@ export default function PublicDocumentsPage() {
       toast({ title: 'Tipo não permitido', description: 'Use PDF, JPG ou PNG', variant: 'destructive' });
       return;
     }
-    setUploading(true);
+
+    setDocStates(prev => ({ ...prev, [docKey]: { file, uploading: true, uploaded: false, filename: file.name } }));
+
     try {
       const res = await fetch(
         `https://${projectId}.supabase.co/functions/v1/public-documents-submit`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, filename: file.name, content_type: file.type, file_type: fileType }),
+          body: JSON.stringify({ token, filename: file.name, content_type: file.type, file_type: docKey }),
         }
       );
       if (!res.ok) {
@@ -107,31 +141,101 @@ export default function PublicDocumentsPage() {
       const { signedUrl } = await res.json();
       const uploadRes = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
       if (!uploadRes.ok) throw new Error('Falha no upload');
-      setUploadedFiles(prev => [...prev, file.name]);
+
+      setDocStates(prev => ({ ...prev, [docKey]: { file: null, uploading: false, uploaded: true, filename: file.name } }));
       toast({ title: 'Documento enviado!' });
     } catch (err: any) {
+      setDocStates(prev => ({ ...prev, [docKey]: { file: null, uploading: false, uploaded: false, filename: '' } }));
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
-    } finally {
-      setUploading(false);
     }
+  }, [token, projectId, toast]);
+
+  const removeDoc = (docKey: string) => {
+    setDocStates(prev => {
+      const copy = { ...prev };
+      delete copy[docKey];
+      return copy;
+    });
   };
 
+  const requiredPersonalKeys = PERSONAL_DOCS.filter(d => d.required).map(d => d.key);
+  const requiredDependentKeys = hasDependents ? DEPENDENT_DOCS.filter(d => d.required).map(d => d.key) : [];
+  const allRequiredKeys = [...requiredPersonalKeys, ...requiredDependentKeys];
+
+  const allRequiredUploaded = allRequiredKeys.every(k => docStates[k]?.uploaded);
+  const bankComplete = bankInfo.banco.trim() && bankInfo.agencia.trim() && bankInfo.conta.trim();
+  const canFinalize = allRequiredUploaded && bankComplete;
+
   const handleFinalize = async () => {
-    if (!token) return;
-    setSubmitted(true);
+    if (!token || !canFinalize) return;
+    setSubmitting(true);
     try {
+      // Send bank info along with finalization
       await fetch(
         `https://${projectId}.supabase.co/functions/v1/admissions-finalize-signed-docs`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
+          body: JSON.stringify({ token, bank_info: bankInfo }),
         }
       );
+      setSubmitted(true);
       toast({ title: 'Documentos finalizados com sucesso!' });
     } catch {
       toast({ title: 'Erro ao finalizar', variant: 'destructive' });
     }
+    setSubmitting(false);
+  };
+
+  const renderDocItem = (doc: DocItem) => {
+    const state = docStates[doc.key];
+    const isUploaded = state?.uploaded;
+    const isUploading = state?.uploading;
+
+    return (
+      <div key={doc.key} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-foreground">
+            {doc.label}
+            {doc.required && <span className="text-destructive ml-1">*</span>}
+          </p>
+          {isUploaded && state?.filename && (
+            <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
+              <CheckCircle className="w-3 h-3" /> {state.filename}
+            </p>
+          )}
+        </div>
+        <div className="shrink-0 flex items-center gap-1">
+          {isUploading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          ) : isUploaded ? (
+            <div className="flex items-center gap-1">
+              <CheckCircle className="w-4 h-4 text-primary" />
+              {!submitted && (
+                <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => removeDoc(doc.key)}>
+                  <X className="w-3 h-3 text-muted-foreground" />
+                </Button>
+              )}
+            </div>
+          ) : (
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={e => {
+                  if (e.target.files?.[0]) uploadFile(doc.key, e.target.files[0]);
+                  e.target.value = '';
+                }}
+              />
+              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-input bg-background hover:bg-accent text-foreground transition-colors">
+                <Upload className="w-3 h-3" /> Enviar
+              </span>
+            </label>
+          )}
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -172,7 +276,7 @@ export default function PublicDocumentsPage() {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="max-w-lg mx-auto space-y-6 animate-fade-in">
+      <div className="max-w-lg mx-auto space-y-5 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col items-center">
           <img src={logo} alt="Logo" className="w-16 h-16 rounded-full object-contain bg-white shadow border-2 border-primary/20 p-0.5 mb-3" />
@@ -181,89 +285,102 @@ export default function PublicDocumentsPage() {
           <p className="text-xs text-muted-foreground">Válido até {new Date(data.expires_at).toLocaleDateString('pt-BR')}</p>
         </div>
 
-        {/* Checklist */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Documentos Necessários</CardTitle>
-            <CardDescription>Envie os documentos listados abaixo em PDF, JPG ou PNG (máx. 10MB)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {DOCUMENT_CHECKLIST.map(cat => (
-              <div key={cat.category}>
-                <p className="text-xs font-semibold text-foreground mb-1">{cat.category}</p>
-                <ul className="text-xs text-muted-foreground space-y-0.5 pl-4 list-disc">
-                  {cat.items.map(item => <li key={item}>{item}</li>)}
-                </ul>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        {/* Personal documents */}
+        <Accordion type="multiple" defaultValue={['pessoais', 'bancarios']}>
+          <AccordionItem value="pessoais">
+            <AccordionTrigger className="text-sm font-semibold">
+              <span className="flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Documentos Pessoais
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  ({requiredPersonalKeys.filter(k => docStates[k]?.uploaded).length}/{requiredPersonalKeys.length})
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              {PERSONAL_DOCS.map(renderDocItem)}
+            </AccordionContent>
+          </AccordionItem>
 
-        {/* Upload */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Upload className="w-4 h-4" /> Upload de Documentos
-            </CardTitle>
-            <CardDescription>Selecione e envie seus documentos um por vez</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {uploadedFiles.length > 0 && (
-              <div className="space-y-1">
-                {uploadedFiles.map((f, idx) => (
-                  <p key={idx} className="text-xs text-primary flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" /> {f}
-                  </p>
-                ))}
+          {/* Dependents toggle */}
+          <AccordionItem value="dependentes">
+            <AccordionTrigger className="text-sm font-semibold">
+              <span className="flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Dependentes
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="flex items-center gap-3 mb-3 py-2">
+                <Switch checked={hasDependents} onCheckedChange={setHasDependents} id="has-deps" />
+                <Label htmlFor="has-deps" className="text-sm">Possui dependentes?</Label>
               </div>
-            )}
-            <div className="space-y-1.5">
-              <Label className="text-xs">Selecionar arquivo</Label>
-              <Input
-                type="file"
-                accept="image/*,application/pdf"
-                disabled={uploading}
-                onChange={e => { if (e.target.files?.[0]) handleUpload(e.target.files[0]); }}
-              />
-              {uploading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
-            </div>
-          </CardContent>
-        </Card>
+              {hasDependents && DEPENDENT_DOCS.map(renderDocItem)}
+              {!hasDependents && (
+                <p className="text-xs text-muted-foreground py-2">Ative o toggle acima se possui dependentes.</p>
+              )}
+            </AccordionContent>
+          </AccordionItem>
 
-        {/* Banking Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Dados Bancários</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-1.5"><Label className="text-xs">Banco</Label><Input value={bankInfo.banco} onChange={e => setBankInfo(p => ({ ...p, banco: e.target.value }))} placeholder="Ex: Banco do Brasil" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">Agência</Label><Input value={bankInfo.agencia} onChange={e => setBankInfo(p => ({ ...p, agencia: e.target.value }))} /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Número da conta</Label><Input value={bankInfo.conta} onChange={e => setBankInfo(p => ({ ...p, conta: e.target.value }))} /></div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Tipo de conta</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={bankInfo.tipo}
-                onChange={e => setBankInfo(p => ({ ...p, tipo: e.target.value }))}
-              >
-                <option value="corrente">Corrente</option>
-                <option value="poupanca">Poupança</option>
-              </select>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Banking */}
+          <AccordionItem value="bancarios">
+            <AccordionTrigger className="text-sm font-semibold">
+              <span className="flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Dados Bancários
+                {bankComplete && <CheckCircle className="w-3 h-3 text-primary" />}
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Banco *</Label>
+                  <Input value={bankInfo.banco} onChange={e => setBankInfo(p => ({ ...p, banco: e.target.value }))} placeholder="Ex: Banco do Brasil" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Agência *</Label>
+                    <Input value={bankInfo.agencia} onChange={e => setBankInfo(p => ({ ...p, agencia: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Número da conta *</Label>
+                    <Input value={bankInfo.conta} onChange={e => setBankInfo(p => ({ ...p, conta: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tipo de conta</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={bankInfo.tipo}
+                    onChange={e => setBankInfo(p => ({ ...p, tipo: e.target.value }))}
+                  >
+                    <option value="corrente">Corrente</option>
+                    <option value="poupanca">Poupança</option>
+                  </select>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         {/* Finalize */}
-        <Button onClick={handleFinalize} disabled={uploadedFiles.length === 0} className="w-full gap-2">
-          <CheckCircle className="w-4 h-4" /> Finalizar Envio
-        </Button>
-        {uploadedFiles.length === 0 && (
-          <p className="text-xs text-center text-muted-foreground">
-            Envie ao menos 1 documento para finalizar.
-          </p>
-        )}
+        <div className="space-y-2">
+          {!canFinalize && (
+            <div className="text-xs text-muted-foreground text-center space-y-1">
+              {!allRequiredUploaded && (
+                <p className="flex items-center justify-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Envie todos os documentos obrigatórios (marcados com *)
+                </p>
+              )}
+              {!bankComplete && (
+                <p className="flex items-center justify-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Preencha os dados bancários
+                </p>
+              )}
+            </div>
+          )}
+          <Button onClick={handleFinalize} disabled={!canFinalize || submitting} className="w-full gap-2">
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+            Finalizar Envio
+          </Button>
+        </div>
       </div>
     </div>
   );
