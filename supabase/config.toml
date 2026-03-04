@@ -6,5 +6,8 @@ verify_jwt = false
 [functions.admissions-create-signed-upload]
 verify_jwt = false
 
+[functions.fleet-create-signed-upload]
+verify_jwt = false
+
 [functions.notify-status-change]
 verify_jwt = true
