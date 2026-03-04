@@ -17,57 +17,50 @@ const STEPS: StepDef[] = [
     key: 'vaga',
     label: '0. Vaga Criada',
     description: 'Definição do cargo, salário e requisitos.',
-    help: 'Preencha os dados da vaga: cargo, tipo de contrato, salário previsto, jornada e gestor responsável. Ao enviar, o processo segue para triagem.',
+    help: 'Preencha os dados da vaga e envie para triagem.',
     statusMatch: ['rascunho', 'aguardando_triagem'],
   },
   {
     key: 'triagem',
-    label: '1. Triagem',
-    description: 'Administração avalia a solicitação e inicia o processo.',
-    help: 'O administrativo revisa os dados da vaga e clica "Iniciar Triagem" para habilitar a etapa de candidatos.',
+    label: '1. Triagem + Candidatos',
+    description: 'Cadastro de candidatos (mínimo 1).',
+    help: 'O administrativo inicia a triagem e cadastra candidatos. Ao menos 1 é necessário para avançar.',
     statusMatch: ['em_triagem'],
   },
   {
-    key: 'candidatos',
-    label: '2. Candidatos',
-    description: 'Cadastro de candidatos (mínimo 1).',
-    help: 'Adicione quantos candidatos quiser. Preencha nome, telefone, cidade, CPF (opcional), email (opcional). Após adicionar, clique "Concluir candidatos e avançar".',
+    key: 'entrevista',
+    label: '2. Entrevista',
+    description: 'Agendamento e resultado da entrevista.',
+    help: 'Agende data, hora, endereço e entrevistador. Após a data/hora, registre "Continuar" ou "Eliminar". Só aprovados avançam.',
     statusMatch: ['aguardando_documentos'],
   },
   {
-    key: 'entrevista',
-    label: '3. Entrevista',
-    description: 'Agendamento e resultado da entrevista.',
-    help: 'Agende data, hora, endereço e entrevistador para cada candidato. Após a entrevista, registre "Aprovado" ou "Reprovado". Só candidatos aprovados avançam.',
+    key: 'documentos',
+    label: '3. Documentos (Link Externo)',
+    description: 'Envio de documentos pelo candidato via link público.',
+    help: 'Gere um link público para cada candidato. O candidato envia documentos pessoais, dados bancários e certidões. Confirme o recebimento para avançar.',
     statusMatch: ['documentos_em_analise'],
   },
   {
     key: 'exame',
     label: '4. Exame Admissional',
     description: 'Agendamento e resultado do exame médico.',
-    help: 'Agende o exame em uma clínica. Registre resultado: Apto ou Inapto. Candidatos inaptos são eliminados.',
+    help: 'Digite clínica, data e hora. Após a data, registre "Apto" ou "Inapto". Inaptos são eliminados.',
     statusMatch: ['aguardando_exame', 'exame_realizado'],
   },
   {
-    key: 'docs_whatsapp',
-    label: '5. Confirmação Docs (WhatsApp)',
-    description: 'Confirmação de recebimento dos documentos pessoais via WhatsApp.',
-    help: 'O administrativo recebe documentos por WhatsApp (fora do app). Marque "Confirmar recebimento" para liberar a próxima etapa.',
+    key: 'assinatura',
+    label: '5. Assinatura (Link Externo)',
+    description: 'Admin envia docs internos, candidato assina via CDGov e reenvia.',
+    help: 'Faça upload dos documentos internos (contrato, ficha de registro). Gere link para o candidato baixar, assinar no CDGov e reenviar. Confirme recebimento.',
     statusMatch: ['aguardando_registro'],
   },
   {
-    key: 'assinatura',
-    label: '6. Assinatura (Link Externo)',
-    description: 'Gerar link para o candidato assinar documentos.',
-    help: 'Gere um link seguro (válido 7 dias) e envie ao candidato. Ele baixa documentos e reenvia assinados. Você vê os uploads em tempo real.',
-    statusMatch: ['registros_concluidos'],
-  },
-  {
     key: 'admitido',
-    label: '7. Admitido',
+    label: '6. Admitido',
     description: 'Contratação confirmada.',
-    help: 'Quando todos os passos estiverem completos, confirme a admissão. O solicitante e envolvidos serão notificados.',
-    statusMatch: ['concluido'],
+    help: 'Quando todos os passos estiverem completos, confirme a admissão.',
+    statusMatch: ['registros_concluidos', 'concluido'],
   },
 ];
 
@@ -111,9 +104,9 @@ export function AdmissionStepper({
 
   const getStepSummary = (key: string): string | null => {
     switch (key) {
-      case 'candidatos': return candidateCount > 0 ? `${candidateCount} candidato(s)` : null;
+      case 'triagem': return candidateCount > 0 ? `${candidateCount} candidato(s)` : null;
       case 'entrevista': return hasInterview ? 'Agendada' : null;
-      case 'docs_whatsapp': return hasDocuments ? 'Confirmado' : null;
+      case 'documentos': return hasDocuments ? 'Recebidos' : null;
       case 'exame': return hasExam ? 'Realizado' : null;
       case 'assinatura': return hasRegistration ? 'Completo' : null;
       default: return null;

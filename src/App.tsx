@@ -24,6 +24,8 @@ import AdmissionNewPage from "@/modules/admissions/pages/AdmissionNewPage";
 import AdmissionDetailPage from "@/modules/admissions/pages/AdmissionDetailPage";
 import CandidateDetailPage from "@/modules/admissions/pages/CandidateDetailPage";
 import PublicCandidatePage from "@/modules/admissions/pages/PublicCandidatePage";
+import PublicDocumentsPage from "@/modules/admissions/pages/PublicDocumentsPage";
+import PublicSignaturePage from "@/modules/admissions/pages/PublicSignaturePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +60,8 @@ const AppRoutes = () => (
     {/* Public */}
     <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
     <Route path="/public/candidate/:token" element={<PublicCandidatePage />} />
+    <Route path="/envio-documentos" element={<PublicDocumentsPage />} />
+    <Route path="/assinatura-documentos" element={<PublicSignaturePage />} />
 
     {/* Protected */}
     <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

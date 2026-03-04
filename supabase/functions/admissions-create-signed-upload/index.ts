@@ -5,10 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Simple in-memory rate limiter (per isolate lifetime)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_MAX = 20; // max attempts per window
-const RATE_LIMIT_WINDOW_MS = 60_000; // per minute
+const RATE_LIMIT_MAX = 20;
+const RATE_LIMIT_WINDOW_MS = 60_000;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -34,9 +33,7 @@ Deno.serve(async (req) => {
 
   const clientIp = getClientIp(req);
 
-  // Rate limit check
   if (isRateLimited(clientIp)) {
-    console.warn(`Rate limited IP: ${clientIp}`);
     return new Response(JSON.stringify({ error: 'Muitas tentativas. Tente novamente em breve.' }), {
       status: 429,
       headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' },
@@ -44,16 +41,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { token, candidate_document_id, filename } = await req.json();
+    const body = await req.json();
+    const { token, filename, purpose } = body;
+    const candidate_document_id = body.candidate_document_id;
 
-    if (!token || !candidate_document_id || !filename) {
+    if (!token || !filename) {
       return new Response(JSON.stringify({ error: 'Parâmetros obrigatórios faltando' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Validate filename to prevent path traversal
+    // Validate filename
     const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
     if (sanitizedFilename.includes('..') || sanitizedFilename.length > 255) {
       return new Response(JSON.stringify({ error: 'Nome de arquivo inválido' }), {
@@ -73,7 +72,7 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Validate token — unified error for all failure cases
+    // Validate token
     const { data: tokenRow } = await supabase
       .from('public_tokens')
       .select('candidate_id, expires_at, used_at')
@@ -88,6 +87,50 @@ Deno.serve(async (req) => {
       });
     }
 
+    const ext = sanitizedFilename.split('.').pop() || 'pdf';
+
+    // === PURPOSE: SIGNATURE ===
+    if (purpose === 'signature') {
+      const path = `candidates/${tokenRow.candidate_id}/signature-incoming/${Date.now()}.${ext}`;
+
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('admissions')
+        .createSignedUploadUrl(path);
+
+      if (signedError || !signedData) {
+        console.error('Signed URL error:', signedError);
+        return new Response(JSON.stringify({ error: 'Falha ao gerar URL de upload' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Log
+      await supabase.from('audit_logs').insert({
+        action: 'signature_upload',
+        entity_type: 'candidates',
+        entity_id: tokenRow.candidate_id,
+        details: { ip: clientIp, filename: sanitizedFilename, purpose: 'signature' },
+      });
+
+      console.log(`Signature upload URL created from IP ${clientIp} for candidate ${tokenRow.candidate_id}`);
+
+      return new Response(JSON.stringify({
+        signedUrl: signedData.signedUrl,
+        path,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // === PURPOSE: DOCUMENTS (default) ===
+    if (!candidate_document_id) {
+      return new Response(JSON.stringify({ error: 'candidate_document_id obrigatório para documentos' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Verify candidate_document belongs to this candidate
     const { data: cdRow } = await supabase
       .from('candidate_documents')
@@ -97,14 +140,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (!cdRow) {
-      console.log(`Document not found for candidate from IP ${clientIp}`);
       return new Response(JSON.stringify({ error: 'Envio de documento falhou' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Get document key for path
     const { data: doc } = await supabase
       .from('documents')
       .select('key')
@@ -112,10 +153,8 @@ Deno.serve(async (req) => {
       .single();
 
     const docKey = doc?.key || 'unknown';
-    const ext = sanitizedFilename.split('.').pop() || 'pdf';
     const path = `candidates/${tokenRow.candidate_id}/${docKey}/${Date.now()}.${ext}`;
 
-    // Create signed upload URL
     const { data: signedData, error: signedError } = await supabase.storage
       .from('admissions')
       .createSignedUploadUrl(path);
