@@ -10,8 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StatusBadge } from '@/components/StatusBadge';
 import { StatusTimeline } from '@/components/StatusTimeline';
-import { FUEL_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock } from 'lucide-react';
+import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS, REEMBOLSO_CATEGORIAS, DIARIA_CATEGORIAS } from '@/lib/constants';
+import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
@@ -30,6 +30,7 @@ export default function FleetDetailPage() {
   const isOwner = req?.requester_user_id === user?.id;
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const isDiretoria = hasRole('diretoria');
+  const reqType = (req as any)?.type || 'abastecimento';
 
   // Realtime subscription
   useEffect(() => {
@@ -47,7 +48,6 @@ export default function FleetDetailPage() {
     await statusMutation.mutateAsync({ requestId: id, toStatus, reason });
     setShowReasonDialog(null);
     setActionReason('');
-    refetch();
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal') => {
@@ -58,11 +58,8 @@ export default function FleetDetailPage() {
       const path = `requests/${id}/${type}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage.from('fleet').upload(path, file);
       if (uploadError) throw uploadError;
-
       const { error: insertError } = await supabase.from('fuel_attachments').insert({
-        fuel_request_id: id,
-        type: type as any,
-        file_path: path,
+        fuel_request_id: id, type: type as any, file_path: path,
       });
       if (insertError) throw insertError;
       toast({ title: 'Arquivo enviado!' });
@@ -97,7 +94,10 @@ export default function FleetDetailPage() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-lg">Solicitação</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              {reqType === 'reembolso' ? <Receipt className="w-5 h-5" /> : reqType === 'diaria' ? <DollarSign className="w-5 h-5" /> : <Car className="w-5 h-5" />}
+              {REQUEST_TYPE_LABELS[reqType] || 'Solicitação'}
+            </CardTitle>
             <StatusBadge status={req.status} label={FUEL_STATUS_LABELS[req.status] || req.status} />
           </div>
         </CardHeader>
@@ -116,6 +116,30 @@ export default function FleetDetailPage() {
               <span>{(req as any).profiles?.full_name || 'Usuário'}</span>
             </div>
           </div>
+
+          {/* Type-specific details */}
+          {reqType === 'abastecimento' && ((req as any).placa || (req as any).km) && (
+            <div className="flex gap-4 text-sm text-muted-foreground border-t border-border pt-2">
+              {(req as any).placa && <span>🚗 Placa: {(req as any).placa}</span>}
+              {(req as any).km && <span>📏 KM: {(req as any).km}</span>}
+              {(req as any).motivo && <span>📝 {(req as any).motivo}</span>}
+            </div>
+          )}
+          {reqType === 'reembolso' && (
+            <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
+              {(req as any).categoria && <p>Categoria: {REEMBOLSO_CATEGORIAS.find(c => c.value === (req as any).categoria)?.label || (req as any).categoria}</p>}
+              {(req as any).payment_method === 'pix' && (req as any).pix_key && <p>PIX: {(req as any).pix_key}</p>}
+              {(req as any).payment_method === 'banco' && <p>Banco: {(req as any).bank_name} | Ag: {(req as any).bank_agency} | Conta: {(req as any).bank_account}</p>}
+            </div>
+          )}
+          {reqType === 'diaria' && (
+            <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
+              {(req as any).daily_category && <p>Categoria: {DIARIA_CATEGORIAS.find(c => c.value === (req as any).daily_category)?.label || (req as any).daily_category}</p>}
+              {(req as any).person_name && <p>Prestador: {(req as any).person_name}</p>}
+              {(req as any).hours && <p>Horas: {(req as any).hours}h</p>}
+            </div>
+          )}
+
           {req.notes && <p className="text-sm text-muted-foreground border-t border-border pt-2 mt-2">{req.notes}</p>}
         </CardContent>
       </Card>
@@ -125,24 +149,21 @@ export default function FleetDetailPage() {
         <CardContent className="p-4 space-y-3">
           <h3 className="text-sm font-semibold text-foreground">Ações</h3>
 
-          {/* Owner: send draft */}
           {isOwner && req.status === 'rascunho' && (
             <Button onClick={() => handleStatusChange('enviado')} className="gap-2 w-full sm:w-auto">
               <Send className="w-4 h-4" /> Enviar Solicitação
             </Button>
           )}
 
-          {/* Owner: resubmit after return */}
           {isOwner && req.status === 'retornado' && (
             <Button onClick={() => handleStatusChange('enviado')} className="gap-2 w-full sm:w-auto">
               <Send className="w-4 h-4" /> Reenviar
             </Button>
           )}
 
-          {/* Diretoria: approve/return/reject */}
           {isDiretoria && req.status === 'em_aprovacao' && (
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleStatusChange('aprovado')} className="gap-2" variant="default">
+              <Button onClick={() => handleStatusChange('aprovado')} className="gap-2">
                 <CheckCircle className="w-4 h-4" /> Aprovar
               </Button>
               <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2">
@@ -154,25 +175,22 @@ export default function FleetDetailPage() {
             </div>
           )}
 
-          {/* Admin: move enviado -> em_aprovacao */}
           {isAdmin && req.status === 'enviado' && (
             <Button onClick={() => handleStatusChange('em_aprovacao')} className="gap-2">
               <Clock className="w-4 h-4" /> Encaminhar para Aprovação
             </Button>
           )}
 
-          {/* Owner: submit for review after uploading photos */}
           {canSendToReview && (
             <Button onClick={() => handleStatusChange('em_revisao_admin')} className="gap-2">
               <Send className="w-4 h-4" /> Enviar para Revisão
             </Button>
           )}
 
-          {/* Admin: finalize review */}
           {isAdmin && req.status === 'em_revisao_admin' && (
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleStatusChange('encerrado')} className="gap-2">
-                <CheckCircle className="w-4 h-4" /> Encerrar (Aprovado)
+              <Button onClick={() => handleStatusChange('concluido')} className="gap-2">
+                <CheckCircle className="w-4 h-4" /> Concluir (Aprovado)
               </Button>
               <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2">
                 <RotateCcw className="w-4 h-4" /> Devolver
@@ -180,21 +198,33 @@ export default function FleetDetailPage() {
             </div>
           )}
 
-          {/* No actions available */}
+          {/* Reembolso: mark as paid */}
+          {isAdmin && reqType === 'reembolso' && req.status === 'aprovado' && (
+            <Button onClick={() => handleStatusChange('concluido')} className="gap-2">
+              <CheckCircle className="w-4 h-4" /> Marcar como Pago / Concluir
+            </Button>
+          )}
+
+          {/* Diária: encerrar */}
+          {isAdmin && reqType === 'diaria' && req.status === 'ativa' && (
+            <Button onClick={() => handleStatusChange('encerrado')} className="gap-2" variant="outline">
+              <XCircle className="w-4 h-4" /> Encerrar Diária
+            </Button>
+          )}
+
           {!isOwner && !isAdmin && !isDiretoria && (
             <p className="text-sm text-muted-foreground">Nenhuma ação disponível</p>
           )}
         </CardContent>
       </Card>
 
-      {/* Attachments */}
-      {(canUpload || (attachments && attachments.length > 0)) && (
+      {/* Attachments (only for abastecimento) */}
+      {reqType === 'abastecimento' && (canUpload || (attachments && attachments.length > 0)) && (
         <Card>
           <CardContent className="p-4 space-y-4">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <FileImage className="w-4 h-4" /> Anexos
             </h3>
-
             {canUpload && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -207,7 +237,6 @@ export default function FleetDetailPage() {
                 </div>
               </div>
             )}
-
             {attachments && attachments.length > 0 && (
               <div className="space-y-2">
                 {attachments.map((att: any) => (
@@ -233,15 +262,11 @@ export default function FleetDetailPage() {
       {/* Reason Dialog */}
       <Dialog open={!!showReasonDialog} onOpenChange={() => setShowReasonDialog(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Motivo</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Motivo</DialogTitle></DialogHeader>
           <Textarea value={actionReason} onChange={e => setActionReason(e.target.value)} placeholder="Descreva o motivo..." rows={3} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
-            <Button onClick={() => showReasonDialog && handleStatusChange(showReasonDialog, actionReason)} disabled={!actionReason.trim()}>
-              Confirmar
-            </Button>
+            <Button onClick={() => showReasonDialog && handleStatusChange(showReasonDialog, actionReason)} disabled={!actionReason.trim()}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
