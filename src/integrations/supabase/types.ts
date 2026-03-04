@@ -342,32 +342,77 @@ export type Database = {
       }
       fuel_requests: {
         Row: {
+          bank_account: string | null
+          bank_agency: string | null
+          bank_name: string | null
+          categoria: string | null
           created_at: string
+          daily_category: string | null
+          daily_value: number | null
           data_abastecimento: string
+          hours: number | null
           id: string
+          km: string | null
+          motivo: string | null
           notes: string | null
+          payment_method: string | null
+          person_cpf: string | null
+          person_name: string | null
+          pix_key: string | null
+          placa: string | null
           requester_user_id: string
           status: Database["public"]["Enums"]["fuel_status"]
+          type: string
           updated_at: string
           valor: number
         }
         Insert: {
+          bank_account?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
+          categoria?: string | null
           created_at?: string
+          daily_category?: string | null
+          daily_value?: number | null
           data_abastecimento?: string
+          hours?: number | null
           id?: string
+          km?: string | null
+          motivo?: string | null
           notes?: string | null
+          payment_method?: string | null
+          person_cpf?: string | null
+          person_name?: string | null
+          pix_key?: string | null
+          placa?: string | null
           requester_user_id: string
           status?: Database["public"]["Enums"]["fuel_status"]
+          type?: string
           updated_at?: string
           valor: number
         }
         Update: {
+          bank_account?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
+          categoria?: string | null
           created_at?: string
+          daily_category?: string | null
+          daily_value?: number | null
           data_abastecimento?: string
+          hours?: number | null
           id?: string
+          km?: string | null
+          motivo?: string | null
           notes?: string | null
+          payment_method?: string | null
+          person_cpf?: string | null
+          person_name?: string | null
+          pix_key?: string | null
+          placa?: string | null
           requester_user_id?: string
           status?: Database["public"]["Enums"]["fuel_status"]
+          type?: string
           updated_at?: string
           valor?: number
         }
@@ -755,6 +800,7 @@ export type Database = {
           reprovados: number | null
           status: Database["public"]["Enums"]["fuel_status"] | null
           total: number | null
+          type: string | null
           valor_total: number | null
         }
         Relationships: []
@@ -833,6 +879,8 @@ export type Database = {
         | "aprovado"
         | "reprovado"
         | "encerrado"
+        | "concluido"
+        | "ativa"
       notification_channel: "in_app" | "email"
       review_decision: "approved" | "rejected" | "needs_revision"
     }
@@ -996,6 +1044,8 @@ export const Constants = {
         "aprovado",
         "reprovado",
         "encerrado",
+        "concluido",
+        "ativa",
       ],
       notification_channel: ["in_app", "email"],
       review_decision: ["approved", "rejected", "needs_revision"],

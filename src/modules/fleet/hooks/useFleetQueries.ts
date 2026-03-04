@@ -2,16 +2,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-export function useFuelRequests(userId?: string, isAdmin?: boolean) {
+export function useFuelRequests(userId?: string, isAdmin?: boolean, type?: string) {
   return useQuery({
-    queryKey: ['fuel_requests', userId, isAdmin],
+    queryKey: ['fuel_requests', userId, isAdmin, type],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Use any to avoid deep type instantiation
+      const res: any = await supabase
         .from('fuel_requests')
         .select('*, profiles(full_name, email)')
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
+      if (res.error) throw res.error;
+      let items = res.data || [];
+      if (type) items = items.filter((r: any) => r.type === type);
+      return items;
     },
     enabled: !!userId,
   });
@@ -70,16 +73,10 @@ export function useCreateFuelRequest() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { valor: number; data_abastecimento: string; notes?: string; requester_user_id: string }) => {
+    mutationFn: async (data: Record<string, any>) => {
       const { data: result, error } = await supabase
         .from('fuel_requests')
-        .insert({
-          requester_user_id: data.requester_user_id,
-          valor: data.valor,
-          data_abastecimento: data.data_abastecimento,
-          notes: data.notes || null,
-          status: 'rascunho' as any,
-        })
+        .insert(data as any)
         .select()
         .single();
       if (error) throw error;

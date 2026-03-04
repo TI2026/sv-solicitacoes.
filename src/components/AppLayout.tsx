@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
-    { to: '/fleet', label: 'Abastecimento', icon: Fuel, show: true },
+    { to: '/fleet', label: 'Solicitações', icon: Fuel, show: true },
     { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
     { to: '/perfil', label: 'Meu Perfil', icon: User, show: true },
     { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },

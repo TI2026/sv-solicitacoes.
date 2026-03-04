@@ -5,23 +5,27 @@ import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/StatusBadge';
-import { ADMISSION_STATUS_LABELS, FUEL_STATUS_LABELS } from '@/lib/constants';
-import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3 } from 'lucide-react';
+import { ADMISSION_STATUS_LABELS, FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
+import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-function MetricCard({ icon: Icon, label, value, onClick }: {
-  icon: any; label: string; value: string | number; onClick?: () => void;
+function MetricCard({ icon: Icon, label, value, onClick, accent }: {
+  icon: any; label: string; value: string | number; onClick?: () => void; accent?: string;
 }) {
   return (
     <Card className="cursor-pointer hover:border-primary/30 transition-colors" onClick={onClick}>
       <CardContent className="p-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <Icon className="w-5 h-5 text-primary" />
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${accent || 'bg-primary/10'}`}>
+            <Icon className={`w-5 h-5 ${accent ? 'text-primary-foreground' : 'text-primary'}`} />
           </div>
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground truncate">{label}</p>
@@ -34,37 +38,42 @@ function MetricCard({ icon: Icon, label, value, onClick }: {
 }
 
 const CHART_COLORS = [
-  'hsl(145, 63%, 32%)',
-  'hsl(38, 92%, 50%)',
-  'hsl(210, 80%, 52%)',
-  'hsl(0, 72%, 51%)',
-  'hsl(280, 60%, 50%)',
-  'hsl(170, 60%, 40%)',
+  'hsl(145, 63%, 32%)', 'hsl(38, 92%, 50%)', 'hsl(210, 80%, 52%)',
+  'hsl(0, 72%, 51%)', 'hsl(280, 60%, 50%)', 'hsl(170, 60%, 40%)',
 ];
+
+interface DrilldownState {
+  title: string;
+  data: any[];
+  type: 'fuel' | 'admission';
+  summary?: string;
+}
 
 export default function DashboardPage() {
   const { user, hasAnyRole } = useAuth();
   const navigate = useNavigate();
-  const [drilldown, setDrilldown] = useState<{ title: string; data: any[] } | null>(null);
+  const isMobile = useIsMobile();
+  const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
 
   const isRH = hasAnyRole(['diretoria', 'rh']);
+  const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
 
-  // Realtime subscriptions for dashboard
   useRealtimeSubscription({
     channelName: 'dashboard-realtime',
     enabled: !!user,
     tables: [
-      { table: 'fuel_requests', queryKeys: [['fuel_metrics']] },
-      { table: 'admission_requests', queryKeys: [['admission_metrics']] },
+      { table: 'fuel_requests', queryKeys: [['fuel_metrics'], ['fuel_all']] },
+      { table: 'admission_requests', queryKeys: [['admission_metrics'], ['adm_all']] },
     ],
   });
 
   const { data: fuelData, isLoading: fuelLoading } = useQuery({
-    queryKey: ['fuel_metrics'],
+    queryKey: ['fuel_all'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fuel_requests')
-        .select('id, valor, status, created_at, data_abastecimento');
+        .select('id, valor, status, created_at, data_abastecimento, type, daily_value, person_name, placa, categoria')
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -72,7 +81,7 @@ export default function DashboardPage() {
   });
 
   const { data: admData, isLoading: admLoading } = useQuery({
-    queryKey: ['admission_metrics'],
+    queryKey: ['adm_all'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('admission_requests')
@@ -83,17 +92,30 @@ export default function DashboardPage() {
     enabled: !!user && isRH,
   });
 
-  // Memoize computed metrics
+  // Memoized metrics
   const fuelMetrics = useMemo(() => {
     const d = fuelData || [];
     const total = d.length;
-    const pendentes = d.filter(f => !['aprovado', 'reprovado', 'encerrado'].includes(f.status)).length;
-    const aprovados = d.filter(f => f.status === 'encerrado' || f.status === 'aprovado').length;
+    const pendentes = d.filter(f => !['aprovado', 'reprovado', 'encerrado', 'concluido'].includes(f.status)).length;
+    const aprovados = d.filter(f => ['encerrado', 'aprovado', 'concluido'].includes(f.status)).length;
     const valorTotal = d.reduce((sum, f) => sum + Number(f.valor || 0), 0);
     const byStatus = Object.entries(
       d.reduce((acc, f) => { acc[f.status] = (acc[f.status] || 0) + 1; return acc; }, {} as Record<string, number>)
-    ).map(([status, count]) => ({ name: FUEL_STATUS_LABELS[status] || status, value: count }));
-    return { total, pendentes, aprovados, valorTotal, byStatus, pendentesData: d.filter(f => !['aprovado', 'reprovado', 'encerrado'].includes(f.status)) };
+    ).map(([status, count]) => ({ name: FUEL_STATUS_LABELS[status] || status, value: count, status }));
+    const byType = Object.entries(
+      d.reduce((acc, f) => {
+        const t = (f as any).type || 'abastecimento';
+        const label = REQUEST_TYPE_LABELS[t] || t;
+        acc[label] = (acc[label] || 0) + Number(f.valor || 0);
+        return acc;
+      }, {} as Record<string, number>)
+    ).map(([name, value]) => ({ name, value }));
+    return {
+      total, pendentes, aprovados, valorTotal, byStatus, byType,
+      pendentesData: d.filter(f => !['aprovado', 'reprovado', 'encerrado', 'concluido'].includes(f.status)),
+      aprovadosData: d.filter(f => ['encerrado', 'aprovado', 'concluido'].includes(f.status)),
+      allData: d,
+    };
   }, [fuelData]);
 
   const admMetrics = useMemo(() => {
@@ -104,12 +126,64 @@ export default function DashboardPage() {
     const salarioTotal = d.reduce((sum, a) => sum + Number(a.salario_previsto || 0), 0);
     const byStatus = Object.entries(
       d.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {} as Record<string, number>)
-    ).map(([status, count]) => ({ name: ADMISSION_STATUS_LABELS[status] || status, value: count }));
-    return { total, pendentes, concluidos, salarioTotal, byStatus };
+    ).map(([status, count]) => ({ name: ADMISSION_STATUS_LABELS[status] || status, value: count, status }));
+    return {
+      total, pendentes, concluidos, salarioTotal, byStatus,
+      pendentesData: d.filter(a => !['concluido', 'cancelado'].includes(a.status)),
+      concluidosData: d.filter(a => a.status === 'concluido'),
+    };
   }, [admData]);
+
+  const openDrilldown = useCallback((dd: DrilldownState) => setDrilldown(dd), []);
+  const closeDrilldown = useCallback(() => setDrilldown(null), []);
+
+  const formatCurrency = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
   if (!user) return null;
   const primaryRole = user.roles[0];
+
+  const DrilldownContent = () => {
+    if (!drilldown) return null;
+    const items = drilldown.data;
+    return (
+      <div className="space-y-3">
+        {drilldown.summary && (
+          <div className="p-3 rounded-lg bg-primary/5 text-sm font-medium text-foreground">{drilldown.summary}</div>
+        )}
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">Nenhum item</p>
+        ) : (
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {items.slice(0, 50).map((item: any) => (
+              <Card key={item.id} className="cursor-pointer hover:border-primary/30" onClick={() => {
+                closeDrilldown();
+                navigate(drilldown.type === 'fuel' ? `/fleet/${item.id}` : `/admissions/${item.id}`);
+              }}>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {drilldown.type === 'fuel'
+                        ? formatCurrency(Number(item.valor || 0))
+                        : (item.cargo_funcao || 'Admissão')}
+                    </span>
+                    <StatusBadge
+                      status={item.status}
+                      label={(drilldown.type === 'fuel' ? FUEL_STATUS_LABELS : ADMISSION_STATUS_LABELS)[item.status] || item.status}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(item.created_at).toLocaleDateString('pt-BR')}
+                    {(item as any).type && ` · ${REQUEST_TYPE_LABELS[(item as any).type] || (item as any).type}`}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+            {items.length > 50 && <p className="text-xs text-muted-foreground text-center">Mostrando 50 de {items.length}</p>}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -122,54 +196,67 @@ export default function DashboardPage() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="w-full sm:w-auto">
+        <TabsList className="w-full sm:w-auto flex-wrap">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           {isRH && <TabsTrigger value="admissions">Admissões</TabsTrigger>}
-          <TabsTrigger value="fleet">Abastecimento</TabsTrigger>
+          <TabsTrigger value="fleet">Solicitações</TabsTrigger>
+          {isAdmin && <TabsTrigger value="fluxos" className="gap-1"><ListChecks className="w-3.5 h-3.5" /> Fluxos</TabsTrigger>}
         </TabsList>
 
+        {/* OVERVIEW TAB */}
         <TabsContent value="overview" className="space-y-4 mt-4">
           {fuelLoading ? (
-            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[1,2,3,4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
+            </div>
           ) : (
             <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <MetricCard icon={Fuel} label="Solicitações Frota" value={fuelMetrics.total} onClick={() => navigate('/fleet')} />
-                <MetricCard icon={Clock} label="Pendentes Frota" value={fuelMetrics.pendentes} onClick={() => setDrilldown({ title: 'Frota Pendentes', data: fuelMetrics.pendentesData })} />
-                {isRH && <MetricCard icon={Users} label="Admissões" value={admMetrics.total} onClick={() => navigate('/admissions')} />}
-                {isRH && <MetricCard icon={Clock} label="Admissões Pendentes" value={admMetrics.pendentes} />}
+                <MetricCard icon={Fuel} label="Solicitações" value={fuelMetrics.total} onClick={() => navigate('/fleet')} />
+                <MetricCard icon={Clock} label="Pendentes Frota" value={fuelMetrics.pendentes}
+                  onClick={() => openDrilldown({ title: 'Frota Pendentes', data: fuelMetrics.pendentesData, type: 'fuel', summary: `${fuelMetrics.pendentes} solicitações pendentes` })} />
+                {isRH && <MetricCard icon={Users} label="Admissões Pendentes" value={admMetrics.pendentes}
+                  onClick={() => openDrilldown({ title: 'Admissões Pendentes', data: admMetrics.pendentesData, type: 'admission', summary: `${admMetrics.pendentes} admissões pendentes` })} />}
+                {isRH && <MetricCard icon={CheckCircle} label="Admissões Concluídas" value={admMetrics.concluidos}
+                  onClick={() => openDrilldown({ title: 'Admissões Concluídas', data: admMetrics.concluidosData, type: 'admission', summary: `${admMetrics.concluidos} concluídas` })} />}
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <MetricCard icon={DollarSign} label="Valor Total Frota" value={`R$ ${fuelMetrics.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
-                <MetricCard icon={CheckCircle} label="Frota Aprovados" value={fuelMetrics.aprovados} />
-                {isRH && <MetricCard icon={CheckCircle} label="Admissões Concluídas" value={admMetrics.concluidos} />}
-                {isRH && <MetricCard icon={DollarSign} label="Salário Total Previsto" value={`R$ ${admMetrics.salarioTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />}
+                <MetricCard icon={DollarSign} label="Valor Total Frota" value={formatCurrency(fuelMetrics.valorTotal)}
+                  onClick={() => openDrilldown({ title: 'Valor Total Frota', data: fuelMetrics.allData, type: 'fuel', summary: `Total: ${formatCurrency(fuelMetrics.valorTotal)}` })} />
+                <MetricCard icon={CheckCircle} label="Frota Aprovados" value={fuelMetrics.aprovados}
+                  onClick={() => openDrilldown({ title: 'Frota Aprovados', data: fuelMetrics.aprovadosData, type: 'fuel', summary: `${fuelMetrics.aprovados} aprovados/concluídos` })} />
+                {isRH && <MetricCard icon={DollarSign} label="Salário Total Previsto" value={formatCurrency(admMetrics.salarioTotal)}
+                  onClick={() => openDrilldown({ title: 'Salário Total Previsto', data: admMetrics.pendentesData, type: 'admission', summary: `Total previsto: ${formatCurrency(admMetrics.salarioTotal)}` })} />}
+                {isRH && <MetricCard icon={Users} label="Total Admissões" value={admMetrics.total} onClick={() => navigate('/admissions')} />}
               </div>
             </>
           )}
         </TabsContent>
 
+        {/* ADMISSIONS TAB */}
         {isRH && (
           <TabsContent value="admissions" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <MetricCard icon={Users} label="Total" value={admMetrics.total} onClick={() => navigate('/admissions')} />
-              <MetricCard icon={Clock} label="Pendentes" value={admMetrics.pendentes} />
-              <MetricCard icon={CheckCircle} label="Concluídos" value={admMetrics.concluidos} />
-              <MetricCard icon={DollarSign} label="Salário Total" value={`R$ ${admMetrics.salarioTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+              <MetricCard icon={Clock} label="Pendentes" value={admMetrics.pendentes}
+                onClick={() => openDrilldown({ title: 'Admissões Pendentes', data: admMetrics.pendentesData, type: 'admission' })} />
+              <MetricCard icon={CheckCircle} label="Concluídos" value={admMetrics.concluidos}
+                onClick={() => openDrilldown({ title: 'Admissões Concluídas', data: admMetrics.concluidosData, type: 'admission' })} />
+              <MetricCard icon={DollarSign} label="Salário Total" value={formatCurrency(admMetrics.salarioTotal)}
+                onClick={() => openDrilldown({ title: 'Salário Total Previsto', data: admMetrics.pendentesData, type: 'admission', summary: formatCurrency(admMetrics.salarioTotal) })} />
             </div>
             {admMetrics.byStatus.length > 0 && (
               <Card>
                 <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Por Status</h3>
+                  <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Distribuição por Status</h3>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={admMetrics.byStatus}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
-                        <YAxis allowDecimals={false} />
+                      <PieChart>
+                        <Pie data={admMetrics.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>
+                          {admMetrics.byStatus.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                        </Pie>
                         <Tooltip />
-                        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      </BarChart>
+                      </PieChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
@@ -178,76 +265,205 @@ export default function DashboardPage() {
           </TabsContent>
         )}
 
+        {/* FLEET/SOLICITAÇÕES TAB */}
         <TabsContent value="fleet" className="space-y-4 mt-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricCard icon={Fuel} label="Total" value={fuelMetrics.total} onClick={() => navigate('/fleet')} />
-            <MetricCard icon={Clock} label="Pendentes" value={fuelMetrics.pendentes} />
-            <MetricCard icon={CheckCircle} label="Aprovados" value={fuelMetrics.aprovados} />
-            <MetricCard icon={DollarSign} label="Valor Total" value={`R$ ${fuelMetrics.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+            <MetricCard icon={Clock} label="Pendentes" value={fuelMetrics.pendentes}
+              onClick={() => openDrilldown({ title: 'Pendentes', data: fuelMetrics.pendentesData, type: 'fuel' })} />
+            <MetricCard icon={CheckCircle} label="Aprovados" value={fuelMetrics.aprovados}
+              onClick={() => openDrilldown({ title: 'Aprovados', data: fuelMetrics.aprovadosData, type: 'fuel' })} />
+            <MetricCard icon={DollarSign} label="Valor Total" value={formatCurrency(fuelMetrics.valorTotal)}
+              onClick={() => openDrilldown({ title: 'Valor Total', data: fuelMetrics.allData, type: 'fuel', summary: formatCurrency(fuelMetrics.valorTotal) })} />
           </div>
-          {fuelMetrics.byStatus.length > 0 && (
+          {(fuelMetrics.byType.length > 0 || fuelMetrics.byStatus.length > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Por Status</h3>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={fuelMetrics.byStatus}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip />
-                        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold mb-4">Distribuição</h3>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={fuelMetrics.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>
-                          {fuelMetrics.byStatus.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+              {fuelMetrics.byType.length > 0 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Valor por Tipo</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={fuelMetrics.byType}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                          <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              {fuelMetrics.byStatus.length > 0 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-semibold mb-4">Distribuição por Status</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={fuelMetrics.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>
+                            {fuelMetrics.byStatus.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </TabsContent>
+
+        {/* CONTROLE DE FLUXOS TAB */}
+        {isAdmin && (
+          <TabsContent value="fluxos" className="space-y-4 mt-4">
+            <FlowControlPanel fuelData={fuelData || []} admData={admData || []} navigate={navigate} isRH={isRH} />
+          </TabsContent>
+        )}
       </Tabs>
 
-      {/* Drilldown Dialog */}
-      <Dialog open={!!drilldown} onOpenChange={() => setDrilldown(null)}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{drilldown?.title}</DialogTitle>
-          </DialogHeader>
-          {drilldown?.data && drilldown.data.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum item</p>
-          ) : (
-            <div className="space-y-2">
-              {drilldown?.data.map((item: any) => (
-                <Card key={item.id} className="cursor-pointer hover:border-primary/30" onClick={() => { setDrilldown(null); navigate(`/fleet/${item.id}`); }}>
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">R$ {Number(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      <StatusBadge status={item.status} label={FUEL_STATUS_LABELS[item.status] || item.status} />
+      {/* Drilldown - Drawer on mobile, Dialog on desktop */}
+      {isMobile ? (
+        <Drawer open={!!drilldown} onOpenChange={() => closeDrilldown()}>
+          <DrawerContent className="max-h-[85vh]">
+            <DrawerHeader><DrawerTitle>{drilldown?.title}</DrawerTitle></DrawerHeader>
+            <div className="px-4 pb-4"><DrilldownContent /></div>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={!!drilldown} onOpenChange={() => closeDrilldown()}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>{drilldown?.title}</DialogTitle></DialogHeader>
+            <DrilldownContent />
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+/* ========== Controle de Fluxos sub-component ========== */
+
+function FlowControlPanel({ fuelData, admData, navigate, isRH }: {
+  fuelData: any[]; admData: any[]; navigate: (p: string) => void; isRH: boolean;
+}) {
+  const [tab, setTab] = useState(isRH ? 'admissions' : 'fuel');
+
+  const fuelByStatus = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    for (const f of fuelData) {
+      if (['concluido', 'encerrado', 'reprovado'].includes(f.status)) continue;
+      const key = f.status;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(f);
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [fuelData]);
+
+  const admByStatus = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    for (const a of admData) {
+      if (['concluido', 'cancelado'].includes(a.status)) continue;
+      const key = a.status;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(a);
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [admData]);
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+        <ListChecks className="w-5 h-5" /> Controle de Fluxos
+      </h2>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="w-full sm:w-auto">
+          {isRH && <TabsTrigger value="admissions">Admissões</TabsTrigger>}
+          <TabsTrigger value="fuel">Solicitações</TabsTrigger>
+          <TabsTrigger value="pendencias">Pendências</TabsTrigger>
+        </TabsList>
+
+        {isRH && (
+          <TabsContent value="admissions" className="mt-3 space-y-3">
+            {admByStatus.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhuma admissão pendente</p>
+            ) : admByStatus.map(([status, items]) => (
+              <Card key={status}>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <StatusBadge status={status} label={ADMISSION_STATUS_LABELS[status] || status} />
+                    <span className="text-xs font-semibold text-muted-foreground">{items.length}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {items.slice(0, 5).map((item: any) => (
+                      <div key={item.id} className="flex items-center justify-between text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1" onClick={() => navigate(`/admissions/${item.id}`)}>
+                        <span className="truncate">{item.cargo_funcao || 'Admissão'}</span>
+                        <span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
+                      </div>
+                    ))}
+                    {items.length > 5 && <p className="text-xs text-muted-foreground text-center">+{items.length - 5} mais</p>}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+        )}
+
+        <TabsContent value="fuel" className="mt-3 space-y-3">
+          {fuelByStatus.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Nenhuma solicitação pendente</p>
+          ) : fuelByStatus.map(([status, items]) => (
+            <Card key={status}>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <StatusBadge status={status} label={FUEL_STATUS_LABELS[status] || status} />
+                  <span className="text-xs font-semibold text-muted-foreground">{items.length}</span>
+                </div>
+                <div className="space-y-1">
+                  {items.slice(0, 5).map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1" onClick={() => navigate(`/fleet/${item.id}`)}>
+                      <span className="truncate">
+                        R$ {Number(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {item.type && ` · ${REQUEST_TYPE_LABELS[item.type] || item.type}`}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{new Date(item.created_at).toLocaleDateString('pt-BR')}</p>
-                  </CardContent>
-                </Card>
+                  ))}
+                  {items.length > 5 && <p className="text-xs text-muted-foreground text-center">+{items.length - 5} mais</p>}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="pendencias" className="mt-3">
+          <Card>
+            <CardContent className="p-4 space-y-2">
+              <p className="text-sm text-foreground font-medium">Itens aguardando sua ação:</p>
+              {[
+                ...fuelData.filter(f => f.status === 'enviado').map(f => ({ ...f, _action: 'Encaminhar para Aprovação', _path: `/fleet/${f.id}` })),
+                ...fuelData.filter(f => f.status === 'em_aprovacao').map(f => ({ ...f, _action: 'Aprovar/Reprovar', _path: `/fleet/${f.id}` })),
+                ...fuelData.filter(f => f.status === 'em_revisao_admin').map(f => ({ ...f, _action: 'Revisar Anexos', _path: `/fleet/${f.id}` })),
+              ].slice(0, 10).map((item: any) => (
+                <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(item._path)}>
+                  <div>
+                    <span className="font-medium">R$ {Number(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{item._action}</span>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-7 text-xs">Abrir</Button>
+                </div>
               ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+              {fuelData.filter(f => ['enviado', 'em_aprovacao', 'em_revisao_admin'].includes(f.status)).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma pendência</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
