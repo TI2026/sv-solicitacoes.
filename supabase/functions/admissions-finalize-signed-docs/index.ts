@@ -26,6 +26,12 @@ function getClientIp(req: Request): string {
     || 'unknown';
 }
 
+async function hashToken(token: string): Promise<string> {
+  const data = new TextEncoder().encode(token);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -50,18 +56,49 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Hash token
-    const encoder = new TextEncoder();
-    const data = encoder.encode(token);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const tokenHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const tokenHash = await hashToken(token);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Validate token
+    // Try admission_public_links first (new system)
+    const { data: link } = await supabase
+      .from('admission_public_links')
+      .select('id, candidate_id, link_type, expires_at, used_at')
+      .eq('token_hash', tokenHash)
+      .maybeSingle();
+
+    if (link) {
+      if (link.used_at || new Date(link.expires_at) < new Date()) {
+        return new Response(JSON.stringify({ error: 'Token inválido ou expirado' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Mark as used
+      await supabase.from('admission_public_links').update({
+        used_at: new Date().toISOString(),
+        candidate_uploaded_at: new Date().toISOString(),
+      }).eq('id', link.id);
+
+      // Log
+      await supabase.from('audit_logs').insert({
+        action: 'finalize_public_link',
+        entity_type: 'candidates',
+        entity_id: link.candidate_id,
+        details: { ip: clientIp, link_type: link.link_type, finalized_at: new Date().toISOString() },
+      });
+
+      console.log(`Public link finalized from IP ${clientIp} for candidate ${link.candidate_id}, type ${link.link_type}`);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Fallback: try old public_tokens table
     const { data: tokenRow } = await supabase
       .from('public_tokens')
       .select('id, candidate_id, expires_at, used_at')
@@ -75,10 +112,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Invalidate token (mark as used)
     await supabase.from('public_tokens').update({ used_at: new Date().toISOString() }).eq('id', tokenRow.id);
 
-    // Log finalization
     await supabase.from('audit_logs').insert({
       action: 'finalize_signed_docs',
       entity_type: 'candidates',
