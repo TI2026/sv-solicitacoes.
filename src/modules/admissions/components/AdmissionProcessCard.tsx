@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ADMISSION_STATUS_LABELS, PRIORITY_LABELS, getPriorityVariant } from '@/lib/constants';
-import { Eye, Pencil, ChevronRight, MapPin, User, Calendar, Users, Trash2, Loader2 } from 'lucide-react';
+import { Pencil, MapPin, User, Calendar, Users, Trash2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AdmissionListItem } from '../adapters/mapAdmissionListItem';
 
@@ -26,9 +26,19 @@ export function AdmissionProcessCard({ item, canEdit, canAdvance, canDelete, nex
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const priorityVariant = getPriorityVariant(item.prioridade);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent navigation when clicking action buttons
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="button"]')) return;
+    navigate(`/admissions/${item.id}`);
+  };
+
   return (
     <>
-      <Card className="hover:border-primary/30 transition-colors group">
+      <Card
+        className="hover:border-primary/30 transition-colors group cursor-pointer"
+        onClick={handleCardClick}
+      >
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-3">
             {/* Left content */}
@@ -89,38 +99,16 @@ export function AdmissionProcessCard({ item, canEdit, canAdvance, canDelete, nex
             {/* Right: Actions */}
             <TooltipProvider delayDuration={200}>
               <div className="flex flex-col gap-1 shrink-0">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/admissions/${item.id}`)}>
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Ver detalhes</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled={!canEdit} onClick={() => canEdit && navigate(`/admissions/${item.id}`)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{canEdit ? 'Editar' : 'Sem permissão para editar'}</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-primary"
-                      disabled={!canAdvance}
-                      onClick={() => canAdvance && onAdvance(item.id)}
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{canAdvance && nextStatusLabel ? nextStatusLabel : 'Sem próxima etapa disponível'}</TooltipContent>
-                </Tooltip>
+                {canEdit && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); navigate(`/admissions/${item.id}`); }}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Editar</TooltipContent>
+                  </Tooltip>
+                )}
 
                 {canDelete && (
                   <Tooltip>
@@ -129,7 +117,7 @@ export function AdmissionProcessCard({ item, canEdit, canAdvance, canDelete, nex
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive"
-                        onClick={() => setShowDeleteConfirm(true)}
+                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
