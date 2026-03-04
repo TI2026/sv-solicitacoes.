@@ -495,7 +495,7 @@ export default function AdmissionDetailPage() {
             </p>
 
             {approvedCandidates.map((c: any) => (
-              <ExamSection key={c.id} candidateId={c.id} candidateName={c.nome} admissionId={id!} currentStatus={status!} onAdvance={() => handleStatusChange('aguardando_registro')} />
+              <ExamSection key={c.id} candidateId={c.id} candidateName={c.nome} admissionId={id!} currentStatus={status!} onAdvance={() => handleStatusChange('aguardando_registro')} onExamResultRegistered={() => handleStatusChange('exame_realizado')} />
             ))}
           </CardContent>
         </Card>
@@ -651,8 +651,8 @@ function CandidateFilesList({ admissionId, candidateId, linkType }: { admissionI
 }
 
 // ===== ExamSection: Free-text clinic + date/time + result + auto-unlock timer =====
-function ExamSection({ candidateId, candidateName, admissionId, currentStatus, onAdvance }: {
-  candidateId: string; candidateName: string; admissionId: string; currentStatus: string; onAdvance: () => void;
+function ExamSection({ candidateId, candidateName, admissionId, currentStatus, onAdvance, onExamResultRegistered }: {
+  candidateId: string; candidateName: string; admissionId: string; currentStatus: string; onAdvance: () => void; onExamResultRegistered?: () => void;
 }) {
   const { data: exam } = useMedicalExam(candidateId);
   const { toast } = useToast();
@@ -722,6 +722,10 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
     else {
       toast({ title: 'Resultado registrado' });
       qc.invalidateQueries({ queryKey: ['medical_exam', candidateId] });
+      // Auto-advance admission status from aguardando_exame to exame_realizado
+      if (currentStatus === 'aguardando_exame') {
+        onExamResultRegistered?.();
+      }
     }
   };
 
