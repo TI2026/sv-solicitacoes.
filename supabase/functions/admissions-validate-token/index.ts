@@ -5,9 +5,42 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Simple in-memory rate limiter (per isolate lifetime)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 10; // max attempts
+const RATE_LIMIT_WINDOW_MS = 60_000; // per minute
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
+function getClientIp(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || 'unknown';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const clientIp = getClientIp(req);
+
+  // Rate limit check
+  if (isRateLimited(clientIp)) {
+    console.warn(`Rate limited IP: ${clientIp}`);
+    return new Response(JSON.stringify({ error: 'Muitas tentativas. Tente novamente em breve.' }), {
+      status: 429,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' },
+    });
   }
 
   try {
@@ -40,24 +73,11 @@ Deno.serve(async (req) => {
       .eq('token_hash', tokenHash)
       .maybeSingle();
 
-    if (tokenError || !tokenRow) {
-      console.log('Token not found:', tokenHash.substring(0, 10));
-      return new Response(JSON.stringify({ error: 'Token inválido' }), {
+    // Unified error for all token failure cases to prevent enumeration
+    if (tokenError || !tokenRow || tokenRow.used_at || new Date(tokenRow.expires_at) < new Date()) {
+      console.log(`Token validation failed from IP ${clientIp}`);
+      return new Response(JSON.stringify({ error: 'Token inválido ou expirado' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (tokenRow.used_at) {
-      return new Response(JSON.stringify({ error: 'Token já utilizado' }), {
-        status: 410,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (new Date(tokenRow.expires_at) < new Date()) {
-      return new Response(JSON.stringify({ error: 'Token expirado' }), {
-        status: 410,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -70,8 +90,9 @@ Deno.serve(async (req) => {
       .single();
 
     if (!candidate) {
-      return new Response(JSON.stringify({ error: 'Candidato não encontrado' }), {
-        status: 404,
+      console.log(`Candidate not found for token from IP ${clientIp}`);
+      return new Response(JSON.stringify({ error: 'Token inválido ou expirado' }), {
+        status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -90,6 +111,8 @@ Deno.serve(async (req) => {
       status: cd.status,
       file_path: cd.file_path,
     }));
+
+    console.log(`Token validated successfully from IP ${clientIp} for candidate ${candidate.id}`);
 
     return new Response(JSON.stringify({
       candidate_id: candidate.id,

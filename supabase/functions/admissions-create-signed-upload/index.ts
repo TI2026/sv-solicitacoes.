@@ -5,16 +5,58 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Simple in-memory rate limiter (per isolate lifetime)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 20; // max attempts per window
+const RATE_LIMIT_WINDOW_MS = 60_000; // per minute
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
+function getClientIp(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || 'unknown';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const clientIp = getClientIp(req);
+
+  // Rate limit check
+  if (isRateLimited(clientIp)) {
+    console.warn(`Rate limited IP: ${clientIp}`);
+    return new Response(JSON.stringify({ error: 'Muitas tentativas. Tente novamente em breve.' }), {
+      status: 429,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' },
+    });
+  }
+
   try {
-    const { token, document_id, candidate_document_id, filename, content_type } = await req.json();
+    const { token, candidate_document_id, filename } = await req.json();
 
     if (!token || !candidate_document_id || !filename) {
       return new Response(JSON.stringify({ error: 'Parâmetros obrigatórios faltando' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate filename to prevent path traversal
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    if (sanitizedFilename.includes('..') || sanitizedFilename.length > 255) {
+      return new Response(JSON.stringify({ error: 'Nome de arquivo inválido' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -31,7 +73,7 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Validate token
+    // Validate token — unified error for all failure cases
     const { data: tokenRow } = await supabase
       .from('public_tokens')
       .select('candidate_id, expires_at, used_at')
@@ -39,6 +81,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!tokenRow || tokenRow.used_at || new Date(tokenRow.expires_at) < new Date()) {
+      console.log(`Upload token validation failed from IP ${clientIp}`);
       return new Response(JSON.stringify({ error: 'Token inválido ou expirado' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -54,8 +97,9 @@ Deno.serve(async (req) => {
       .single();
 
     if (!cdRow) {
-      return new Response(JSON.stringify({ error: 'Documento não encontrado' }), {
-        status: 404,
+      console.log(`Document not found for candidate from IP ${clientIp}`);
+      return new Response(JSON.stringify({ error: 'Envio de documento falhou' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -68,7 +112,7 @@ Deno.serve(async (req) => {
       .single();
 
     const docKey = doc?.key || 'unknown';
-    const ext = filename.split('.').pop() || 'pdf';
+    const ext = sanitizedFilename.split('.').pop() || 'pdf';
     const path = `candidates/${tokenRow.candidate_id}/${docKey}/${Date.now()}.${ext}`;
 
     // Create signed upload URL
@@ -78,7 +122,7 @@ Deno.serve(async (req) => {
 
     if (signedError || !signedData) {
       console.error('Signed URL error:', signedError);
-      return new Response(JSON.stringify({ error: 'Erro ao gerar URL de upload' }), {
+      return new Response(JSON.stringify({ error: 'Envio de documento falhou' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -94,7 +138,7 @@ Deno.serve(async (req) => {
       })
       .eq('id', candidate_document_id);
 
-    console.log(`Upload URL created for candidate ${tokenRow.candidate_id}, doc ${docKey}`);
+    console.log(`Upload URL created from IP ${clientIp} for candidate ${tokenRow.candidate_id}, doc ${docKey}`);
 
     return new Response(JSON.stringify({
       signedUrl: signedData.signedUrl,
