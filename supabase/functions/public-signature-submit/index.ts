@@ -47,8 +47,9 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { token, filename, content_type, mode } = body;
+    const { token, filename, content_type, mode, doc_key } = body;
     // mode: 'admin' (upload docs for candidate to sign) or 'candidate' (upload signed docs)
+    // doc_key: optional, identifies the specific document type (e.g. CONTRATO_TRABALHO_SIGNED)
 
     if (!token || !filename) {
       return new Response(JSON.stringify({ error: 'Parâmetros obrigatórios faltando' }), {
@@ -115,10 +116,27 @@ Deno.serve(async (req) => {
     }
 
     // Record in admission_files
+    const fileType = doc_key || (uploadMode === 'admin' ? 'internal_doc' : 'signed_doc');
+
+    // For candidate uploads with doc_key, remove previous file for same doc_key (1 file per type)
+    if (uploadMode === 'candidate' && doc_key) {
+      const { data: existing } = await supabase
+        .from('admission_files')
+        .select('id, storage_path')
+        .eq('candidate_id', link.candidate_id)
+        .eq('file_type', doc_key)
+        .eq('uploaded_by', 'CANDIDATE')
+        .eq('link_type', 'SIGNATURE');
+      for (const old of (existing || [])) {
+        await supabase.storage.from('admissions').remove([old.storage_path]);
+        await supabase.from('admission_files').delete().eq('id', old.id);
+      }
+    }
+
     await supabase.from('admission_files').insert({
       admission_request_id: link.admission_request_id,
       candidate_id: link.candidate_id,
-      file_type: uploadMode === 'admin' ? 'internal_doc' : 'signed_doc',
+      file_type: fileType,
       storage_path: storagePath,
       original_filename: sanitizedFilename,
       uploaded_by: uploadMode === 'admin' ? 'ADMIN' : 'CANDIDATE',
