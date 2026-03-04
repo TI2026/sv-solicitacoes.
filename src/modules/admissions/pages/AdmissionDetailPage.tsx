@@ -14,7 +14,7 @@ import { StatusTimeline } from '@/components/StatusTimeline';
 import { AdmissionStepper } from '../components/AdmissionStepper';
 import { InterviewDialog } from '../components/InterviewDialog';
 import { ADMISSION_STATUS_LABELS, CANDIDATE_STATUS_LABELS, PRIORITY_LABELS, EXAM_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, Building2, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, Building2, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, MessageCircle, Ban } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -39,7 +39,7 @@ export default function AdmissionDetailPage() {
   const [interviewCandidate, setInterviewCandidate] = useState<any | null>(null);
   const [docsConfirmed, setDocsConfirmed] = useState(false);
 
-  // Exam state for approved candidates
+  // Exam state
   const [examCandidateId, setExamCandidateId] = useState<string | null>(null);
   const [examClinic, setExamClinic] = useState('');
   const [examDate, setExamDate] = useState('');
@@ -109,29 +109,12 @@ export default function AdmissionDetailPage() {
         status_triagem: approved ? ('aprovado' as any) : ('reprovado' as any),
       },
     });
-    toast({ title: approved ? 'Candidato aprovado!' : 'Candidato reprovado' });
-  };
-
-  const handleCreateExam = async (candidateId: string) => {
-    const { error } = await supabase.from('medical_exams').insert({
-      candidate_id: candidateId,
-      clinic_id: examClinic || null,
-      scheduled_at: examDate || null,
-    });
-    if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    else { toast({ title: 'Exame agendado' }); setExamCandidateId(null); setExamClinic(''); setExamDate(''); }
-  };
-
-  const handleExamResult = async (examId: string, status: string) => {
-    const { error } = await supabase.from('medical_exams').update({ status: status as any }).eq('id', examId);
-    if (error) toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    else toast({ title: 'Resultado registrado' });
+    toast({ title: approved ? 'Candidato aprovado na entrevista!' : 'Candidato eliminado' });
   };
 
   const handleConfirmDocsWhatsApp = async () => {
     if (!id) return;
     setDocsConfirmed(true);
-    // Log this action
     await supabase.from('audit_logs').insert({
       user_id: user?.id,
       action: 'confirm_docs_whatsapp',
@@ -139,7 +122,6 @@ export default function AdmissionDetailPage() {
       entity_id: id,
       details: { confirmed_at: new Date().toISOString() },
     });
-    // Advance status
     await handleStatusChange('registros_concluidos');
   };
 
@@ -159,6 +141,7 @@ export default function AdmissionDetailPage() {
     candidates?.filter((c: any) => c.interview_approved === true) || []
   , [candidates]);
 
+  // Check if all active candidates have interview result
   const allActiveHaveInterviewResult = useMemo(() => {
     if (!candidates || candidates.length === 0) return false;
     const active = candidates.filter((c: any) => c.status_triagem !== 'desistente');
@@ -166,6 +149,21 @@ export default function AdmissionDetailPage() {
   }, [candidates]);
 
   const hasApprovedCandidates = approvedCandidates.length > 0;
+
+  // Check if a candidate's interview date/time has passed
+  const isInterviewPast = (interviewAt: string | null): boolean => {
+    if (!interviewAt) return false;
+    return new Date(interviewAt) <= new Date();
+  };
+
+  // Check candidate interview status label
+  const getInterviewStatusLabel = (c: any): { label: string; variant: string } => {
+    if (!c.interview_at) return { label: 'Não agendada', variant: 'pending' };
+    if (c.interview_approved === true) return { label: 'Aprovado', variant: 'approved' };
+    if (c.interview_approved === false) return { label: 'Eliminado', variant: 'rejected' };
+    if (!isInterviewPast(c.interview_at)) return { label: 'Aguardando data/hora', variant: 'info' };
+    return { label: 'Liberado para decisão', variant: 'pending' };
+  };
 
   if (isLoading) {
     return (
@@ -229,7 +227,7 @@ export default function AdmissionDetailPage() {
         </CardContent>
       </Card>
 
-      {/* ETAPA 0/1: Enviar para triagem (requester draft) */}
+      {/* ETAPA 0: Enviar para triagem (requester draft) */}
       {req.requester_user_id === user?.id && status === 'rascunho' && (
         <Card>
           <CardContent className="p-4">
@@ -252,8 +250,8 @@ export default function AdmissionDetailPage() {
         </Card>
       )}
 
-      {/* ETAPA 2: Candidatos (em_triagem / aguardando_documentos) */}
-      {isRH && (status === 'em_triagem' || status === 'aguardando_documentos') && (
+      {/* ETAPA 2: Candidatos (em_triagem) */}
+      {isRH && status === 'em_triagem' && (
         <Card>
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -281,17 +279,15 @@ export default function AdmissionDetailPage() {
               </div>
             )}
 
-            {status === 'em_triagem' && (candidates?.length || 0) > 0 && (
+            {(candidates?.length || 0) > 0 && (
               <Button onClick={() => handleStatusChange('aguardando_documentos')} className="gap-2 w-full" size="sm">
-                <CheckCircle className="w-4 h-4" /> Concluir candidatos e avançar
+                <CheckCircle className="w-4 h-4" /> Concluir candidatos e avançar para Entrevista
               </Button>
             )}
 
-            {status === 'em_triagem' && (
-              <Button onClick={() => handleStatusChange('cancelado')} variant="destructive" size="sm" className="gap-2">
-                <XCircle className="w-4 h-4" /> Cancelar Processo
-              </Button>
-            )}
+            <Button onClick={() => handleStatusChange('cancelado')} variant="destructive" size="sm" className="gap-2">
+              <XCircle className="w-4 h-4" /> Cancelar Processo
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -301,69 +297,95 @@ export default function AdmissionDetailPage() {
         <Card>
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Etapa 3 — Entrevista</h3>
+            <p className="text-xs text-muted-foreground">
+              Agende a entrevista para cada candidato. Após a data/hora da entrevista, decida: Continuar ou Eliminar.
+            </p>
+
             {candidates?.map((c: any) => {
               if (c.status_triagem === 'reprovado' || c.status_triagem === 'desistente') return null;
+              const interviewStatus = getInterviewStatusLabel(c);
+              const canDecide = c.interview_at && isInterviewPast(c.interview_at) && c.interview_approved == null;
+
               return (
                 <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-foreground">{c.nome}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <StatusBadge status={c.status_triagem} label={CANDIDATE_STATUS_LABELS[c.status_triagem] || c.status_triagem} />
-                        {c.interview_approved === true && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium status-approved">
-                            <CheckCircle className="w-3 h-3" /> Aprovado
-                          </span>
-                        )}
-                        {c.interview_approved === false && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium status-rejected">
-                            <XCircle className="w-3 h-3" /> Reprovado
-                          </span>
-                        )}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          interviewStatus.variant === 'approved' ? 'status-approved' :
+                          interviewStatus.variant === 'rejected' ? 'status-rejected' :
+                          interviewStatus.variant === 'info' ? 'status-info' : 'status-pending'
+                        }`}>
+                          {interviewStatus.variant === 'approved' && <CheckCircle className="w-3 h-3" />}
+                          {interviewStatus.variant === 'rejected' && <XCircle className="w-3 h-3" />}
+                          {interviewStatus.variant === 'info' && <Clock className="w-3 h-3" />}
+                          {interviewStatus.label}
+                        </span>
                       </div>
                     </div>
                   </div>
 
+                  {/* Show interview details */}
                   {c.interview_at && (
                     <div className="bg-muted/50 rounded-lg p-2 text-xs text-muted-foreground space-y-0.5">
                       <p className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> {new Date(c.interview_at).toLocaleString('pt-BR')}</p>
                       {c.interview_address && <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.interview_address}{c.interview_city ? `, ${c.interview_city}` : ''}</p>}
                       {c.interviewer_name && <p className="flex items-center gap-1"><User className="w-3 h-3" /> {c.interviewer_name}</p>}
+                      {!isInterviewPast(c.interview_at) && c.interview_approved == null && (
+                        <p className="flex items-center gap-1 text-[hsl(var(--status-info-foreground))] font-medium mt-1">
+                          <Clock className="w-3 h-3" /> Entrevista ainda não ocorreu. Aguarde a data/hora.
+                        </p>
+                      )}
                     </div>
                   )}
 
                   <div className="flex gap-1 flex-wrap">
-                    {!c.interview_at && (
+                    {/* Schedule / Reschedule */}
+                    {(!c.interview_at || (c.interview_approved == null && !isInterviewPast(c.interview_at))) && (
                       <Button variant="ghost" size="sm" onClick={() => setInterviewCandidate(c)} className="gap-1 text-xs">
-                        <CalendarClock className="w-3 h-3" /> Agendar Entrevista
+                        <CalendarClock className="w-3 h-3" /> {c.interview_at ? 'Reagendar' : 'Agendar Entrevista'}
                       </Button>
                     )}
-                    {c.interview_at && c.interview_approved == null && (
+
+                    {/* Decision buttons: only if interview date passed and no decision yet */}
+                    {canDecide && (
                       <>
-                        <Button variant="ghost" size="sm" onClick={() => handleInterviewResult(c.id, true)} className="text-xs text-primary gap-1">
-                          <CheckCircle className="w-3 h-3" /> Aprovar
+                        <Button variant="default" size="sm" onClick={() => handleInterviewResult(c.id, true)} className="text-xs gap-1">
+                          <CheckCircle className="w-3 h-3" /> Continuar
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleInterviewResult(c.id, false)} className="text-xs text-destructive gap-1">
-                          <XCircle className="w-3 h-3" /> Reprovar
+                        <Button variant="destructive" size="sm" onClick={() => handleInterviewResult(c.id, false)} className="text-xs gap-1">
+                          <Ban className="w-3 h-3" /> Eliminar
                         </Button>
                       </>
                     )}
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/admissions/candidate/${c.id}`)} className="text-xs">Detalhes</Button>
                   </div>
                 </div>
               );
             })}
 
+            {/* Advance button */}
             {status === 'aguardando_documentos' && allActiveHaveInterviewResult && hasApprovedCandidates && (
               <Button onClick={() => handleStatusChange('documentos_em_analise')} className="gap-2 w-full" size="sm">
                 <CheckCircle className="w-4 h-4" /> Avançar candidatos aprovados
               </Button>
             )}
 
+            {status === 'aguardando_documentos' && allActiveHaveInterviewResult && !hasApprovedCandidates && (
+              <div className="text-center py-3">
+                <p className="text-xs text-destructive flex items-center justify-center gap-1 mb-2">
+                  <AlertTriangle className="w-3 h-3" /> Nenhum candidato aprovado. Não é possível avançar.
+                </p>
+                <Button onClick={() => handleStatusChange('cancelado')} variant="destructive" size="sm" className="gap-2">
+                  <XCircle className="w-4 h-4" /> Encerrar processo
+                </Button>
+              </div>
+            )}
+
             {status === 'aguardando_documentos' && !allActiveHaveInterviewResult && (
               <p className="text-xs text-muted-foreground text-center py-2">
                 <AlertTriangle className="w-3 h-3 inline mr-1" />
-                Registre o resultado da entrevista (Aprovar/Reprovar) para todos os candidatos ativos antes de avançar.
+                Registre o resultado (Continuar/Eliminar) para todos os candidatos após a data da entrevista para avançar.
               </p>
             )}
           </CardContent>
@@ -375,6 +397,9 @@ export default function AdmissionDetailPage() {
         <Card>
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><Stethoscope className="w-4 h-4" /> Etapa 4 — Exame Admissional</h3>
+            <p className="text-xs text-muted-foreground">
+              Agende o exame para cada candidato aprovado. O resultado só pode ser registrado após a data/hora do exame.
+            </p>
 
             {approvedCandidates.map((c: any) => (
               <ExamSection key={c.id} candidateId={c.id} candidateName={c.nome} clinics={clinics} onAdvance={() => {}} />
@@ -436,7 +461,7 @@ export default function AdmissionDetailPage() {
               <Link2 className="w-4 h-4" /> Etapa 6 — Assinatura (Link Externo)
             </h3>
             <p className="text-xs text-muted-foreground">
-              Gere um link seguro para cada candidato aprovado. O candidato pode baixar documentos e reenviar assinados.
+              Gere um link seguro para cada candidato aprovado. O candidato pode baixar documentos e reenviar assinados. Válido por 7 dias.
             </p>
             {approvedCandidates.map((c: any) => (
               <div key={c.id} className="border border-border rounded-lg p-3 flex items-center justify-between">
@@ -551,7 +576,6 @@ function ExamSection({ candidateId, candidateName, clinics, onAdvance }: { candi
     else toast({ title: 'Resultado registrado' });
   };
 
-  // Realtime for this candidate's exam
   useRealtimeSubscription({
     channelName: `exam-${candidateId}`,
     enabled: !!candidateId,
@@ -559,6 +583,8 @@ function ExamSection({ candidateId, candidateName, clinics, onAdvance }: { candi
       { table: 'medical_exams', filter: `candidate_id=eq.${candidateId}`, queryKeys: [['medical_exam', candidateId]] },
     ],
   });
+
+  const isExamPast = exam?.scheduled_at && new Date(exam.scheduled_at) <= new Date();
 
   return (
     <div className="border border-border rounded-lg p-3 space-y-2">
@@ -569,8 +595,13 @@ function ExamSection({ candidateId, candidateName, clinics, onAdvance }: { candi
             <p>Clínica: {(exam as any).clinics?.nome || '—'}</p>
             <p>Data: {exam.scheduled_at ? new Date(exam.scheduled_at).toLocaleString('pt-BR') : '—'}</p>
             <StatusBadge status={exam.status} label={EXAM_STATUS_LABELS[exam.status] || exam.status} />
+            {exam.status === 'aguardando' && !isExamPast && (
+              <p className="flex items-center gap-1 mt-1 text-xs text-[hsl(var(--status-info-foreground))]">
+                <Clock className="w-3 h-3" /> Aguardando data/hora do exame
+              </p>
+            )}
           </div>
-          {exam.status === 'aguardando' && (
+          {exam.status === 'aguardando' && isExamPast && (
             <div className="flex gap-2 flex-wrap">
               <Button size="sm" onClick={() => handleExamResult('apto')} className="gap-1"><CheckCircle className="w-3 h-3" /> Apto</Button>
               <Button size="sm" variant="outline" onClick={() => handleExamResult('apto_com_restricao')}>Apto c/ Restrição</Button>
@@ -591,7 +622,7 @@ function ExamSection({ candidateId, candidateName, clinics, onAdvance }: { candi
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Data</Label>
+              <Label className="text-xs">Data/Hora</Label>
               <Input type="datetime-local" value={examDate} onChange={e => setExamDate(e.target.value)} />
             </div>
           </div>
