@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ADMISSION_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/constants';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Loader2, UserPlus, Building2, Calendar, AlertTriangle, LayoutGrid, List } from 'lucide-react';
+import { PlusCircle, UserPlus, Building2, Calendar, AlertTriangle, LayoutGrid, List } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdmissionProcessCard } from '../components/AdmissionProcessCard';
 import { AdmissionsFiltersBar, type AdmissionsFilters } from '../components/AdmissionsFiltersBar';
 import { mapAdmissionListItem, type AdmissionListItem } from '../adapters/mapAdmissionListItem';
-import { canEditAdmission, canAdvanceAdmission, getNextStatus, getNextStatusLabel } from '../utils/admissionPermissions';
+import { canEditAdmission, canAdvanceAdmission, canDeleteAdmission, getNextStatus, getNextStatusLabel } from '../utils/admissionPermissions';
 import { useAdmissionSetStatus } from '../hooks/useAdmissionQueries';
 
 const PAGE_SIZE = 20;
@@ -25,6 +25,7 @@ function useAdmissionListItems(filters: AdmissionsFilters, page: number) {
       let q = supabase
         .from('vw_admissions_list_items' as any)
         .select('*')
+        .neq('status', 'arquivado')
         .order('created_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
@@ -42,7 +43,6 @@ function useAdmissionListItems(filters: AdmissionsFilters, page: number) {
   });
 }
 
-// Fetch distinct obras for filter dropdown
 function useObras() {
   return useQuery({
     queryKey: ['admission_obras'],
@@ -70,7 +70,6 @@ export default function AdmissionListPage() {
   const { data: obras = [] } = useObras();
   const setStatusMutation = useAdmissionSetStatus();
 
-  // Realtime
   useRealtimeSubscription({
     channelName: 'admissions-list-realtime',
     enabled: !!user,
@@ -90,33 +89,25 @@ export default function AdmissionListPage() {
     setStatusMutation.mutate({ requestId: id, toStatus: next });
   }, [items, setStatusMutation]);
 
+  const handleDelete = useCallback((id: string) => {
+    setStatusMutation.mutate({ requestId: id, toStatus: 'arquivado', reason: 'Vaga excluída pelo usuário' });
+  }, [setStatusMutation]);
+
   const hasMore = (items?.length || 0) === PAGE_SIZE;
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Admissões</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Processos de admissão</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* View toggle */}
           <div className="hidden sm:flex items-center border rounded-lg overflow-hidden">
-            <Button
-              variant={viewMode === 'cards' ? 'default' : 'ghost'}
-              size="icon"
-              className="h-8 w-8 rounded-none"
-              onClick={() => setViewMode('cards')}
-            >
+            <Button variant={viewMode === 'cards' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 rounded-none" onClick={() => setViewMode('cards')}>
               <LayoutGrid className="w-4 h-4" />
             </Button>
-            <Button
-              variant={viewMode === 'table' ? 'default' : 'ghost'}
-              size="icon"
-              className="h-8 w-8 rounded-none"
-              onClick={() => setViewMode('table')}
-            >
+            <Button variant={viewMode === 'table' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 rounded-none" onClick={() => setViewMode('table')}>
               <List className="w-4 h-4" />
             </Button>
           </div>
@@ -129,10 +120,8 @@ export default function AdmissionListPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <AdmissionsFiltersBar filters={filters} onChange={f => { setFilters(f); setPage(0); }} obrasDisponiveis={obras} />
 
-      {/* Content */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-36 rounded-lg" />)}
@@ -159,13 +148,15 @@ export default function AdmissionListPage() {
               item={item}
               canEdit={canEditAdmission(user, item)}
               canAdvance={canAdvanceAdmission(user, item)}
+              canDelete={canDeleteAdmission(user)}
               nextStatusLabel={getNextStatusLabel(item.status)}
               onAdvance={handleAdvance}
+              onDelete={handleDelete}
+              deleting={setStatusMutation.isPending}
             />
           ))}
         </div>
       ) : (
-        /* Table/legacy view */
         <div className="space-y-3">
           {items.map((item) => (
             <Link key={item.id} to={`/admissions/${item.id}`}>
@@ -183,7 +174,7 @@ export default function AdmissionListPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{item.centro_custo}</span>
+                        <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{item.obra_local}</span>
                         <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(item.criado_em).toLocaleDateString('pt-BR')}</span>
                         <span>{item.solicitante}</span>
                         {item.salario_previsto && <span>R$ {item.salario_previsto.toLocaleString('pt-BR')}</span>}
@@ -197,16 +188,11 @@ export default function AdmissionListPage() {
         </div>
       )}
 
-      {/* Pagination */}
       {(page > 0 || hasMore) && (
         <div className="flex items-center justify-center gap-3 pt-2">
-          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
-            Anterior
-          </Button>
+          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Anterior</Button>
           <span className="text-xs text-muted-foreground">Página {page + 1}</span>
-          <Button variant="outline" size="sm" disabled={!hasMore} onClick={() => setPage(p => p + 1)}>
-            Próxima
-          </Button>
+          <Button variant="outline" size="sm" disabled={!hasMore} onClick={() => setPage(p => p + 1)}>Próxima</Button>
         </div>
       )}
     </div>

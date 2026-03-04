@@ -947,6 +947,7 @@ export type Database = {
         | "registros_concluidos"
         | "concluido"
         | "cancelado"
+        | "arquivado"
       app_role: "diretoria" | "administrativo" | "colaborador" | "rh"
       candidate_status:
         | "novo"
@@ -1110,6 +1111,7 @@ export const Constants = {
         "registros_concluidos",
         "concluido",
         "cancelado",
+        "arquivado",
       ],
       app_role: ["diretoria", "administrativo", "colaborador", "rh"],
       candidate_status: [
