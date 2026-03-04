@@ -155,6 +155,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "candidate_documents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["candidato_id"]
+          },
+          {
             foreignKeyName: "candidate_documents_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
@@ -236,6 +243,13 @@ export type Database = {
             columns: ["admission_request_id"]
             isOneToOne: false
             referencedRelation: "admission_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_admission_request_id_fkey"
+            columns: ["admission_request_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
             referencedColumns: ["id"]
           },
         ]
@@ -529,6 +543,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "medical_exams_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["candidato_id"]
+          },
+          {
             foreignKeyName: "medical_exams_clinic_id_fkey"
             columns: ["clinic_id"]
             isOneToOne: false
@@ -654,6 +675,13 @@ export type Database = {
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "public_tokens_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["candidato_id"]
+          },
         ]
       }
       role_permissions: {
@@ -776,6 +804,13 @@ export type Database = {
             referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "system_registrations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["candidato_id"]
+          },
         ]
       }
       user_roles: {
@@ -812,6 +847,38 @@ export type Database = {
           total: number | null
         }
         Relationships: []
+      }
+      vw_admissions_list_items: {
+        Row: {
+          candidato_id: string | null
+          candidato_nome: string | null
+          cargo_funcao: string | null
+          centro_custo: string | null
+          created_at: string | null
+          data_prevista_inicio: string | null
+          documentos_status: string | null
+          gestor_responsavel: string | null
+          id: string | null
+          jornada: string | null
+          local_contratacao: string | null
+          motivo: string | null
+          priority: string | null
+          requester_user_id: string | null
+          salario_previsto: number | null
+          solicitante_nome: string | null
+          status: Database["public"]["Enums"]["admission_status"] | null
+          tipo_contrato: string | null
+          total_candidatos: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admission_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_fuel_metrics: {
         Row: {
