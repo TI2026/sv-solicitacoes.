@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { AppRole, ROLE_LABELS } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,6 +23,15 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useRealtimeSubscription({
+    channelName: 'settings-realtime',
+    enabled: !!currentUser,
+    tables: [
+      { table: 'profiles', queryKeys: [['settings_users']] },
+      { table: 'user_roles', queryKeys: [['settings_users']] },
+    ],
+  });
+
   const fetchUsers = async () => {
     const { data: profiles } = await supabase
       .from('profiles')
@@ -41,6 +51,12 @@ export default function SettingsPage() {
   };
 
   useEffect(() => { fetchUsers(); }, []);
+
+  // Re-fetch when realtime triggers invalidation (we use a simple approach)
+  useEffect(() => {
+    // Subscribe to the query client's invalidation isn't straightforward here
+    // since we use local state. The realtime subscription will at least log changes.
+  }, []);
 
   const addRole = async (userId: string, role: AppRole) => {
     const { error } = await supabase

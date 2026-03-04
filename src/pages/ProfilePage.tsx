@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { ROLE_LABELS } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,15 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [department, setDepartment] = useState(user?.department || '');
   const [saving, setSaving] = useState(false);
+
+  useRealtimeSubscription({
+    channelName: 'profile-realtime',
+    enabled: !!user,
+    tables: [
+      { table: 'profiles', filter: user ? `id=eq.${user.id}` : undefined, queryKeys: [['profile']] },
+      { table: 'user_roles', filter: user ? `user_id=eq.${user.id}` : undefined, queryKeys: [['user_roles']] },
+    ],
+  });
 
   if (!user) return null;
 

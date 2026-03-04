@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { toTimestampTZ, formatDateTimeBR, isDateTimePast } from '@/lib/dateUtils';
 
 // Document key labels for admin view
 const DOC_KEY_LABELS: Record<string, string> = {
@@ -152,8 +153,7 @@ export default function AdmissionDetailPage() {
   const hasApprovedCandidates = approvedCandidates.length > 0;
 
   const isInterviewPast = (interviewAt: string | null): boolean => {
-    if (!interviewAt) return false;
-    return new Date(interviewAt) <= new Date();
+    return isDateTimePast(interviewAt);
   };
 
   const getInterviewStatusLabel = (c: any): { label: string; variant: string } => {
@@ -364,7 +364,7 @@ export default function AdmissionDetailPage() {
 
                   {c.interview_at && (
                     <div className="bg-muted/50 rounded-lg p-2 text-xs text-muted-foreground space-y-0.5">
-                      <p className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> {new Date(c.interview_at).toLocaleString('pt-BR')}</p>
+                      <p className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> {formatDateTimeBR(c.interview_at)}</p>
                       {c.interview_address && <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.interview_address}{c.interview_city ? `, ${c.interview_city}` : ''}</p>}
                       {c.interviewer_name && <p className="flex items-center gap-1"><User className="w-3 h-3" /> {c.interviewer_name}</p>}
                       {!isInterviewPast(c.interview_at) && c.interview_approved == null && (
@@ -718,7 +718,7 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
       toast({ title: 'Preencha clínica, data e hora', variant: 'destructive' });
       return;
     }
-    const scheduledAt = `${examDate}T${examTime}:00`;
+    const scheduledAt = toTimestampTZ(examDate, examTime);
     const { error } = await supabase.from('medical_exams').insert({
       candidate_id: candidateId,
       clinic_id: null,
@@ -772,7 +772,7 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
         <div className="space-y-2">
           <div className="text-xs text-muted-foreground space-y-0.5">
             <p>Clínica: {(exam as any).clinic_name || (exam as any).clinics?.nome || '—'}</p>
-            <p>Data: {exam.scheduled_at ? new Date(exam.scheduled_at).toLocaleString('pt-BR') : '—'}</p>
+            <p>Data: {formatDateTimeBR(exam.scheduled_at)}</p>
             <StatusBadge status={exam.status} label={EXAM_STATUS_LABELS[exam.status] || exam.status} />
             {exam.status === 'aguardando' && !isExamPast && (
               <div className="mt-1 space-y-0.5">

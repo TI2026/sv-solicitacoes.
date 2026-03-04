@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
+import { toTimestampTZ } from '@/lib/dateUtils';
 
 interface InterviewDialogProps {
   open: boolean;
@@ -37,7 +38,7 @@ export function InterviewDialog({ open, onOpenChange, candidateName, onSave }: I
     setSaving(true);
     try {
       await onSave({
-        interview_at: `${form.date}T${form.time}:00`,
+        interview_at: toTimestampTZ(form.date, form.time),
         interview_address: form.address,
         interview_city: form.city,
         interviewer_name: form.interviewer,

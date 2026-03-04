@@ -1,30 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useNavigate, Navigate } from 'react-router-dom';
-import { Shield, Loader2 } from 'lucide-react';
+import { Navigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useQuery } from '@tanstack/react-query';
+import { formatDateTimeBR } from '@/lib/dateUtils';
 
 export default function AuditLogsPage() {
-  const { hasAnyRole } = useAuth();
-  const navigate = useNavigate();
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { hasAnyRole, user } = useAuth();
 
-  useEffect(() => {
-    const fetchLogs = async () => {
+  useRealtimeSubscription({
+    channelName: 'audit-logs-realtime',
+    enabled: !!user,
+    tables: [
+      { table: 'audit_logs', queryKeys: [['audit_logs']] },
+    ],
+  });
+
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ['audit_logs'],
+    queryFn: async () => {
       const { data } = await supabase
         .from('audit_logs')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
-      setLogs(data || []);
-      setLoading(false);
-    };
-    fetchLogs();
-  }, []);
+      return data || [];
+    },
+    enabled: !!user,
+  });
 
   if (!hasAnyRole(['diretoria', 'administrativo'])) {
     return <Navigate to="/dashboard" replace />;
@@ -37,7 +44,7 @@ export default function AuditLogsPage() {
         <p className="text-sm text-muted-foreground mt-1">Registro de todas as ações do sistema</p>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
@@ -62,10 +69,10 @@ export default function AuditLogsPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    logs.map(log => (
+                    logs.map((log: any) => (
                       <TableRow key={log.id}>
                         <TableCell className="text-sm whitespace-nowrap">
-                          {new Date(log.created_at).toLocaleString('pt-BR')}
+                          {formatDateTimeBR(log.created_at)}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
