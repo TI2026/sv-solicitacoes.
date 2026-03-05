@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
 import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, Settings, X, Fuel, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
@@ -31,37 +31,57 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
-  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(30);
+    setNotifications(data || []);
+    setUnreadCount(data?.filter(n => !n.read).length || 0);
+  }, [user]);
+
+  // Initial fetch + realtime subscription
   useEffect(() => {
     if (!user) return;
-    const fetchNotifications = async () => {
-      const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.read).length || 0);
-    };
     fetchNotifications();
 
     const channel = supabase
-      .channel('notifications')
+      .channel(`notifications-${user.id}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${user.id}`,
       }, () => { fetchNotifications(); })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, () => { fetchNotifications(); })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, () => { fetchNotifications(); })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    // Fallback: refetch every 60s for robustness
+    const interval = setInterval(fetchNotifications, 60_000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [user, fetchNotifications]);
 
   const markAllRead = async () => {
     if (!user) return;
-    await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
+    await supabase.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('user_id', user.id).eq('read', false);
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
   };
@@ -74,6 +94,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   if (!user) return null;
+
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  };
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -151,11 +175,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative" onClick={markAllRead}>
+              <Button variant="ghost" size="icon" className="relative">
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-destructive text-destructive-foreground">
-                    {unreadCount}
+                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-destructive text-destructive-foreground animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </Button>
@@ -163,11 +187,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <PopoverContent className="w-80 p-0" align="end">
               <div className="p-3 border-b border-border flex items-center justify-between">
                 <p className="text-sm font-semibold">Notificações</p>
-                {notifications.length > 0 && (
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearAll}>Limpar</Button>
-                )}
+                <div className="flex gap-1">
+                  {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={markAllRead}>
+                      Marcar lidas
+                    </Button>
+                  )}
+                  {notifications.length > 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearAll}>Limpar</Button>
+                  )}
+                </div>
               </div>
-              <div className="max-h-64 overflow-y-auto">
+              <div className="max-h-72 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <p className="p-4 text-sm text-muted-foreground text-center">Nenhuma notificação</p>
                 ) : (
@@ -175,7 +206,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <div key={n.id} className={`px-3 py-2.5 border-b border-border last:border-0 ${!n.read ? 'bg-primary/5' : ''}`}>
                       <p className="text-sm font-medium text-foreground">{n.title}</p>
                       <p className="text-xs text-muted-foreground">{n.message}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{new Date(n.created_at).toLocaleString('pt-BR')}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{formatTime(n.created_at)}</p>
                     </div>
                   ))
                 )}

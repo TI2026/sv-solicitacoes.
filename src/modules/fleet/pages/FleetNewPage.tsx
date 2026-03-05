@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { REEMBOLSO_CATEGORIAS, DIARIA_CATEGORIAS } from '@/lib/constants';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
+import { maskCPF, maskPlate, maskKM, maskAgency, maskAccount, maxDateToday, todayBR, isValidPlate } from '@/lib/masks';
 
 export default function FleetNewPage() {
   const { user, hasAnyRole } = useAuth();
@@ -20,10 +21,9 @@ export default function FleetNewPage() {
   const statusMutation = useFuelSetStatus();
   const [submitting, setSubmitting] = useState(false);
 
-  // Shared
   const [type] = useState(initialType);
   const [valor, setValor] = useState('');
-  const [data, setData] = useState(new Date().toISOString().split('T')[0]);
+  const [data, setData] = useState(todayBR());
   const [notes, setNotes] = useState('');
 
   // Abastecimento
@@ -52,10 +52,19 @@ export default function FleetNewPage() {
     return null;
   }
 
+  const valorNum = parseFloat(valor);
+  const dailyNum = parseFloat(dailyValue);
+
   const isValid = () => {
-    if (type === 'abastecimento') return !!valor && !!placa && !!data;
-    if (type === 'reembolso') return !!valor && !!categoria && !!data && (paymentMethod === 'pix' ? !!pixKey : !!bankName);
-    if (type === 'diaria') return !!dailyCategory && !!personName && !!dailyValue && !!data;
+    if (type === 'abastecimento') {
+      return valorNum > 0 && valorNum <= 50000 && isValidPlate(placa) && !!data;
+    }
+    if (type === 'reembolso') {
+      return valorNum > 0 && valorNum <= 50000 && !!categoria && !!data && (paymentMethod === 'pix' ? !!pixKey : !!bankName);
+    }
+    if (type === 'diaria') {
+      return !!dailyCategory && !!personName && dailyNum > 0 && dailyNum <= 50000 && !!data;
+    }
     return false;
   };
 
@@ -66,31 +75,31 @@ export default function FleetNewPage() {
       const payload: Record<string, any> = {
         requester_user_id: user.id,
         data_abastecimento: data,
-        notes: notes || null,
+        notes: notes.trim() || null,
         type,
         status: type === 'diaria' ? 'ativa' : 'rascunho',
       };
 
       if (type === 'abastecimento') {
-        payload.valor = parseFloat(valor);
-        payload.placa = placa;
-        payload.km = km;
-        payload.motivo = motivo;
+        payload.valor = valorNum;
+        payload.placa = placa.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        payload.km = km.replace(/\D/g, '') || null;
+        payload.motivo = motivo.trim().slice(0, 200) || null;
       } else if (type === 'reembolso') {
-        payload.valor = parseFloat(valor);
+        payload.valor = valorNum;
         payload.categoria = categoria;
         payload.payment_method = paymentMethod;
-        payload.pix_key = paymentMethod === 'pix' ? pixKey : null;
-        payload.bank_name = paymentMethod === 'banco' ? bankName : null;
-        payload.bank_agency = paymentMethod === 'banco' ? bankAgency : null;
-        payload.bank_account = paymentMethod === 'banco' ? bankAccount : null;
+        payload.pix_key = paymentMethod === 'pix' ? pixKey.trim() : null;
+        payload.bank_name = paymentMethod === 'banco' ? bankName.trim() : null;
+        payload.bank_agency = paymentMethod === 'banco' ? bankAgency.replace(/\D/g, '') : null;
+        payload.bank_account = paymentMethod === 'banco' ? bankAccount.replace(/\D/g, '') : null;
       } else {
-        payload.valor = parseFloat(dailyValue);
+        payload.valor = dailyNum;
         payload.daily_category = dailyCategory;
-        payload.person_name = personName;
-        payload.person_cpf = personCpf || null;
+        payload.person_name = personName.trim().slice(0, 100);
+        payload.person_cpf = personCpf.replace(/\D/g, '') || null;
         payload.hours = hours ? parseFloat(hours) : null;
-        payload.daily_value = parseFloat(dailyValue);
+        payload.daily_value = dailyNum;
       }
 
       const result = await createMutation.mutateAsync(payload);
@@ -123,37 +132,68 @@ export default function FleetNewPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Abastecimento fields */}
+          {/* Abastecimento */}
           {type === 'abastecimento' && (
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Placa *</Label>
-                  <Input value={placa} onChange={e => setPlaca(e.target.value.toUpperCase())} placeholder="ABC-1234" />
+                  <Label>Placa do Veículo *</Label>
+                  <Input
+                    value={placa}
+                    onChange={e => setPlaca(maskPlate(e.target.value))}
+                    placeholder="ABC-1234"
+                    maxLength={8}
+                  />
+                  {placa && !isValidPlate(placa) && (
+                    <p className="text-xs text-destructive">Placa inválida (ex: ABC-1234)</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>KM</Label>
-                  <Input value={km} onChange={e => setKm(e.target.value)} placeholder="12345" />
+                  <Label>KM Atual</Label>
+                  <Input
+                    value={km}
+                    onChange={e => setKm(maskKM(e.target.value))}
+                    placeholder="12345"
+                    maxLength={7}
+                    inputMode="numeric"
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Motivo</Label>
-                <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo do abastecimento" />
+                <Input
+                  value={motivo}
+                  onChange={e => setMotivo(e.target.value.slice(0, 200))}
+                  placeholder="Motivo do abastecimento"
+                  maxLength={200}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Valor (R$) *</Label>
-                  <Input type="number" step="0.01" min="0.01" value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max="50000"
+                    value={valor}
+                    onChange={e => setValor(e.target.value)}
+                    placeholder="0,00"
+                    inputMode="decimal"
+                  />
+                  {valor && (valorNum <= 0 || valorNum > 50000) && (
+                    <p className="text-xs text-destructive">Valor entre R$ 0,01 e R$ 50.000</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} />
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} max={maxDateToday()} />
                 </div>
               </div>
             </>
           )}
 
-          {/* Reembolso fields */}
+          {/* Reembolso */}
           {type === 'reembolso' && (
             <>
               <div className="space-y-2">
@@ -168,11 +208,23 @@ export default function FleetNewPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Valor (R$) *</Label>
-                  <Input type="number" step="0.01" min="0.01" value={valor} onChange={e => setValor(e.target.value)} placeholder="0,00" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max="50000"
+                    value={valor}
+                    onChange={e => setValor(e.target.value)}
+                    placeholder="0,00"
+                    inputMode="decimal"
+                  />
+                  {valor && (valorNum <= 0 || valorNum > 50000) && (
+                    <p className="text-xs text-destructive">Valor entre R$ 0,01 e R$ 50.000</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} />
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} max={maxDateToday()} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -188,28 +240,45 @@ export default function FleetNewPage() {
               {paymentMethod === 'pix' ? (
                 <div className="space-y-2">
                   <Label>Chave PIX *</Label>
-                  <Input value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" />
+                  <Input
+                    value={pixKey}
+                    onChange={e => setPixKey(e.target.value.slice(0, 100))}
+                    placeholder="CPF, e-mail, telefone ou chave aleatória"
+                    maxLength={100}
+                  />
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <Label>Banco *</Label>
-                    <Input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Banco" />
+                    <Input value={bankName} onChange={e => setBankName(e.target.value.slice(0, 50))} placeholder="Banco" maxLength={50} />
                   </div>
                   <div className="space-y-2">
                     <Label>Agência</Label>
-                    <Input value={bankAgency} onChange={e => setBankAgency(e.target.value)} placeholder="0001" />
+                    <Input
+                      value={bankAgency}
+                      onChange={e => setBankAgency(maskAgency(e.target.value))}
+                      placeholder="0001"
+                      maxLength={7}
+                      inputMode="numeric"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Conta</Label>
-                    <Input value={bankAccount} onChange={e => setBankAccount(e.target.value)} placeholder="12345-6" />
+                    <Input
+                      value={bankAccount}
+                      onChange={e => setBankAccount(maskAccount(e.target.value))}
+                      placeholder="12345-6"
+                      maxLength={15}
+                      inputMode="numeric"
+                    />
                   </div>
                 </div>
               )}
             </>
           )}
 
-          {/* Diária fields */}
+          {/* Diária */}
           {type === 'diaria' && (
             <>
               <div className="space-y-2">
@@ -223,26 +292,55 @@ export default function FleetNewPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Nome *</Label>
-                  <Input value={personName} onChange={e => setPersonName(e.target.value)} placeholder="Nome do prestador" />
+                  <Label>Nome do Prestador *</Label>
+                  <Input
+                    value={personName}
+                    onChange={e => setPersonName(e.target.value.slice(0, 100))}
+                    placeholder="Nome completo"
+                    maxLength={100}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>CPF (opcional)</Label>
-                  <Input value={personCpf} onChange={e => setPersonCpf(e.target.value)} placeholder="000.000.000-00" />
+                  <Input
+                    value={personCpf}
+                    onChange={e => setPersonCpf(maskCPF(e.target.value))}
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                    inputMode="numeric"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label>Horas</Label>
-                  <Input type="number" step="0.5" value={hours} onChange={e => setHours(e.target.value)} placeholder="8" />
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max="24"
+                    value={hours}
+                    onChange={e => setHours(e.target.value)}
+                    placeholder="8"
+                    inputMode="decimal"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Valor (R$) *</Label>
-                  <Input type="number" step="0.01" min="0.01" value={dailyValue} onChange={e => setDailyValue(e.target.value)} placeholder="0,00" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max="50000"
+                    value={dailyValue}
+                    onChange={e => setDailyValue(e.target.value)}
+                    placeholder="0,00"
+                    inputMode="decimal"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} />
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} max={maxDateToday()} />
                 </div>
               </div>
             </>
@@ -250,7 +348,14 @@ export default function FleetNewPage() {
 
           <div className="space-y-2">
             <Label>Observações</Label>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Detalhes adicionais..." rows={3} />
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value.slice(0, 500))}
+              placeholder="Detalhes adicionais..."
+              rows={3}
+              maxLength={500}
+            />
+            <p className="text-xs text-muted-foreground text-right">{notes.length}/500</p>
           </div>
 
           <div className="flex gap-3 pt-2">
