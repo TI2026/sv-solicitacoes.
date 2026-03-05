@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
+import { todayBR, clampSalary } from '@/lib/masks';
 
 export default function AdmissionNewPage() {
   const { user } = useAuth();
@@ -33,21 +34,21 @@ export default function AdmissionNewPage() {
   const set = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (send: boolean) => {
-    if (!user || !form.cargo_funcao) return;
+    if (!user || !form.cargo_funcao.trim()) return;
     setSubmitting(true);
     try {
       const payload = {
         requester_user_id: user.id,
-        local_contratacao: form.local_contratacao,
-        centro_custo: '', // kept as default for backend compatibility
-        cargo_funcao: form.cargo_funcao,
+        local_contratacao: form.local_contratacao.trim().slice(0, 100),
+        centro_custo: '',
+        cargo_funcao: form.cargo_funcao.trim().slice(0, 100),
         tipo_contrato: form.tipo_contrato,
         salario_previsto: form.salario_previsto ? parseFloat(form.salario_previsto) : null,
-        jornada: form.jornada,
+        jornada: form.jornada.trim().slice(0, 50),
         data_prevista_inicio: form.data_prevista_inicio || null,
-        gestor_responsavel: form.gestor_responsavel,
-        motivo: form.motivo,
-        justificativa: form.justificativa || null,
+        gestor_responsavel: form.gestor_responsavel.trim().slice(0, 100),
+        motivo: form.motivo.trim().slice(0, 200),
+        justificativa: form.justificativa.trim().slice(0, 500) || null,
         priority: form.priority,
         status: 'rascunho' as any,
       };
@@ -78,11 +79,22 @@ export default function AdmissionNewPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Cargo / Função *</Label>
-              <Input value={form.cargo_funcao} onChange={e => set('cargo_funcao', e.target.value)} placeholder="Ex: Engenheiro Civil" required />
+              <Input
+                value={form.cargo_funcao}
+                onChange={e => set('cargo_funcao', e.target.value.slice(0, 100))}
+                placeholder="Ex: Engenheiro Civil"
+                maxLength={100}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label>Local de Contratação</Label>
-              <Input value={form.local_contratacao} onChange={e => set('local_contratacao', e.target.value)} placeholder="Cidade / UF" />
+              <Input
+                value={form.local_contratacao}
+                onChange={e => set('local_contratacao', e.target.value.slice(0, 100))}
+                placeholder="Cidade / UF"
+                maxLength={100}
+              />
             </div>
             <div className="space-y-2">
               <Label>Tipo de Contrato</Label>
@@ -98,19 +110,41 @@ export default function AdmissionNewPage() {
             </div>
             <div className="space-y-2">
               <Label>Salário Previsto (R$)</Label>
-              <Input type="number" step="0.01" value={form.salario_previsto} onChange={e => set('salario_previsto', e.target.value)} />
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="999999.99"
+                value={form.salario_previsto}
+                onChange={e => set('salario_previsto', clampSalary(e.target.value))}
+                inputMode="decimal"
+              />
             </div>
             <div className="space-y-2">
               <Label>Jornada</Label>
-              <Input value={form.jornada} onChange={e => set('jornada', e.target.value)} placeholder="Ex: 44h semanais" />
+              <Input
+                value={form.jornada}
+                onChange={e => set('jornada', e.target.value.slice(0, 50))}
+                placeholder="Ex: 44h semanais"
+                maxLength={50}
+              />
             </div>
             <div className="space-y-2">
               <Label>Data Prevista Início</Label>
-              <Input type="date" value={form.data_prevista_inicio} onChange={e => set('data_prevista_inicio', e.target.value)} />
+              <Input
+                type="date"
+                value={form.data_prevista_inicio}
+                onChange={e => set('data_prevista_inicio', e.target.value)}
+                min={todayBR()}
+              />
             </div>
             <div className="space-y-2">
               <Label>Gestor Responsável</Label>
-              <Input value={form.gestor_responsavel} onChange={e => set('gestor_responsavel', e.target.value)} />
+              <Input
+                value={form.gestor_responsavel}
+                onChange={e => set('gestor_responsavel', e.target.value.slice(0, 100))}
+                maxLength={100}
+              />
             </div>
             <div className="space-y-2">
               <Label>Prioridade</Label>
@@ -126,19 +160,31 @@ export default function AdmissionNewPage() {
           </div>
           <div className="space-y-2">
             <Label>Motivo da Contratação *</Label>
-            <Input value={form.motivo} onChange={e => set('motivo', e.target.value)} placeholder="Ex: Expansão de equipe" required />
+            <Input
+              value={form.motivo}
+              onChange={e => set('motivo', e.target.value.slice(0, 200))}
+              placeholder="Ex: Expansão de equipe"
+              maxLength={200}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label>Justificativa</Label>
-            <Textarea value={form.justificativa} onChange={e => set('justificativa', e.target.value)} rows={3} />
+            <Textarea
+              value={form.justificativa}
+              onChange={e => set('justificativa', e.target.value.slice(0, 500))}
+              rows={3}
+              maxLength={500}
+            />
+            <p className="text-xs text-muted-foreground text-right">{form.justificativa.length}/500</p>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !form.cargo_funcao}>
+            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !form.cargo_funcao.trim()}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Salvar Rascunho
             </Button>
-            <Button onClick={() => handleSubmit(true)} disabled={submitting || !form.cargo_funcao} className="gap-2">
+            <Button onClick={() => handleSubmit(true)} disabled={submitting || !form.cargo_funcao.trim()} className="gap-2">
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               <Send className="w-4 h-4" /> Enviar para Triagem
             </Button>
