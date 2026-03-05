@@ -72,7 +72,8 @@ export default function DashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fuel_requests')
-        .select('id, valor, status, created_at, data_abastecimento, type, daily_value, person_name, placa, categoria')
+        .select('id, valor, status, created_at, data_abastecimento, type, daily_value, person_name, placa, categoria, profiles(full_name)')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -198,6 +199,7 @@ export default function DashboardPage() {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="w-full sm:w-auto flex-wrap">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="concluidos">Concluídos</TabsTrigger>
           {isRH && <TabsTrigger value="admissions">Admissões</TabsTrigger>}
           <TabsTrigger value="fleet">Solicitações</TabsTrigger>
           {isAdmin && <TabsTrigger value="fluxos" className="gap-1"><ListChecks className="w-3.5 h-3.5" /> Fluxos</TabsTrigger>}
@@ -233,7 +235,71 @@ export default function DashboardPage() {
           )}
         </TabsContent>
 
-        {/* ADMISSIONS TAB */}
+        {/* CONCLUÍDOS TAB */}
+        <TabsContent value="concluidos" className="space-y-4 mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Abastecimentos Concluídos */}
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Fuel className="w-4 h-4" /> Abastecimentos Concluídos
+                </h3>
+                {(() => {
+                  const completed = (fuelData || []).filter((f: any) => ['concluido', 'encerrado'].includes(f.status) && f.type === 'abastecimento');
+                  if (completed.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum</p>;
+                  return (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {completed.slice(0, 20).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/fleet/${item.id}`)}>
+                          <div>
+                            <span className="font-medium">{formatCurrency(Number(item.valor || 0))}</span>
+                            {item.placa && <span className="text-xs text-muted-foreground ml-2">🚗 {item.placa}</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
+                            <StatusBadge status={item.status} label={FUEL_STATUS_LABELS[item.status] || item.status} />
+                          </div>
+                        </div>
+                      ))}
+                      {completed.length > 20 && <p className="text-xs text-muted-foreground text-center">+{completed.length - 20} mais</p>}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
+            {/* Reembolsos Concluídos */}
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Receipt className="w-4 h-4" /> Reembolsos Concluídos
+                </h3>
+                {(() => {
+                  const completed = (fuelData || []).filter((f: any) => ['concluido', 'encerrado'].includes(f.status) && f.type === 'reembolso');
+                  if (completed.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum</p>;
+                  return (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {completed.slice(0, 20).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/fleet/${item.id}`)}>
+                          <div>
+                            <span className="font-medium">{formatCurrency(Number(item.valor || 0))}</span>
+                            {item.categoria && <span className="text-xs text-muted-foreground ml-2">{item.categoria}</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
+                            <StatusBadge status={item.status} label={FUEL_STATUS_LABELS[item.status] || item.status} />
+                          </div>
+                        </div>
+                      ))}
+                      {completed.length > 20 && <p className="text-xs text-muted-foreground text-center">+{completed.length - 20} mais</p>}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         {isRH && (
           <TabsContent value="admissions" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

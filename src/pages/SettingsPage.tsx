@@ -9,6 +9,9 @@ import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Trash2, Users } from 'lucide-react';
 
+// Only show these 3 roles in the UI
+const VISIBLE_ROLES: AppRole[] = ['diretoria', 'administrativo', 'colaborador'];
+
 interface UserRow {
   id: string;
   full_name: string;
@@ -51,12 +54,6 @@ export default function SettingsPage() {
   };
 
   useEffect(() => { fetchUsers(); }, []);
-
-  // Re-fetch when realtime triggers invalidation (we use a simple approach)
-  useEffect(() => {
-    // Subscribe to the query client's invalidation isn't straightforward here
-    // since we use local state. The realtime subscription will at least log changes.
-  }, []);
 
   const addRole = async (userId: string, role: AppRole) => {
     const { error } = await supabase
@@ -103,7 +100,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <CardTitle className="text-base">Usuários do Sistema</CardTitle>
-              <CardDescription>{users.length} usuários cadastrados</CardDescription>
+              <CardDescription>{users.length} usuários cadastrados · 3 níveis: Diretoria, Administrativo, Colaborador</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -116,8 +113,9 @@ export default function SettingsPage() {
       ) : (
         <div className="space-y-3">
           {users.map(u => {
-            const availableRoles = (['diretoria', 'administrativo', 'colaborador', 'rh'] as AppRole[])
-              .filter(r => !u.roles.includes(r));
+            // Only show/add visible roles (3 levels)
+            const visibleUserRoles = u.roles.filter(r => VISIBLE_ROLES.includes(r));
+            const availableRoles = VISIBLE_ROLES.filter(r => !u.roles.includes(r));
 
             return (
               <Card key={u.id}>
@@ -132,7 +130,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      {u.roles.map(role => (
+                      {visibleUserRoles.map(role => (
                         <span key={role} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
                           {ROLE_LABELS[role]}
                           {u.id !== currentUser?.id && (

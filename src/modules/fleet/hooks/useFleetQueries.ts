@@ -1,15 +1,81 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
+
+type FuelStatus = Database['public']['Enums']['fuel_status'];
+const FINAL_STATUSES: FuelStatus[] = ['concluido', 'encerrado'];
+const REJECTED_STATUSES: FuelStatus[] = ['reprovado'];
 
 export function useFuelRequests(userId?: string, isAdmin?: boolean, type?: string) {
   return useQuery({
     queryKey: ['fuel_requests', userId, isAdmin, type],
     queryFn: async () => {
-      // Use any to avoid deep type instantiation
       const res: any = await supabase
         .from('fuel_requests')
         .select('*, profiles(full_name, email)')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+      if (res.error) throw res.error;
+      let items = res.data || [];
+      if (type) items = items.filter((r: any) => r.type === type);
+      return items;
+    },
+    enabled: !!userId,
+  });
+}
+
+/** Only pending (not completed, not rejected) */
+export function useFuelRequestsPending(userId?: string, isAdmin?: boolean, type?: string) {
+  return useQuery({
+    queryKey: ['fuel_requests_pending', userId, isAdmin, type],
+    queryFn: async () => {
+      const res: any = await supabase
+        .from('fuel_requests')
+        .select('*, profiles(full_name, email)')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+      if (res.error) throw res.error;
+      let items = res.data || [];
+      if (type) items = items.filter((r: any) => r.type === type);
+      // Filter out completed and rejected
+      items = items.filter((r: any) => ![...FINAL_STATUSES, ...REJECTED_STATUSES].includes(r.status));
+      return items;
+    },
+    enabled: !!userId,
+  });
+}
+
+/** Only rejected/reprovado */
+export function useFuelRequestsRejected(userId?: string, isAdmin?: boolean, type?: string) {
+  return useQuery({
+    queryKey: ['fuel_requests_rejected', userId, isAdmin, type],
+    queryFn: async () => {
+      const res: any = await supabase
+        .from('fuel_requests')
+        .select('*, profiles(full_name, email)')
+        .is('deleted_at', null)
+        .in('status', REJECTED_STATUSES)
+        .order('created_at', { ascending: false });
+      if (res.error) throw res.error;
+      let items = res.data || [];
+      if (type) items = items.filter((r: any) => r.type === type);
+      return items;
+    },
+    enabled: !!userId,
+  });
+}
+
+/** Only completed */
+export function useFuelRequestsCompleted(userId?: string, isAdmin?: boolean, type?: string) {
+  return useQuery({
+    queryKey: ['fuel_requests_completed', userId, isAdmin, type],
+    queryFn: async () => {
+      const res: any = await supabase
+        .from('fuel_requests')
+        .select('*, profiles(full_name, email)')
+        .is('deleted_at', null)
+        .in('status', FINAL_STATUSES)
         .order('created_at', { ascending: false });
       if (res.error) throw res.error;
       let items = res.data || [];
@@ -84,6 +150,7 @@ export function useCreateFuelRequest() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fuel_requests'] });
+      qc.invalidateQueries({ queryKey: ['fuel_requests_pending'] });
       qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
       toast({ title: 'Solicitação criada!' });
     },
@@ -111,6 +178,9 @@ export function useFuelSetStatus() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fuel_requests'] });
+      qc.invalidateQueries({ queryKey: ['fuel_requests_pending'] });
+      qc.invalidateQueries({ queryKey: ['fuel_requests_rejected'] });
+      qc.invalidateQueries({ queryKey: ['fuel_requests_completed'] });
       qc.invalidateQueries({ queryKey: ['fuel_request'] });
       qc.invalidateQueries({ queryKey: ['fuel_reviews'] });
       qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
@@ -119,6 +189,36 @@ export function useFuelSetStatus() {
     },
     onError: (err: any) => {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useSoftDeleteRequest() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (params: { requestId: string; reason?: string }) => {
+      const { data, error } = await supabase.rpc('soft_delete_request', {
+        _request_id: params.requestId,
+        _reason: params.reason || null,
+      });
+      if (error) throw error;
+      const result = data as any;
+      if (result?.error) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['fuel_requests'] });
+      qc.invalidateQueries({ queryKey: ['fuel_requests_pending'] });
+      qc.invalidateQueries({ queryKey: ['fuel_requests_rejected'] });
+      qc.invalidateQueries({ queryKey: ['fuel_requests_completed'] });
+      qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
+      qc.invalidateQueries({ queryKey: ['fuel_all'] });
+      toast({ title: 'Solicitação excluída com sucesso' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
     },
   });
 }

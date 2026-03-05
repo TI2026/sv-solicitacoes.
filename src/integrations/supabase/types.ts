@@ -521,6 +521,8 @@ export type Database = {
           daily_category: string | null
           daily_value: number | null
           data_abastecimento: string
+          deleted_at: string | null
+          deleted_by: string | null
           hours: number | null
           id: string
           km: string | null
@@ -546,6 +548,8 @@ export type Database = {
           daily_category?: string | null
           daily_value?: number | null
           data_abastecimento?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           hours?: number | null
           id?: string
           km?: string | null
@@ -571,6 +575,8 @@ export type Database = {
           daily_category?: string | null
           daily_value?: number | null
           data_abastecimento?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           hours?: number | null
           id?: string
           km?: string | null
@@ -1071,6 +1077,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      soft_delete_request: {
+        Args: { _reason?: string; _request_id: string }
+        Returns: Json
       }
     }
     Enums: {
