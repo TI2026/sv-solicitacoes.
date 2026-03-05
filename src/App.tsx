@@ -10,6 +10,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import AuditLogsPage from "@/pages/AuditLogsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
+import MaintenancePage from "@/pages/MaintenancePage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -68,6 +69,7 @@ const AppRoutes = () => (
     <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
     <Route path="/auditoria" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+    <Route path="/admin/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
 
     {/* Fleet */}
     <Route path="/fleet" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />
