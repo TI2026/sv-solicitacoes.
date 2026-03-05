@@ -1034,6 +1034,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_purge_test_data: {
+        Args: { _confirm?: boolean; _scope: string }
+        Returns: Json
+      }
       admission_set_status: {
         Args: {
           _metadata?: Json
