@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useFuelRequests } from '../hooks/useFleetQueries';
+import { useFuelRequestsPending, useFuelRequestsRejected, useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,10 +7,11 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase } from 'lucide-react';
+import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -34,7 +35,7 @@ function InfoCard({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyIcon, emptyText }: any) {
+function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyIcon, emptyText, canDelete, onDelete }: any) {
   if (isLoading) return (
     <div className="space-y-3">
       {[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
@@ -51,37 +52,40 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
   return (
     <div className="space-y-3">
       {requests.map((req: any) => (
-        <Link key={req.id} to={`/fleet/${req.id}`}>
-          <Card className="hover:border-primary/30 transition-colors cursor-pointer">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-foreground">
-                      R$ {Number(req.valor || req.daily_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        <Card key={req.id} className="hover:border-primary/30 transition-colors">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <Link to={`/fleet/${req.id}`} className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-foreground">
+                    R$ {Number(req.valor || req.daily_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                  <StatusBadge status={req.status} label={FUEL_STATUS_LABELS[req.status] || req.status} />
+                  {req.type !== 'abastecimento' && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">
+                      {REQUEST_TYPE_LABELS[req.type] || req.type}
                     </span>
-                    <StatusBadge status={req.status} label={FUEL_STATUS_LABELS[req.status] || req.status} />
-                    {req.type !== 'abastecimento' && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">
-                        {REQUEST_TYPE_LABELS[req.type] || req.type}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(req.data_abastecimento).toLocaleDateString('pt-BR')}
-                    </span>
-                    {req.placa && <span>🚗 {req.placa}</span>}
-                    {req.categoria && <span>{req.categoria}</span>}
-                    {req.person_name && <span>{req.person_name}</span>}
-                    {isAdmin && req.profiles && <span>{req.profiles.full_name}</span>}
-                  </div>
+                  )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(req.data_abastecimento).toLocaleDateString('pt-BR')}
+                  </span>
+                  {req.placa && <span>🚗 {req.placa}</span>}
+                  {req.categoria && <span>{req.categoria}</span>}
+                  {req.person_name && <span>{req.person_name}</span>}
+                  {isAdmin && req.profiles && <span>{req.profiles.full_name}</span>}
+                </div>
+              </Link>
+              {canDelete && (
+                <Button variant="ghost" size="icon" className="shrink-0 text-destructive hover:text-destructive" onClick={(e) => { e.preventDefault(); onDelete?.(req); }}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
@@ -92,18 +96,33 @@ export default function FleetListPage() {
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('abastecimento');
+  const [subFilter, setSubFilter] = useState<'pendentes' | 'negados'>('pendentes');
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const softDelete = useSoftDeleteRequest();
 
-  const { data: abastData, isLoading: abastLoading } = useFuelRequests(user?.id, isAdmin, 'abastecimento');
-  const { data: reembolsoData, isLoading: reembolsoLoading } = useFuelRequests(user?.id, isAdmin, 'reembolso');
+  // Pending queries
+  const { data: abastPending, isLoading: abastPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'abastecimento');
+  const { data: reembolsoPending, isLoading: reembolsoPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'reembolso');
+  // Diaria: show all (not filtered by pending)
   const { data: diariaData, isLoading: diariaLoading } = useFuelRequests(user?.id, isAdmin, 'diaria');
+
+  // Rejected queries
+  const { data: abastRejected, isLoading: abastRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'abastecimento');
+  const { data: reembolsoRejected, isLoading: reembolsoRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'reembolso');
 
   useRealtimeSubscription({
     channelName: 'fleet-list-realtime',
     enabled: !!user,
-    tables: [{ table: 'fuel_requests', queryKeys: [['fuel_requests'], ['fuel_metrics']] }],
+    tables: [{ table: 'fuel_requests', queryKeys: [['fuel_requests'], ['fuel_requests_pending'], ['fuel_requests_rejected'], ['fuel_requests_completed'], ['fuel_metrics']] }],
   });
 
   const canCreateDiaria = hasAnyRole(['diretoria', 'administrativo']);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    await softDelete.mutateAsync({ requestId: deleteTarget.id });
+    setDeleteTarget(null);
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -122,7 +141,7 @@ export default function FleetListPage() {
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSubFilter('pendentes'); }} className="w-full">
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="abastecimento" className="gap-1.5">
             <Fuel className="w-3.5 h-3.5" /> Abastecimento
@@ -144,7 +163,22 @@ export default function FleetListPage() {
             <p>• Administrativo revisa e conclui</p>
             <p>• Limite: 5 solicitações por dia</p>
           </InfoCard>
-          <RequestList requests={abastData} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação de abastecimento" />
+
+          {/* Sub-filter: Pendentes / Negados */}
+          <div className="flex gap-2">
+            <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
+              Pendentes {abastPending?.length ? `(${abastPending.length})` : ''}
+            </Button>
+            <Button variant={subFilter === 'negados' ? 'destructive' : 'outline'} size="sm" onClick={() => setSubFilter('negados')}>
+              <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negados {abastRejected?.length ? `(${abastRejected.length})` : ''}
+            </Button>
+          </div>
+
+          {subFilter === 'pendentes' ? (
+            <RequestList requests={abastPending} isAdmin={isAdmin} isLoading={abastPendingLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
+          ) : (
+            <RequestList requests={abastRejected} isAdmin={isAdmin} isLoading={abastRejectedLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+          )}
         </TabsContent>
 
         <TabsContent value="reembolso" className="space-y-3 mt-3">
@@ -155,7 +189,21 @@ export default function FleetListPage() {
             <p>• Solicitação é concluída</p>
             <p>• Limite: 5 solicitações por dia</p>
           </InfoCard>
-          <RequestList requests={reembolsoData} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação de reembolso" />
+
+          <div className="flex gap-2">
+            <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
+              Pendentes {reembolsoPending?.length ? `(${reembolsoPending.length})` : ''}
+            </Button>
+            <Button variant={subFilter === 'negados' ? 'destructive' : 'outline'} size="sm" onClick={() => setSubFilter('negados')}>
+              <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negados {reembolsoRejected?.length ? `(${reembolsoRejected.length})` : ''}
+            </Button>
+          </div>
+
+          {subFilter === 'pendentes' ? (
+            <RequestList requests={reembolsoPending} isAdmin={isAdmin} isLoading={reembolsoPendingLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
+          ) : (
+            <RequestList requests={reembolsoRejected} isAdmin={isAdmin} isLoading={reembolsoRejectedLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+          )}
         </TabsContent>
 
         <TabsContent value="diaria" className="space-y-3 mt-3">
@@ -165,9 +213,30 @@ export default function FleetListPage() {
             <p>• A diária pode ser editada ou encerrada</p>
             <p>• Custos são somados por período no dashboard</p>
           </InfoCard>
-          <RequestList requests={diariaData} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária registrada" />
+          <RequestList requests={diariaData} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária registrada" canDelete={isAdmin} onDelete={setDeleteTarget} />
         </TabsContent>
       </Tabs>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" /> Excluir solicitação
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tem certeza? Isso só oculta do app (pode ser restaurado por auditoria). O registro não será apagado fisicamente.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={softDelete.isPending}>
+              {softDelete.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Confirmar Exclusão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
