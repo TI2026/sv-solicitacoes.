@@ -7,18 +7,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertTriangle, Loader2, Trash2, Eye, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type PurgeScope = 'SOLICITACOES' | 'ADMISSOES' | 'ALL_TEST';
 
 export default function MaintenancePage() {
-  const { hasRole } = useAuth();
+  const { hasRole, hasAnyRole } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [scope, setScope] = useState<PurgeScope>('ALL_TEST');
   const [preview, setPreview] = useState<Record<string, number> | null>(null);
   const [result, setResult] = useState<Record<string, number> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  if (!hasRole('diretoria')) return <Navigate to="/dashboard" replace />;
+  if (!hasAnyRole(['diretoria', 'administrativo'])) return <Navigate to="/dashboard" replace />;
 
   const handlePreview = async () => {
     setLoading(true);
@@ -40,6 +53,7 @@ export default function MaintenancePage() {
   };
 
   const handleConfirm = async () => {
+    setShowConfirm(false);
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc('admin_purge_test_data', {
@@ -52,6 +66,9 @@ export default function MaintenancePage() {
       setResult(res.counts || {});
       setPreview(null);
       toast({ title: 'Limpeza concluída', description: 'Dados de teste removidos com sucesso.' });
+
+      // Invalidate all queries so dashboard/lists refresh instantly
+      await queryClient.invalidateQueries();
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
@@ -126,7 +143,7 @@ export default function MaintenancePage() {
               </div>
 
               {totalCount(preview) > 0 ? (
-                <Button onClick={handleConfirm} disabled={loading} variant="destructive" className="gap-2 w-full mt-3">
+                <Button onClick={() => setShowConfirm(true)} disabled={loading} variant="destructive" className="gap-2 w-full mt-3">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   Confirmar Limpeza
                 </Button>
@@ -151,6 +168,23 @@ export default function MaintenancePage() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar limpeza de dados</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso apaga SOMENTE dados (linhas) de Solicitações e Admissões. Não remove funções, tabelas, colunas ou design. A ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Confirmar exclusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
