@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
 import { todayBR, clampSalary } from '@/lib/masks';
+import { CargoCombobox } from '../components/CargoCombobox';
 
 export default function AdmissionNewPage() {
   const { user } = useAuth();
@@ -79,12 +80,9 @@ export default function AdmissionNewPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Cargo / Função *</Label>
-              <Input
+              <CargoCombobox
                 value={form.cargo_funcao}
-                onChange={e => set('cargo_funcao', e.target.value.slice(0, 100))}
-                placeholder="Ex: Engenheiro Civil"
-                maxLength={100}
-                required
+                onChange={v => set('cargo_funcao', v)}
               />
             </div>
             <div className="space-y-2">
