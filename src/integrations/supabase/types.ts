@@ -169,6 +169,9 @@ export type Database = {
           status: Database["public"]["Enums"]["admission_status"]
           tipo_contrato: string
           updated_at: string
+          welcome_local_apresentacao: string | null
+          welcome_responsavel_contato: string | null
+          welcome_responsavel_nome: string | null
         }
         Insert: {
           cargo_funcao?: string
@@ -188,6 +191,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["admission_status"]
           tipo_contrato?: string
           updated_at?: string
+          welcome_local_apresentacao?: string | null
+          welcome_responsavel_contato?: string | null
+          welcome_responsavel_nome?: string | null
         }
         Update: {
           cargo_funcao?: string
@@ -207,6 +213,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["admission_status"]
           tipo_contrato?: string
           updated_at?: string
+          welcome_local_apresentacao?: string | null
+          welcome_responsavel_contato?: string | null
+          welcome_responsavel_nome?: string | null
         }
         Relationships: [
           {
@@ -321,8 +330,12 @@ export type Database = {
           interview_approved: boolean | null
           interview_at: string | null
           interview_city: string | null
+          interview_confirmed_at: string | null
+          interview_confirmed_by: string | null
+          interview_mode: string | null
           interview_notes: string | null
           interviewer_name: string | null
+          meeting_link: string | null
           nome: string
           observacoes: string | null
           status_triagem: Database["public"]["Enums"]["candidate_status"]
@@ -343,8 +356,12 @@ export type Database = {
           interview_approved?: boolean | null
           interview_at?: string | null
           interview_city?: string | null
+          interview_confirmed_at?: string | null
+          interview_confirmed_by?: string | null
+          interview_mode?: string | null
           interview_notes?: string | null
           interviewer_name?: string | null
+          meeting_link?: string | null
           nome: string
           observacoes?: string | null
           status_triagem?: Database["public"]["Enums"]["candidate_status"]
@@ -365,8 +382,12 @@ export type Database = {
           interview_approved?: boolean | null
           interview_at?: string | null
           interview_city?: string | null
+          interview_confirmed_at?: string | null
+          interview_confirmed_by?: string | null
+          interview_mode?: string | null
           interview_notes?: string | null
           interviewer_name?: string | null
+          meeting_link?: string | null
           nome?: string
           observacoes?: string | null
           status_triagem?: Database["public"]["Enums"]["candidate_status"]
