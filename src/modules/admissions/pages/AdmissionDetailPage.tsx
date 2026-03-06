@@ -13,8 +13,11 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { AdmissionStepper } from '../components/AdmissionStepper';
 import { InterviewDialog } from '../components/InterviewDialog';
+import { EditAdmissionDialog } from '../components/EditAdmissionDialog';
+import { WelcomePdfGenerator } from '../components/WelcomePdfGenerator';
+import { ExamAttachmentUpload } from '../components/ExamAttachmentUpload';
 import { ADMISSION_STATUS_LABELS, CANDIDATE_STATUS_LABELS, PRIORITY_LABELS, EXAM_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload, Download } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload, Download, Pencil, Video, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,7 +33,6 @@ const DOC_KEY_LABELS: Record<string, string> = {
   PIS_PASEP: 'PIS/PASEP', DEP_CERTIDAO: 'Certidão (dependente)', DEP_CPF: 'CPF (dependente)',
   DEP_VACINA: 'Vacinação (dependente)', DEP_MATRICULA: 'Matrícula (dependente)',
   DEP_LAUDO: 'Laudo médico (dependente)', generic: 'Documento',
-  // Admin signature doc keys
   CONTRATO_TRABALHO_ADMIN: 'Contrato de trabalho',
   FICHA_REGISTRO_ADMIN: 'Ficha de registro do empregado',
   DECLARACAO_DEPENDENTES_IRRF_ADMIN: 'Declaração de dependentes para IRRF',
@@ -39,7 +41,6 @@ const DOC_KEY_LABELS: Record<string, string> = {
   TERMO_CONFIDENCIALIDADE_ADMIN: 'Termo de confidencialidade',
 };
 
-// Fixed slots for admin signature documents
 const ADMIN_SIGNATURE_DOCS: Array<{ key: string; label: string; optional: boolean }> = [
   { key: 'CONTRATO_TRABALHO_ADMIN', label: 'Contrato de trabalho', optional: false },
   { key: 'FICHA_REGISTRO_ADMIN', label: 'Ficha de registro do empregado', optional: false },
@@ -69,8 +70,8 @@ export default function AdmissionDetailPage() {
   const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({});
   const [linksGenerating, setLinksGenerating] = useState(false);
   const [docsConfirmed, setDocsConfirmed] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
-  // Realtime subscriptions
   useRealtimeSubscription({
     channelName: `admission-detail-${id}`,
     enabled: !!id,
@@ -115,6 +116,8 @@ export default function AdmissionDetailPage() {
         interview_city: data.interview_city,
         interviewer_name: data.interviewer_name,
         interview_notes: data.interview_notes || null,
+        interview_mode: data.interview_mode || 'presencial',
+        meeting_link: data.meeting_link || null,
       },
     });
   };
@@ -128,6 +131,18 @@ export default function AdmissionDetailPage() {
       },
     });
     toast({ title: approved ? 'Candidato aprovado na entrevista!' : 'Candidato eliminado' });
+  };
+
+  const handleConfirmInterview = async (candidateId: string) => {
+    const currentUser = (await supabase.auth.getUser()).data.user;
+    await updateCandidate.mutateAsync({
+      id: candidateId,
+      data: {
+        interview_confirmed_at: new Date().toISOString(),
+        interview_confirmed_by: currentUser?.id || null,
+      },
+    });
+    toast({ title: 'Entrevista confirmada como realizada!' });
   };
 
   const copyToClipboard = (text: string) => {
@@ -160,11 +175,19 @@ export default function AdmissionDetailPage() {
     if (!c.interview_at) return { label: 'Não agendada', variant: 'pending' };
     if (c.interview_approved === true) return { label: 'Aprovado', variant: 'approved' };
     if (c.interview_approved === false) return { label: 'Eliminado', variant: 'rejected' };
+    // Check if confirmed
+    if ((c as any).interview_confirmed_at) return { label: 'Realizada — aguardando decisão', variant: 'info' };
     if (!isInterviewPast(c.interview_at)) return { label: 'Aguardando data/hora', variant: 'info' };
     return { label: 'Liberado para decisão', variant: 'pending' };
   };
 
-  // Auto-generate links when entering documentos_em_analise or aguardando_registro
+  const canDecideInterview = (c: any): boolean => {
+    if (c.interview_approved != null) return false;
+    if (!c.interview_at) return false;
+    // Must be past OR confirmed
+    return isInterviewPast(c.interview_at) || !!(c as any).interview_confirmed_at;
+  };
+
   const generateLinksForCandidates = async (linkType: 'DOCUMENTS' | 'SIGNATURE') => {
     if (!id || linksGenerating || approvedCandidates.length === 0) return;
     setLinksGenerating(true);
@@ -190,6 +213,9 @@ export default function AdmissionDetailPage() {
   };
 
   const status = req?.status;
+
+  // Can edit: before triagem started
+  const canEdit = isRH && status && ['rascunho', 'aguardando_triagem'].includes(status);
 
   useEffect(() => {
     if (status === 'documentos_em_analise' && approvedCandidates.length > 0) {
@@ -226,6 +252,11 @@ export default function AdmissionDetailPage() {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-lg">{req.cargo_funcao || 'Admissão'}</CardTitle>
             <div className="flex items-center gap-2">
+              {canEdit && (
+                <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)} className="gap-1">
+                  <Pencil className="w-3.5 h-3.5" /> Editar
+                </Button>
+              )}
               <StatusBadge status={req.status} label={ADMISSION_STATUS_LABELS[req.status] || req.status} />
               {(req as any).priority && (req as any).priority !== 'media' && (
                 <StatusBadge
@@ -334,13 +365,18 @@ export default function AdmissionDetailPage() {
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Etapa 2 — Entrevista</h3>
             <p className="text-xs text-muted-foreground">
-              Agende a entrevista para cada candidato. Após a data/hora, decida: Continuar ou Eliminar.
+              Agende a entrevista para cada candidato. Após a data/hora (ou confirmação), decida: Continuar ou Eliminar.
             </p>
 
             {candidates?.map((c: any) => {
               if (c.status_triagem === 'reprovado' || c.status_triagem === 'desistente') return null;
               const interviewStatus = getInterviewStatusLabel(c);
-              const canDecide = c.interview_at && isInterviewPast(c.interview_at) && c.interview_approved == null;
+              const canDecide = canDecideInterview(c);
+              const isOnline = (c as any).interview_mode === 'online';
+              const meetingLink = (c as any).meeting_link;
+              const isConfirmed = !!(c as any).interview_confirmed_at;
+              const isPast = c.interview_at && isInterviewPast(c.interview_at);
+              const canConfirm = c.interview_at && c.interview_approved == null && !isConfirmed;
 
               return (
                 <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
@@ -358,6 +394,11 @@ export default function AdmissionDetailPage() {
                           {interviewStatus.variant === 'info' && <Clock className="w-3 h-3" />}
                           {interviewStatus.label}
                         </span>
+                        {isOnline && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                            <Video className="w-3 h-3" /> Online
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -365,9 +406,25 @@ export default function AdmissionDetailPage() {
                   {c.interview_at && (
                     <div className="bg-muted/50 rounded-lg p-2 text-xs text-muted-foreground space-y-0.5">
                       <p className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> {formatDateTimeBR(c.interview_at)}</p>
-                      {c.interview_address && <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.interview_address}{c.interview_city ? `, ${c.interview_city}` : ''}</p>}
+                      {!isOnline && c.interview_address && <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.interview_address}{c.interview_city ? `, ${c.interview_city}` : ''}</p>}
+                      {isOnline && meetingLink && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Video className="w-3 h-3 text-blue-500" />
+                          <a href={meetingLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate max-w-[200px]">
+                            {meetingLink}
+                          </a>
+                          <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => copyToClipboard(meetingLink)}>
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
                       {c.interviewer_name && <p className="flex items-center gap-1"><User className="w-3 h-3" /> {c.interviewer_name}</p>}
-                      {!isInterviewPast(c.interview_at) && c.interview_approved == null && (
+                      {isConfirmed && (
+                        <p className="flex items-center gap-1 text-primary font-medium mt-1">
+                          <CheckCircle className="w-3 h-3" /> Entrevista confirmada como realizada
+                        </p>
+                      )}
+                      {!isPast && !isConfirmed && c.interview_approved == null && (
                         <p className="flex items-center gap-1 text-[hsl(var(--status-info-foreground))] font-medium mt-1">
                           <Clock className="w-3 h-3" /> Entrevista ainda não ocorreu. Aguarde a data/hora.
                         </p>
@@ -376,9 +433,15 @@ export default function AdmissionDetailPage() {
                   )}
 
                   <div className="flex gap-1 flex-wrap">
-                    {(!c.interview_at || (c.interview_approved == null && !isInterviewPast(c.interview_at))) && (
+                    {(!c.interview_at || (c.interview_approved == null && !isPast && !isConfirmed)) && (
                       <Button variant="ghost" size="sm" onClick={() => setInterviewCandidate(c)} className="gap-1 text-xs">
                         <CalendarClock className="w-3 h-3" /> {c.interview_at ? 'Reagendar' : 'Agendar Entrevista'}
+                      </Button>
+                    )}
+
+                    {canConfirm && !isPast && !isConfirmed && (
+                      <Button variant="outline" size="sm" onClick={() => handleConfirmInterview(c.id)} className="gap-1 text-xs">
+                        <CheckCircle className="w-3 h-3" /> Confirmar Entrevista Realizada
                       </Button>
                     )}
 
@@ -556,7 +619,7 @@ export default function AdmissionDetailPage() {
       {/* ===== ETAPA 6: Concluído ===== */}
       {(status === 'concluido' || status === 'registros_concluidos') && (
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-4 text-center space-y-3">
             <CheckCircle className="w-8 h-8 mx-auto text-primary mb-2" />
             <p className="text-sm font-semibold text-foreground">Admissão Concluída — Admitido</p>
             <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
@@ -567,6 +630,17 @@ export default function AdmissionDetailPage() {
                 <p>Contratado(s): {approvedCandidates.map((c: any) => c.nome).join(', ')}</p>
               )}
             </div>
+            {/* Welcome PDF Generator */}
+            {approvedCandidates.map((c: any) => (
+              <WelcomePdfGenerator
+                key={c.id}
+                candidateName={c.nome}
+                cargoFuncao={req.cargo_funcao}
+                admissionId={id!}
+                defaultLocal={req.local_contratacao}
+                defaultResponsavel={req.gestor_responsavel}
+              />
+            ))}
           </CardContent>
         </Card>
       )}
@@ -598,6 +672,15 @@ export default function AdmissionDetailPage() {
           onOpenChange={() => setInterviewCandidate(null)}
           candidateName={interviewCandidate.nome}
           onSave={handleScheduleInterview}
+        />
+      )}
+
+      {/* Edit admission dialog */}
+      {showEditDialog && req && (
+        <EditAdmissionDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          admission={req}
         />
       )}
 
@@ -637,7 +720,6 @@ function CandidateFilesList({ admissionId, candidateId, linkType }: { admissionI
 
   if (candidateFiles.length === 0) return null;
 
-  // Group by file_type (doc_key)
   const grouped = candidateFiles.reduce<Record<string, typeof candidateFiles>>((acc, f) => {
     const key = f.file_type || 'generic';
     if (!acc[key]) acc[key] = [];
@@ -668,7 +750,7 @@ function CandidateFilesList({ admissionId, candidateId, linkType }: { admissionI
   );
 }
 
-// ===== ExamSection: Free-text clinic + date/time + result + auto-unlock timer =====
+// ===== ExamSection: Free-text clinic + date/time + result + auto-unlock timer + attachment =====
 function ExamSection({ candidateId, candidateName, admissionId, currentStatus, onAdvance, onExamResultRegistered }: {
   candidateId: string; candidateName: string; admissionId: string; currentStatus: string; onAdvance: () => void; onExamResultRegistered?: () => void;
 }) {
@@ -689,25 +771,18 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
     ],
   });
 
-  // Timer: auto-refresh when exam time arrives
   useEffect(() => {
     if (!exam?.scheduled_at) return;
     const scheduled = new Date(exam.scheduled_at);
     const diff = scheduled.getTime() - Date.now();
-    if (diff <= 0) {
-      // Already past
-      setNow(new Date());
-      return;
-    }
-    // Set a timer for when it becomes past
+    if (diff <= 0) { setNow(new Date()); return; }
     const timer = setTimeout(() => {
       setNow(new Date());
       qc.invalidateQueries({ queryKey: ['medical_exam', candidateId] });
-    }, diff + 1000); // +1s buffer
+    }, diff + 1000);
     return () => clearTimeout(timer);
   }, [exam?.scheduled_at, candidateId, qc]);
 
-  // Also tick every 60s for countdown display
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(interval);
@@ -740,7 +815,6 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
     else {
       toast({ title: 'Resultado registrado' });
       qc.invalidateQueries({ queryKey: ['medical_exam', candidateId] });
-      // Auto-advance admission status from aguardando_exame to exame_realizado
       if (currentStatus === 'aguardando_exame') {
         onExamResultRegistered?.();
       }
@@ -750,7 +824,6 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
   const isExamPast = exam?.scheduled_at ? new Date(exam.scheduled_at) <= now : false;
   const examResolved = exam?.status && exam.status !== 'aguardando';
 
-  // Compute time remaining
   const getTimeRemaining = () => {
     if (!exam?.scheduled_at) return '';
     const diff = new Date(exam.scheduled_at).getTime() - now.getTime();
@@ -762,7 +835,6 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
     return `Faltam ${mins}min`;
   };
 
-  // Can advance to next step?
   const canAdvance = examResolved && isExamPast;
 
   return (
@@ -797,6 +869,10 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
               <Button size="sm" variant="destructive" onClick={() => handleExamResult('inapto')}>Inapto</Button>
             </div>
           )}
+
+          {/* Exam Attachment Upload */}
+          <ExamAttachmentUpload admissionId={admissionId} candidateId={candidateId} />
+
           {canAdvance && (
             <Button onClick={onAdvance} className="gap-2 w-full" size="sm">
               <CheckCircle className="w-4 h-4" /> Avançar para Assinatura
@@ -965,7 +1041,6 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
         })}
       </div>
 
-      {/* Signed docs received from candidate */}
       {signedFiles.length > 0 && (
         <div className="space-y-1">
           <Label className="text-xs font-semibold uppercase text-primary">Documentos assinados recebidos</Label>
@@ -982,7 +1057,6 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
         </div>
       )}
 
-      {/* Link for candidate */}
       {link ? (
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Link para o candidato</Label>
