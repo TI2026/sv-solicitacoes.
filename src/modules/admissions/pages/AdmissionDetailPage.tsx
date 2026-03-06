@@ -395,7 +395,7 @@ export default function AdmissionDetailPage() {
                           {interviewStatus.label}
                         </span>
                         {isOnline && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium status-info">
                             <Video className="w-3 h-3" /> Online
                           </span>
                         )}
@@ -409,8 +409,8 @@ export default function AdmissionDetailPage() {
                       {!isOnline && c.interview_address && <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.interview_address}{c.interview_city ? `, ${c.interview_city}` : ''}</p>}
                       {isOnline && meetingLink && (
                         <div className="flex items-center gap-2 mt-1">
-                          <Video className="w-3 h-3 text-blue-500" />
-                          <a href={meetingLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate max-w-[200px]">
+                          <Video className="w-3 h-3 text-primary" />
+                          <a href={meetingLink} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate max-w-[200px]">
                             {meetingLink}
                           </a>
                           <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => copyToClipboard(meetingLink)}>
