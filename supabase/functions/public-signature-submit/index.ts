@@ -113,10 +113,10 @@ Deno.serve(async (req) => {
     }
 
     // Record in admission_files
-    const fileType = doc_key || (uploadMode === 'admin' ? 'internal_doc' : 'signed_doc');
+    const fileType = doc_key || 'signed_doc';
 
     // For candidate uploads with doc_key, remove previous file for same doc_key (1 file per type)
-    if (uploadMode === 'candidate' && doc_key) {
+    if (doc_key) {
       const { data: existing } = await supabase
         .from('admission_files')
         .select('id, storage_path')
@@ -136,16 +136,16 @@ Deno.serve(async (req) => {
       file_type: fileType,
       storage_path: storagePath,
       original_filename: sanitizedFilename,
-      uploaded_by: uploadMode === 'admin' ? 'ADMIN' : 'CANDIDATE',
+      uploaded_by: 'CANDIDATE',
       link_type: 'SIGNATURE',
     });
 
     // Log
     await supabase.from('audit_logs').insert({
-      action: uploadMode === 'admin' ? 'signature_admin_upload' : 'signature_candidate_upload',
+      action: 'signature_candidate_upload',
       entity_type: 'candidates',
       entity_id: link.candidate_id,
-      details: { ip: clientIp, user_agent: userAgent, filename: sanitizedFilename, mode: uploadMode },
+      details: { ip: clientIp, user_agent: userAgent, filename: sanitizedFilename },
     });
 
     console.log(`Signature ${uploadMode} upload from IP ${clientIp} for candidate ${link.candidate_id}`);
