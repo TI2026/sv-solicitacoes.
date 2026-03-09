@@ -7,6 +7,7 @@ import { Download, Loader2, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import { formatDateBR } from '@/lib/dateUtils';
+import logoSv from '@/assets/logo-sv.png';
 
 interface WelcomePdfGeneratorProps {
   candidateName: string;
@@ -16,6 +17,25 @@ interface WelcomePdfGeneratorProps {
   defaultResponsavel?: string;
   defaultContato?: string;
   dataPrevistaInicio?: string | null;
+}
+
+// Helper to load image as base64 for jsPDF
+function loadImageAsBase64(src: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Canvas not supported'));
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('Failed to load logo'));
+    img.src = src;
+  });
 }
 
 export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, defaultLocal, defaultResponsavel, defaultContato, dataPrevistaInicio }: WelcomePdfGeneratorProps) {
@@ -44,16 +64,25 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
 
       // Header bar
       doc.setFillColor(...green);
-      doc.rect(0, 0, pageW, 18, 'F');
+      doc.rect(0, 0, pageW, 22, 'F');
 
-      // Company name in header
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('SV ENGENHARIA', margin, 12);
+      // Add logo to header
+      try {
+        const logoData = await loadImageAsBase64(logoSv);
+        // Logo proportions: place it centered or left-aligned in the header
+        const logoH = 14;
+        const logoW = logoH * 2.5; // approximate aspect ratio
+        doc.addImage(logoData, 'PNG', margin, 4, logoW, logoH);
+      } catch {
+        // Fallback: text if logo fails to load
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('SV ENGENHARIA', margin, 14);
+      }
 
       // Welcome title
-      let y = 45;
+      let y = 48;
       doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...green);
