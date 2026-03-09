@@ -19,19 +19,24 @@ interface WelcomePdfGeneratorProps {
   dataPrevistaInicio?: string | null;
 }
 
-// Helper to load image as base64 for jsPDF
+// Helper to load image as high-quality base64 for jsPDF
 function loadImageAsBase64(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
+      // Use 2x scale for sharper rendering in PDF
+      const scale = 2;
       const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = img.naturalWidth * scale;
+      canvas.height = img.naturalHeight * scale;
       const ctx = canvas.getContext('2d');
       if (!ctx) return reject(new Error('Canvas not supported'));
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL('image/png'));
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+      resolve(canvas.toDataURL('image/png', 1.0));
     };
     img.onerror = () => reject(new Error('Failed to load logo'));
     img.src = src;
