@@ -639,6 +639,7 @@ export default function AdmissionDetailPage() {
                 admissionId={id!}
                 defaultLocal={req.local_contratacao}
                 defaultResponsavel={req.gestor_responsavel}
+                dataPrevistaInicio={req.data_prevista_inicio}
               />
             ))}
           </CardContent>
