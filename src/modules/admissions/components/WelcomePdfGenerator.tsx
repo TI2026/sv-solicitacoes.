@@ -19,19 +19,24 @@ interface WelcomePdfGeneratorProps {
   dataPrevistaInicio?: string | null;
 }
 
-// Helper to load image as base64 for jsPDF
+// Helper to load image as high-quality base64 for jsPDF
 function loadImageAsBase64(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
+      // Use 2x scale for sharper rendering in PDF
+      const scale = 2;
       const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = img.naturalWidth * scale;
+      canvas.height = img.naturalHeight * scale;
       const ctx = canvas.getContext('2d');
       if (!ctx) return reject(new Error('Canvas not supported'));
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL('image/png'));
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+      resolve(canvas.toDataURL('image/png', 1.0));
     };
     img.onerror = () => reject(new Error('Failed to load logo'));
     img.src = src;
@@ -62,27 +67,28 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
       const green = [20, 144, 71] as [number, number, number]; // #149047
       const black = [0, 0, 0] as [number, number, number];
 
-      // Header bar
+      // Thin accent line at the top
       doc.setFillColor(...green);
-      doc.rect(0, 0, pageW, 22, 'F');
+      doc.rect(0, 0, pageW, 4, 'F');
 
-      // Add logo to header
+      // Centered logo
+      let y = 18;
       try {
         const logoData = await loadImageAsBase64(logoSv);
-        // Logo proportions: place it centered or left-aligned in the header
-        const logoH = 14;
-        const logoW = logoH * 2.5; // approximate aspect ratio
-        doc.addImage(logoData, 'PNG', margin, 4, logoW, logoH);
+        const logoSize = 32; // circular logo, square dimensions
+        const logoX = (pageW - logoSize) / 2;
+        doc.addImage(logoData, 'PNG', logoX, y, logoSize, logoSize);
+        y += logoSize + 10;
       } catch {
-        // Fallback: text if logo fails to load
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(14);
+        // Fallback: text if logo fails
+        doc.setTextColor(...green);
+        doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
-        doc.text('SV ENGENHARIA', margin, 14);
+        doc.text('SV ENGENHARIA', pageW / 2, y + 16, { align: 'center' });
+        y += 30;
       }
 
       // Welcome title
-      let y = 48;
       doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...green);
