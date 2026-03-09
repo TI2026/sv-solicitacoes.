@@ -67,27 +67,28 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
       const green = [20, 144, 71] as [number, number, number]; // #149047
       const black = [0, 0, 0] as [number, number, number];
 
-      // Header bar
+      // Thin accent line at the top
       doc.setFillColor(...green);
-      doc.rect(0, 0, pageW, 22, 'F');
+      doc.rect(0, 0, pageW, 4, 'F');
 
-      // Add logo to header
+      // Centered logo
+      let y = 18;
       try {
         const logoData = await loadImageAsBase64(logoSv);
-        // Logo proportions: place it centered or left-aligned in the header
-        const logoH = 14;
-        const logoW = logoH * 2.5; // approximate aspect ratio
-        doc.addImage(logoData, 'PNG', margin, 4, logoW, logoH);
+        const logoSize = 32; // circular logo, square dimensions
+        const logoX = (pageW - logoSize) / 2;
+        doc.addImage(logoData, 'PNG', logoX, y, logoSize, logoSize);
+        y += logoSize + 10;
       } catch {
-        // Fallback: text if logo fails to load
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(14);
+        // Fallback: text if logo fails
+        doc.setTextColor(...green);
+        doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
-        doc.text('SV ENGENHARIA', margin, 14);
+        doc.text('SV ENGENHARIA', pageW / 2, y + 16, { align: 'center' });
+        y += 30;
       }
 
       // Welcome title
-      let y = 48;
       doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...green);
