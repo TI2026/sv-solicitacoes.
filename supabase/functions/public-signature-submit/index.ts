@@ -89,19 +89,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const uploadMode = mode || 'candidate';
-    let storagePath: string;
-
-    if (uploadMode === 'admin') {
-      storagePath = `signature/admin/${link.admission_request_id}/${link.candidate_id}/${Date.now()}_${sanitizedFilename}`;
-      // Mark admin upload timestamp
-      await supabase
-        .from('admission_public_links')
-        .update({ admin_uploaded_at: new Date().toISOString() })
-        .eq('id', link.id);
-    } else {
-      storagePath = `signature/signed/${link.admission_request_id}/${link.candidate_id}/${Date.now()}_${sanitizedFilename}`;
+    // SECURITY: Reject 'admin' mode from this public endpoint.
+    // Admin uploads must use the authenticated admissions-create-signed-upload endpoint.
+    if (mode === 'admin') {
+      return new Response(JSON.stringify({ error: 'Operação não permitida' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+
+    const storagePath = `signature/signed/${link.admission_request_id}/${link.candidate_id}/${Date.now()}_${sanitizedFilename}`;
 
     const { data: signedData, error: signedError } = await supabase.storage
       .from('admissions')
