@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
       details: { ip: clientIp, user_agent: userAgent, filename: sanitizedFilename },
     });
 
-    console.log(`Signature ${uploadMode} upload from IP ${clientIp} for candidate ${link.candidate_id}`);
+    console.log(`Signature candidate upload from IP ${clientIp} for candidate ${link.candidate_id}`);
 
     return new Response(JSON.stringify({
       signedUrl: signedData.signedUrl,
