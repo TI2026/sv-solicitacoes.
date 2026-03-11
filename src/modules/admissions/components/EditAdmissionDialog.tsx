@@ -43,7 +43,6 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
         cargo_funcao: admission.cargo_funcao || '',
         local_contratacao: admission.local_contratacao || '',
         tipo_contrato: admission.tipo_contrato || 'CLT',
-        salario_previsto: admission.salario_previsto ? String(admission.salario_previsto) : '',
         jornada: admission.jornada || '',
         data_prevista_inicio: admission.data_prevista_inicio || '',
         gestor_responsavel: admission.gestor_responsavel || '',
@@ -51,6 +50,14 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
         justificativa: admission.justificativa || '',
         priority: (admission as any).priority || 'media',
       });
+      if (admission.salario_previsto) {
+        const formatted = maskCurrency(String(Math.round(Number(admission.salario_previsto) * 100)));
+        setSalarioFormatted(formatted);
+        setSalarioNum(Number(admission.salario_previsto));
+      } else {
+        setSalarioFormatted('');
+        setSalarioNum(0);
+      }
     }
   }, [admission, open]);
 
