@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MoneyInput } from '@/components/MoneyInput';
+import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
-import { todayBR, clampSalary } from '@/lib/masks';
+import { todayBR } from '@/lib/masks';
 import { CargoCombobox } from '../components/CargoCombobox';
 
 export default function AdmissionNewPage() {
