@@ -147,7 +147,16 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-4 text-center">
+            <div className="mt-4 text-center space-y-2">
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(true)}
+                  className="text-sm text-primary hover:underline transition-colors block w-full"
+                >
+                  Esqueci minha senha
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
@@ -158,6 +167,42 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Forgot password modal */}
+        {showForgot && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForgot(false)}>
+            <Card className="w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+              <CardHeader>
+                <CardTitle className="text-lg">Recuperar senha</CardTitle>
+                <CardDescription>Digite seu email para receber um link de redefinição.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgotEmail">Email</Label>
+                    <Input
+                      id="forgotEmail"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      placeholder="seu@email.com"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => setShowForgot(false)} className="flex-1">
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={forgotLoading} className="flex-1">
+                      {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Enviar link
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

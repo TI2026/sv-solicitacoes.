@@ -61,6 +61,7 @@ const AppRoutes = () => (
   <Routes>
     {/* Public */}
     <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/public/candidate/:token" element={<PublicCandidatePage />} />
     <Route path="/envio-documentos" element={<PublicDocumentsPage />} />
     <Route path="/assinatura-documentos" element={<PublicSignaturePage />} />
