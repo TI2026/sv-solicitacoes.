@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { REEMBOLSO_CATEGORIAS, DIARIA_CATEGORIAS } from '@/lib/constants';
+import { MoneyInput } from '@/components/MoneyInput';
+import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
-import { maskCPF, maskPlate, maskKM, maskAgency, maskAccount, maxDateToday, todayBR, isValidPlate } from '@/lib/masks';
+import { maskCPF, maskPhone, maskPlate, maskKM, maskAgency, maskAccount, maxDateToday, todayBR, isValidPlate, isValidCPF } from '@/lib/masks';
 
 export default function FleetNewPage() {
   const { user, hasAnyRole } = useAuth();
@@ -22,7 +23,8 @@ export default function FleetNewPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [type] = useState(initialType);
-  const [valor, setValor] = useState('');
+  const [valorFormatted, setValorFormatted] = useState('');
+  const [valorNum, setValorNum] = useState(0);
   const [data, setData] = useState(todayBR());
   const [notes, setNotes] = useState('');
 
@@ -34,6 +36,7 @@ export default function FleetNewPage() {
   // Reembolso
   const [categoria, setCategoria] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('pix');
+  const [pixKeyType, setPixKeyType] = useState<'cpf' | 'celular'>('cpf');
   const [pixKey, setPixKey] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankAgency, setBankAgency] = useState('');
@@ -44,7 +47,8 @@ export default function FleetNewPage() {
   const [personName, setPersonName] = useState('');
   const [personCpf, setPersonCpf] = useState('');
   const [hours, setHours] = useState('');
-  const [dailyValue, setDailyValue] = useState('');
+  const [dailyValueFormatted, setDailyValueFormatted] = useState('');
+  const [dailyValueNum, setDailyValueNum] = useState(0);
 
   const canCreateDiaria = hasAnyRole(['diretoria', 'administrativo']);
   if (type === 'diaria' && !canCreateDiaria) {
@@ -52,18 +56,31 @@ export default function FleetNewPage() {
     return null;
   }
 
-  const valorNum = parseFloat(valor);
-  const dailyNum = parseFloat(dailyValue);
+  const handlePixKeyChange = (value: string) => {
+    if (pixKeyType === 'cpf') {
+      setPixKey(maskCPF(value));
+    } else {
+      setPixKey(maskPhone(value));
+    }
+  };
+
+  const isPixValid = () => {
+    if (paymentMethod !== 'pix') return true;
+    if (!pixKey) return false;
+    if (pixKeyType === 'cpf') return isValidCPF(pixKey);
+    const digits = pixKey.replace(/\D/g, '');
+    return digits.length === 10 || digits.length === 11;
+  };
 
   const isValid = () => {
     if (type === 'abastecimento') {
       return valorNum > 0 && valorNum <= 50000 && isValidPlate(placa) && !!data;
     }
     if (type === 'reembolso') {
-      return valorNum > 0 && valorNum <= 50000 && !!categoria && !!data && (paymentMethod === 'pix' ? !!pixKey : !!bankName);
+      return valorNum > 0 && valorNum <= 50000 && !!categoria && !!data && (paymentMethod === 'pix' ? isPixValid() : !!bankName);
     }
     if (type === 'diaria') {
-      return !!dailyCategory && !!personName && dailyNum > 0 && dailyNum <= 50000 && !!data;
+      return !!dailyCategory && !!personName && dailyValueNum > 0 && dailyValueNum <= 50000 && !!data;
     }
     return false;
   };
@@ -90,16 +107,17 @@ export default function FleetNewPage() {
         payload.categoria = categoria;
         payload.payment_method = paymentMethod;
         payload.pix_key = paymentMethod === 'pix' ? pixKey.trim() : null;
+        payload.pix_key_type = paymentMethod === 'pix' ? pixKeyType : null;
         payload.bank_name = paymentMethod === 'banco' ? bankName.trim() : null;
         payload.bank_agency = paymentMethod === 'banco' ? bankAgency.replace(/\D/g, '') : null;
         payload.bank_account = paymentMethod === 'banco' ? bankAccount.replace(/\D/g, '') : null;
       } else {
-        payload.valor = dailyNum;
+        payload.valor = dailyValueNum;
         payload.daily_category = dailyCategory;
         payload.person_name = personName.trim().slice(0, 100);
         payload.person_cpf = personCpf.replace(/\D/g, '') || null;
         payload.hours = hours ? parseFloat(hours) : null;
-        payload.daily_value = dailyNum;
+        payload.daily_value = dailyValueNum;
       }
 
       const result = await createMutation.mutateAsync(payload);
@@ -170,18 +188,12 @@ export default function FleetNewPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Valor (R$) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max="50000"
-                    value={valor}
-                    onChange={e => setValor(e.target.value)}
-                    placeholder="0,00"
-                    inputMode="decimal"
+                  <Label>Valor *</Label>
+                  <MoneyInput
+                    value={valorFormatted}
+                    onChange={(fmt, num) => { setValorFormatted(fmt); setValorNum(num); }}
                   />
-                  {valor && (valorNum <= 0 || valorNum > 50000) && (
+                  {valorFormatted && (valorNum <= 0 || valorNum > 50000) && (
                     <p className="text-xs text-destructive">Valor entre R$ 0,01 e R$ 50.000</p>
                   )}
                 </div>
@@ -198,27 +210,21 @@ export default function FleetNewPage() {
             <>
               <div className="space-y-2">
                 <Label>Categoria *</Label>
-                <Select value={categoria} onValueChange={setCategoria}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {REEMBOLSO_CATEGORIAS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <DynamicCategorySelect
+                  module="fleet"
+                  fieldKey="reembolso_categoria"
+                  value={categoria}
+                  onValueChange={setCategoria}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Valor (R$) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max="50000"
-                    value={valor}
-                    onChange={e => setValor(e.target.value)}
-                    placeholder="0,00"
-                    inputMode="decimal"
+                  <Label>Valor *</Label>
+                  <MoneyInput
+                    value={valorFormatted}
+                    onChange={(fmt, num) => { setValorFormatted(fmt); setValorNum(num); }}
                   />
-                  {valor && (valorNum <= 0 || valorNum > 50000) && (
+                  {valorFormatted && (valorNum <= 0 || valorNum > 50000) && (
                     <p className="text-xs text-destructive">Valor entre R$ 0,01 e R$ 50.000</p>
                   )}
                 </div>
@@ -238,14 +244,32 @@ export default function FleetNewPage() {
                 </Select>
               </div>
               {paymentMethod === 'pix' ? (
-                <div className="space-y-2">
-                  <Label>Chave PIX *</Label>
-                  <Input
-                    value={pixKey}
-                    onChange={e => setPixKey(e.target.value.slice(0, 100))}
-                    placeholder="CPF, e-mail, telefone ou chave aleatória"
-                    maxLength={100}
-                  />
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Tipo da Chave PIX *</Label>
+                    <Select value={pixKeyType} onValueChange={(v) => { setPixKeyType(v as 'cpf' | 'celular'); setPixKey(''); }}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cpf">CPF</SelectItem>
+                        <SelectItem value="celular">Celular</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Chave PIX ({pixKeyType === 'cpf' ? 'CPF' : 'Celular'}) *</Label>
+                    <Input
+                      value={pixKey}
+                      onChange={e => handlePixKeyChange(e.target.value)}
+                      placeholder={pixKeyType === 'cpf' ? '000.000.000-00' : '(00) 00000-0000'}
+                      maxLength={pixKeyType === 'cpf' ? 14 : 15}
+                      inputMode="numeric"
+                    />
+                    {pixKey && !isPixValid() && (
+                      <p className="text-xs text-destructive">
+                        {pixKeyType === 'cpf' ? 'CPF inválido' : 'Celular inválido'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-3">
@@ -283,12 +307,12 @@ export default function FleetNewPage() {
             <>
               <div className="space-y-2">
                 <Label>Categoria *</Label>
-                <Select value={dailyCategory} onValueChange={setDailyCategory}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {DIARIA_CATEGORIAS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <DynamicCategorySelect
+                  module="fleet"
+                  fieldKey="diaria_categoria"
+                  value={dailyCategory}
+                  onValueChange={setDailyCategory}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -326,16 +350,10 @@ export default function FleetNewPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Valor (R$) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max="50000"
-                    value={dailyValue}
-                    onChange={e => setDailyValue(e.target.value)}
-                    placeholder="0,00"
-                    inputMode="decimal"
+                  <Label>Valor *</Label>
+                  <MoneyInput
+                    value={dailyValueFormatted}
+                    onChange={(fmt, num) => { setDailyValueFormatted(fmt); setDailyValueNum(num); }}
                   />
                 </div>
                 <div className="space-y-2">

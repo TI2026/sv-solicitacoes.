@@ -500,6 +500,36 @@ export type Database = {
         }
         Relationships: []
       }
+      dynamic_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          field_key: string
+          id: string
+          is_active: boolean
+          label: string
+          module: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          field_key: string
+          id?: string
+          is_active?: boolean
+          label: string
+          module: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          field_key?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          module?: string
+        }
+        Relationships: []
+      }
       fuel_attachments: {
         Row: {
           file_path: string
@@ -553,6 +583,7 @@ export type Database = {
           person_cpf: string | null
           person_name: string | null
           pix_key: string | null
+          pix_key_type: string | null
           placa: string | null
           requester_user_id: string
           status: Database["public"]["Enums"]["fuel_status"]
@@ -580,6 +611,7 @@ export type Database = {
           person_cpf?: string | null
           person_name?: string | null
           pix_key?: string | null
+          pix_key_type?: string | null
           placa?: string | null
           requester_user_id: string
           status?: Database["public"]["Enums"]["fuel_status"]
@@ -607,6 +639,7 @@ export type Database = {
           person_cpf?: string | null
           person_name?: string | null
           pix_key?: string | null
+          pix_key_type?: string | null
           placa?: string | null
           requester_user_id?: string
           status?: Database["public"]["Enums"]["fuel_status"]

@@ -26,7 +26,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
     { to: '/perfil', label: 'Meu Perfil', icon: User, show: true },
     { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
-    { to: '/configuracoes', label: 'Configurações', icon: Settings, show: hasAnyRole(['diretoria']) },
+    { to: '/configuracoes', label: 'Configurações', icon: Settings, show: true },
   ].filter(item => item.show);
 
   const isActive = (path: string) => location.pathname.startsWith(path);

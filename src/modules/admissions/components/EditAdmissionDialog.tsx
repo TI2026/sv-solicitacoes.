@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MoneyInput } from '@/components/MoneyInput';
 import { CargoCombobox } from './CargoCombobox';
 import { Loader2 } from 'lucide-react';
-import { clampSalary, todayBR } from '@/lib/masks';
+import { maskCurrency } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -22,11 +23,12 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
   const { toast } = useToast();
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
+  const [salarioFormatted, setSalarioFormatted] = useState('');
+  const [salarioNum, setSalarioNum] = useState(0);
   const [form, setForm] = useState({
     cargo_funcao: '',
     local_contratacao: '',
     tipo_contrato: 'CLT',
-    salario_previsto: '',
     jornada: '',
     data_prevista_inicio: '',
     gestor_responsavel: '',
@@ -41,7 +43,6 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
         cargo_funcao: admission.cargo_funcao || '',
         local_contratacao: admission.local_contratacao || '',
         tipo_contrato: admission.tipo_contrato || 'CLT',
-        salario_previsto: admission.salario_previsto ? String(admission.salario_previsto) : '',
         jornada: admission.jornada || '',
         data_prevista_inicio: admission.data_prevista_inicio || '',
         gestor_responsavel: admission.gestor_responsavel || '',
@@ -49,6 +50,14 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
         justificativa: admission.justificativa || '',
         priority: (admission as any).priority || 'media',
       });
+      if (admission.salario_previsto) {
+        const formatted = maskCurrency(String(Math.round(Number(admission.salario_previsto) * 100)));
+        setSalarioFormatted(formatted);
+        setSalarioNum(Number(admission.salario_previsto));
+      } else {
+        setSalarioFormatted('');
+        setSalarioNum(0);
+      }
     }
   }, [admission, open]);
 
@@ -64,7 +73,7 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
           cargo_funcao: form.cargo_funcao.trim().slice(0, 100),
           local_contratacao: form.local_contratacao.trim().slice(0, 100),
           tipo_contrato: form.tipo_contrato,
-          salario_previsto: form.salario_previsto ? parseFloat(form.salario_previsto) : null,
+          salario_previsto: salarioNum > 0 ? salarioNum : null,
           jornada: form.jornada.trim().slice(0, 50),
           data_prevista_inicio: form.data_prevista_inicio || null,
           gestor_responsavel: form.gestor_responsavel.trim().slice(0, 100),
@@ -128,9 +137,15 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Salário Previsto (R$)</Label>
-              <Input type="number" step="0.01" min="0" max="999999.99" value={form.salario_previsto} onChange={e => set('salario_previsto', clampSalary(e.target.value))} inputMode="decimal" />
+              <Label>Salário Previsto</Label>
+              <MoneyInput
+                value={salarioFormatted}
+                onChange={(fmt, num) => { setSalarioFormatted(fmt); setSalarioNum(num); }}
+                max={999999.99}
+              />
             </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Jornada</Label>
               <Input value={form.jornada} onChange={e => set('jornada', e.target.value.slice(0, 50))} maxLength={50} />

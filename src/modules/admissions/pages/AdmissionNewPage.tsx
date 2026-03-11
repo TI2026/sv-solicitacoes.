@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MoneyInput } from '@/components/MoneyInput';
+import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
-import { todayBR, clampSalary } from '@/lib/masks';
+import { todayBR } from '@/lib/masks';
 import { CargoCombobox } from '../components/CargoCombobox';
 
 export default function AdmissionNewPage() {
@@ -19,11 +21,12 @@ export default function AdmissionNewPage() {
   const statusMutation = useAdmissionSetStatus();
   const [submitting, setSubmitting] = useState(false);
 
+  const [salarioFormatted, setSalarioFormatted] = useState('');
+  const [salarioNum, setSalarioNum] = useState(0);
   const [form, setForm] = useState({
     local_contratacao: '',
     cargo_funcao: '',
     tipo_contrato: 'CLT',
-    salario_previsto: '',
     jornada: '',
     data_prevista_inicio: '',
     gestor_responsavel: '',
@@ -44,7 +47,7 @@ export default function AdmissionNewPage() {
         centro_custo: '',
         cargo_funcao: form.cargo_funcao.trim().slice(0, 100),
         tipo_contrato: form.tipo_contrato,
-        salario_previsto: form.salario_previsto ? parseFloat(form.salario_previsto) : null,
+        salario_previsto: salarioNum > 0 ? salarioNum : null,
         jornada: form.jornada.trim().slice(0, 50),
         data_prevista_inicio: form.data_prevista_inicio || null,
         gestor_responsavel: form.gestor_responsavel.trim().slice(0, 100),
@@ -107,15 +110,11 @@ export default function AdmissionNewPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Salário Previsto (R$)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                max="999999.99"
-                value={form.salario_previsto}
-                onChange={e => set('salario_previsto', clampSalary(e.target.value))}
-                inputMode="decimal"
+              <Label>Salário Previsto</Label>
+              <MoneyInput
+                value={salarioFormatted}
+                onChange={(fmt, num) => { setSalarioFormatted(fmt); setSalarioNum(num); }}
+                max={999999.99}
               />
             </div>
             <div className="space-y-2">

@@ -215,7 +215,7 @@ export default function AdmissionDetailPage() {
   const status = req?.status;
 
   // Can edit: before triagem started
-  const canEdit = isRH && status && ['rascunho', 'aguardando_triagem'].includes(status);
+  const canEdit = isRH && status && !['concluido', 'cancelado', 'arquivado'].includes(status);
 
   useEffect(() => {
     if (status === 'documentos_em_analise' && approvedCandidates.length > 0) {
