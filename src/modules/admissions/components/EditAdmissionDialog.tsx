@@ -137,8 +137,13 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Salário Previsto (R$)</Label>
-              <Input type="number" step="0.01" min="0" max="999999.99" value={form.salario_previsto} onChange={e => set('salario_previsto', clampSalary(e.target.value))} inputMode="decimal" />
+              <Label>Salário Previsto</Label>
+              <MoneyInput
+                value={salarioFormatted}
+                onChange={(fmt, num) => { setSalarioFormatted(fmt); setSalarioNum(num); }}
+                max={999999.99}
+              />
+            </div>
             </div>
             <div className="space-y-2">
               <Label>Jornada</Label>
