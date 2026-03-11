@@ -21,11 +21,12 @@ export default function AdmissionNewPage() {
   const statusMutation = useAdmissionSetStatus();
   const [submitting, setSubmitting] = useState(false);
 
+  const [salarioFormatted, setSalarioFormatted] = useState('');
+  const [salarioNum, setSalarioNum] = useState(0);
   const [form, setForm] = useState({
     local_contratacao: '',
     cargo_funcao: '',
     tipo_contrato: 'CLT',
-    salario_previsto: '',
     jornada: '',
     data_prevista_inicio: '',
     gestor_responsavel: '',
