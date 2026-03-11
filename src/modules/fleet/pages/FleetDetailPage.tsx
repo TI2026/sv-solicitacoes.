@@ -309,22 +309,30 @@ export default function FleetDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Reason Dialog */}
+      {/* Reason Dialog (mandatory for rejections) */}
       <Dialog open={!!showReasonDialog} onOpenChange={() => setShowReasonDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Motivo</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {showReasonDialog === 'reprovado' ? 'Motivo da Recusa' : 'Motivo'}
+            </DialogTitle>
+          </DialogHeader>
           <Textarea
             value={actionReason}
             onChange={e => setActionReason(e.target.value.slice(0, 500))}
-            placeholder="Descreva o motivo..."
+            placeholder={showReasonDialog === 'reprovado' ? 'Informe o motivo da recusa (obrigatório)...' : 'Descreva o motivo...'}
             rows={3}
             maxLength={500}
           />
+          {showReasonDialog === 'reprovado' && actionReason.trim().length < 10 && actionReason.trim().length > 0 && (
+            <p className="text-xs text-destructive">Mínimo 10 caracteres</p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
             <Button
               onClick={() => showReasonDialog && handleStatusChange(showReasonDialog, actionReason)}
-              disabled={!actionReason.trim() || isPending}
+              disabled={!actionReason.trim() || (showReasonDialog === 'reprovado' && actionReason.trim().length < 10) || isPending}
+              variant={showReasonDialog === 'reprovado' ? 'destructive' : 'default'}
             >
               {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Confirmar
@@ -332,6 +340,32 @@ export default function FleetDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function ReembolsoDetails({ req }: { req: any }) {
+  const pixKeyType = req.pix_key_type;
+  const pixLabel = pixKeyType === 'celular' ? 'Celular' : pixKeyType === 'cpf' ? 'CPF' : 'Chave';
+  return (
+    <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
+      {req.categoria && <p>Categoria: {req.categoria}</p>}
+      {req.payment_method === 'pix' && req.pix_key && (
+        <p>PIX ({pixLabel}): {req.pix_key}</p>
+      )}
+      {req.payment_method === 'banco' && (
+        <p>Banco: {req.bank_name} | Ag: {req.bank_agency} | Conta: {req.bank_account}</p>
+      )}
+    </div>
+  );
+}
+
+function DiariaDetails({ req }: { req: any }) {
+  return (
+    <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
+      {req.daily_category && <p>Categoria: {req.daily_category}</p>}
+      {req.person_name && <p>Prestador: {req.person_name}</p>}
+      {req.hours && <p>Horas: {req.hours}h</p>}
     </div>
   );
 }
