@@ -23,11 +23,12 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
   const { toast } = useToast();
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
+  const [salarioFormatted, setSalarioFormatted] = useState('');
+  const [salarioNum, setSalarioNum] = useState(0);
   const [form, setForm] = useState({
     cargo_funcao: '',
     local_contratacao: '',
     tipo_contrato: 'CLT',
-    salario_previsto: '',
     jornada: '',
     data_prevista_inicio: '',
     gestor_responsavel: '',
