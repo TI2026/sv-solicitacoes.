@@ -167,18 +167,10 @@ export default function FleetDetailPage() {
             </div>
           )}
           {reqType === 'reembolso' && (
-            <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
-              {(req as any).categoria && <p>Categoria: {REEMBOLSO_CATEGORIAS.find(c => c.value === (req as any).categoria)?.label || (req as any).categoria}</p>}
-              {(req as any).payment_method === 'pix' && (req as any).pix_key && <p>PIX: {(req as any).pix_key}</p>}
-              {(req as any).payment_method === 'banco' && <p>Banco: {(req as any).bank_name} | Ag: {(req as any).bank_agency} | Conta: {(req as any).bank_account}</p>}
-            </div>
+            <ReembolsoDetails req={req} />
           )}
           {reqType === 'diaria' && (
-            <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
-              {(req as any).daily_category && <p>Categoria: {DIARIA_CATEGORIAS.find(c => c.value === (req as any).daily_category)?.label || (req as any).daily_category}</p>}
-              {(req as any).person_name && <p>Prestador: {(req as any).person_name}</p>}
-              {(req as any).hours && <p>Horas: {(req as any).hours}h</p>}
-            </div>
+            <DiariaDetails req={req} />
           )}
 
           {req.notes && <p className="text-sm text-muted-foreground border-t border-border pt-2 mt-2">{req.notes}</p>}
