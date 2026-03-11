@@ -47,7 +47,7 @@ export default function AdmissionNewPage() {
         centro_custo: '',
         cargo_funcao: form.cargo_funcao.trim().slice(0, 100),
         tipo_contrato: form.tipo_contrato,
-        salario_previsto: form.salario_previsto ? parseFloat(form.salario_previsto) : null,
+        salario_previsto: salarioNum > 0 ? salarioNum : null,
         jornada: form.jornada.trim().slice(0, 50),
         data_prevista_inicio: form.data_prevista_inicio || null,
         gestor_responsavel: form.gestor_responsavel.trim().slice(0, 100),
