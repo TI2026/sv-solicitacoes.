@@ -7,7 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Navigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Trash2, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Eye, EyeOff, Loader2, Lock, Plus, Trash2, Users } from 'lucide-react';
 
 // Only show these 3 roles in the UI
 const VISIBLE_ROLES: AppRole[] = ['diretoria', 'administrativo', 'colaborador'];
