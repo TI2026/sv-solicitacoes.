@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,10 +18,35 @@ export default function LoginPage() {
   const [department, setDepartment] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) return;
+    setForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Email enviado', description: 'Verifique sua caixa de entrada para redefinir a senha.' });
+        setShowForgot(false);
+        setForgotEmail('');
+      }
+    } catch {
+      toast({ title: 'Erro', description: 'Erro inesperado.', variant: 'destructive' });
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +147,16 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-4 text-center">
+            <div className="mt-4 text-center space-y-2">
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(true)}
+                  className="text-sm text-primary hover:underline transition-colors block w-full"
+                >
+                  Esqueci minha senha
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
@@ -132,6 +167,42 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Forgot password modal */}
+        {showForgot && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForgot(false)}>
+            <Card className="w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+              <CardHeader>
+                <CardTitle className="text-lg">Recuperar senha</CardTitle>
+                <CardDescription>Digite seu email para receber um link de redefinição.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgotEmail">Email</Label>
+                    <Input
+                      id="forgotEmail"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      placeholder="seu@email.com"
+                      required
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => setShowForgot(false)} className="flex-1">
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={forgotLoading} className="flex-1">
+                      {forgotLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Enviar link
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
