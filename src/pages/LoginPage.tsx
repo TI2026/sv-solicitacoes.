@@ -17,10 +17,35 @@ export default function LoginPage() {
   const [department, setDepartment] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) return;
+    setForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Email enviado', description: 'Verifique sua caixa de entrada para redefinir a senha.' });
+        setShowForgot(false);
+        setForgotEmail('');
+      }
+    } catch {
+      toast({ title: 'Erro', description: 'Erro inesperado.', variant: 'destructive' });
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
