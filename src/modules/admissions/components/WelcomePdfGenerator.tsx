@@ -19,13 +19,11 @@ interface WelcomePdfGeneratorProps {
   dataPrevistaInicio?: string | null;
 }
 
-// Helper to load image as high-quality base64 for jsPDF
 function loadImageAsBase64(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      // Use 2x scale for sharper rendering in PDF
       const scale = 2;
       const canvas = document.createElement('canvas');
       canvas.width = img.naturalWidth * scale;
@@ -64,8 +62,9 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
       const pageW = doc.internal.pageSize.getWidth();
       const pageH = doc.internal.pageSize.getHeight();
       const margin = 25;
-      const green = [20, 144, 71] as [number, number, number]; // #149047
+      const green = [20, 144, 71] as [number, number, number];
       const black = [0, 0, 0] as [number, number, number];
+      const darkGray = [60, 60, 60] as [number, number, number];
 
       // Thin accent line at the top
       doc.setFillColor(...green);
@@ -75,12 +74,11 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
       let y = 18;
       try {
         const logoData = await loadImageAsBase64(logoSv);
-        const logoSize = 32; // circular logo, square dimensions
+        const logoSize = 32;
         const logoX = (pageW - logoSize) / 2;
         doc.addImage(logoData, 'PNG', logoX, y, logoSize, logoSize);
         y += logoSize + 10;
       } catch {
-        // Fallback: text if logo fails
         doc.setTextColor(...green);
         doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
@@ -94,21 +92,26 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
       doc.setTextColor(...green);
       doc.text('Bem-vindo(a)!', pageW / 2, y, { align: 'center' });
 
-      // Greeting
-      y += 18;
-      doc.setFontSize(13);
+      // Candidate name - PROMINENT
+      y += 16;
+      doc.setFontSize(16);
       doc.setTextColor(...black);
+      doc.setFont('helvetica', 'bold');
+      doc.text(candidateName, pageW / 2, y, { align: 'center' });
+
+      // Cargo
+      y += 9;
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Olá, ${candidateName}!`, pageW / 2, y, { align: 'center' });
+      doc.setTextColor(...darkGray);
+      doc.text(cargoFuncao, pageW / 2, y, { align: 'center' });
 
       y += 12;
       doc.setFontSize(11);
-      doc.text('Seja bem-vindo(a) à equipe!', pageW / 2, y, { align: 'center' });
+      doc.setTextColor(...black);
+      doc.text('Seja bem-vindo(a) à equipe! Segue abaixo as informações para sua apresentação:', pageW / 2, y, { align: 'center', maxWidth: pageW - margin * 2 });
 
-      y += 10;
-      doc.text('Segue abaixo as informações para sua apresentação:', pageW / 2, y, { align: 'center' });
-
-      // Info box — compute height based on fields
+      // Info box
       const hasDataInicio = !!dataPrevistaInicio;
       const boxH = hasDataInicio ? 74 : 60;
       y += 16;
@@ -165,6 +168,37 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
       );
       doc.text(closingLines, pageW / 2, y, { align: 'center' });
 
+      // Social media section
+      y += 20;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...darkGray);
+      doc.text('Siga-nos nas redes sociais:', pageW / 2, y, { align: 'center' });
+
+      y += 6;
+      doc.setTextColor(...green);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Facebook:', margin + 10, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...black);
+      doc.textWithLink('facebook.com/svengenhariaeservicos', margin + 35, y, { url: 'https://www.facebook.com/svengenhariaeservicos' });
+
+      y += 5.5;
+      doc.setTextColor(...green);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Instagram:', margin + 10, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...black);
+      doc.textWithLink('@svengenhariaeservicos', margin + 35, y, { url: 'https://www.instagram.com/svengenhariaeservicos' });
+
+      y += 5.5;
+      doc.setTextColor(...green);
+      doc.setFont('helvetica', 'bold');
+      doc.text('WhatsApp:', margin + 10, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...black);
+      doc.textWithLink('+55 54 99697-1327', margin + 35, y, { url: 'https://wa.me/5554996971327' });
+
       // Footer
       const footerY = pageH - 20;
       doc.setDrawColor(...green);
@@ -183,7 +217,9 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
       doc.setTextColor(...black);
       doc.text('SV Engenharia • Documento gerado automaticamente', pageW / 2, footerY + 6, { align: 'center' });
 
-      doc.save(`Boas-vindas_${candidateName.replace(/\s+/g, '_')}.pdf`);
+      // Save with candidate name in filename
+      const safeName = candidateName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      doc.save(`Apresentacao_${safeName}.pdf`);
       toast({ title: 'PDF gerado com sucesso!' });
       setOpen(false);
     } catch (err: any) {

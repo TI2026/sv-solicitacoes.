@@ -76,6 +76,11 @@ export function maxDateToday(): string {
   return todayBR();
 }
 
+/** Min date allowed (today) — for future-only fields */
+export function minDateToday(): string {
+  return todayBR();
+}
+
 /** Bank agency: max 6 digits with optional dash */
 export function maskAgency(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 6);

@@ -329,7 +329,7 @@ export function useGeneratePublicLink() {
   });
 }
 
-export function useAdmissionFiles(admissionId: string, linkType: 'DOCUMENTS' | 'SIGNATURE') {
+export function useAdmissionFiles(admissionId: string, linkType: 'DOCUMENTS' | 'SIGNATURE' | 'EXAM') {
   return useQuery({
     queryKey: ['admission_files', admissionId, linkType],
     queryFn: async () => {

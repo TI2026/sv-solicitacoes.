@@ -11,12 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MoneyInput } from '@/components/MoneyInput';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
-import { todayBR } from '@/lib/masks';
-import { CargoCombobox } from '../components/CargoCombobox';
+import { minDateToday } from '@/lib/masks';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdmissionNewPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const createMutation = useCreateAdmission();
   const statusMutation = useAdmissionSetStatus();
   const [submitting, setSubmitting] = useState(false);
@@ -37,8 +38,25 @@ export default function AdmissionNewPage() {
 
   const set = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
+  // All fields required EXCEPT motivo and justificativa
+  const isFormValid = () => {
+    return (
+      form.cargo_funcao.trim() &&
+      form.local_contratacao.trim() &&
+      form.tipo_contrato.trim() &&
+      form.jornada.trim() &&
+      form.data_prevista_inicio &&
+      form.gestor_responsavel.trim() &&
+      salarioNum > 0
+    );
+  };
+
   const handleSubmit = async (send: boolean) => {
-    if (!user || !form.cargo_funcao.trim()) return;
+    if (!user) return;
+    if (!isFormValid()) {
+      toast({ title: 'Preencha todos os campos obrigatórios para continuar.', variant: 'destructive' });
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -77,28 +95,32 @@ export default function AdmissionNewPage() {
       <Card>
         <CardHeader>
           <CardTitle>Nova Solicitação de Admissão</CardTitle>
-          <CardDescription>Preencha os dados da vaga</CardDescription>
+          <CardDescription>Preencha os dados da vaga. Campos com * são obrigatórios.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Cargo / Função *</Label>
-              <CargoCombobox
+              <DynamicCategorySelect
+                module="admissions"
+                fieldKey="job_title"
                 value={form.cargo_funcao}
-                onChange={v => set('cargo_funcao', v)}
+                onValueChange={v => set('cargo_funcao', v)}
+                placeholder="Selecione ou adicione"
               />
             </div>
             <div className="space-y-2">
-              <Label>Local de Contratação</Label>
-              <Input
+              <Label>Local de Contratação *</Label>
+              <DynamicCategorySelect
+                module="admissions"
+                fieldKey="hiring_location"
                 value={form.local_contratacao}
-                onChange={e => set('local_contratacao', e.target.value.slice(0, 100))}
-                placeholder="Cidade / UF"
-                maxLength={100}
+                onValueChange={v => set('local_contratacao', v)}
+                placeholder="Selecione ou adicione"
               />
             </div>
             <div className="space-y-2">
-              <Label>Tipo de Contrato</Label>
+              <Label>Tipo de Contrato *</Label>
               <Select value={form.tipo_contrato} onValueChange={v => set('tipo_contrato', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -110,7 +132,7 @@ export default function AdmissionNewPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Salário Previsto</Label>
+              <Label>Salário Previsto *</Label>
               <MoneyInput
                 value={salarioFormatted}
                 onChange={(fmt, num) => { setSalarioFormatted(fmt); setSalarioNum(num); }}
@@ -118,33 +140,36 @@ export default function AdmissionNewPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Jornada</Label>
-              <Input
+              <Label>Jornada *</Label>
+              <DynamicCategorySelect
+                module="admissions"
+                fieldKey="work_shift"
                 value={form.jornada}
-                onChange={e => set('jornada', e.target.value.slice(0, 50))}
-                placeholder="Ex: 44h semanais"
-                maxLength={50}
+                onValueChange={v => set('jornada', v)}
+                placeholder="Selecione ou adicione"
               />
             </div>
             <div className="space-y-2">
-              <Label>Data Prevista Início</Label>
+              <Label>Data Prevista Início *</Label>
               <Input
                 type="date"
                 value={form.data_prevista_inicio}
                 onChange={e => set('data_prevista_inicio', e.target.value)}
-                min={todayBR()}
+                min={minDateToday()}
               />
             </div>
             <div className="space-y-2">
-              <Label>Gestor Responsável</Label>
-              <Input
+              <Label>Gestor Responsável *</Label>
+              <DynamicCategorySelect
+                module="admissions"
+                fieldKey="manager_name"
                 value={form.gestor_responsavel}
-                onChange={e => set('gestor_responsavel', e.target.value.slice(0, 100))}
-                maxLength={100}
+                onValueChange={v => set('gestor_responsavel', v)}
+                placeholder="Selecione ou adicione"
               />
             </div>
             <div className="space-y-2">
-              <Label>Prioridade</Label>
+              <Label>Prioridade *</Label>
               <Select value={form.priority} onValueChange={v => set('priority', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -156,13 +181,12 @@ export default function AdmissionNewPage() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Motivo da Contratação *</Label>
+            <Label>Motivo da Contratação</Label>
             <Input
               value={form.motivo}
               onChange={e => set('motivo', e.target.value.slice(0, 200))}
               placeholder="Ex: Expansão de equipe"
               maxLength={200}
-              required
             />
           </div>
           <div className="space-y-2">
@@ -177,11 +201,11 @@ export default function AdmissionNewPage() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !form.cargo_funcao.trim()}>
+            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !isFormValid()}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Salvar Rascunho
             </Button>
-            <Button onClick={() => handleSubmit(true)} disabled={submitting || !form.cargo_funcao.trim()} className="gap-2">
+            <Button onClick={() => handleSubmit(true)} disabled={submitting || !isFormValid()} className="gap-2">
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               <Send className="w-4 h-4" /> Enviar para Triagem
             </Button>
