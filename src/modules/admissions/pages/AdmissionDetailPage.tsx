@@ -16,14 +16,17 @@ import { InterviewDialog } from '../components/InterviewDialog';
 import { EditAdmissionDialog } from '../components/EditAdmissionDialog';
 import { WelcomePdfGenerator } from '../components/WelcomePdfGenerator';
 import { ExamAttachmentUpload } from '../components/ExamAttachmentUpload';
+import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ADMISSION_STATUS_LABELS, CANDIDATE_STATUS_LABELS, PRIORITY_LABELS, EXAM_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload, Download, Pencil, Video, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload, Download, Pencil, Video, ExternalLink, PackageOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toTimestampTZ, formatDateTimeBR, isDateTimePast } from '@/lib/dateUtils';
+import { minDateToday } from '@/lib/masks';
+import JSZip from 'jszip';
 
 // Document key labels for admin view
 const DOC_KEY_LABELS: Record<string, string> = {
@@ -175,7 +178,6 @@ export default function AdmissionDetailPage() {
     if (!c.interview_at) return { label: 'Não agendada', variant: 'pending' };
     if (c.interview_approved === true) return { label: 'Aprovado', variant: 'approved' };
     if (c.interview_approved === false) return { label: 'Eliminado', variant: 'rejected' };
-    // Check if confirmed
     if ((c as any).interview_confirmed_at) return { label: 'Realizada — aguardando decisão', variant: 'info' };
     if (!isInterviewPast(c.interview_at)) return { label: 'Aguardando data/hora', variant: 'info' };
     return { label: 'Liberado para decisão', variant: 'pending' };
@@ -184,7 +186,6 @@ export default function AdmissionDetailPage() {
   const canDecideInterview = (c: any): boolean => {
     if (c.interview_approved != null) return false;
     if (!c.interview_at) return false;
-    // Must be past OR confirmed
     return isInterviewPast(c.interview_at) || !!(c as any).interview_confirmed_at;
   };
 
@@ -508,8 +509,10 @@ export default function AdmissionDetailPage() {
                     <CandidateDocStatus admissionId={id!} candidateId={c.id} />
                   </div>
                   {link && link !== 'EXISTS' ? (
-                    <div className="flex gap-2 items-center">
-                      <Input value={link} readOnly className="text-xs flex-1" />
+                    <div className="flex gap-2 items-center flex-wrap">
+                      <Button size="sm" className="gap-1 text-xs" onClick={() => window.open(link, '_blank')}>
+                        <ExternalLink className="w-3 h-3" /> Abrir link de documentos
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => copyToClipboard(link)} className="gap-1 text-xs shrink-0">
                         <Copy className="w-3 h-3" /> Copiar
                       </Button>
@@ -536,6 +539,9 @@ export default function AdmissionDetailPage() {
                 </div>
               );
             })}
+
+            {/* Download all as ZIP */}
+            <DownloadAllZip admissionId={id!} linkType="DOCUMENTS" candidateIds={approvedCandidates.map((c: any) => c.id)} label="documentos" />
 
             {Object.keys(generatedLinks).some(k => k.startsWith('DOCUMENTS-')) && (
               <>
@@ -572,7 +578,7 @@ export default function AdmissionDetailPage() {
               <Stethoscope className="w-4 h-4" /> Etapa 4 — Exame Admissional
             </h3>
             <p className="text-xs text-muted-foreground">
-              Digite o nome da clínica, data e hora. Após a data/hora, registre o resultado.
+              Selecione a clínica, data e hora. Após a data/hora, registre o resultado. O exame deve ser anexado antes de avançar.
             </p>
 
             {approvedCandidates.map((c: any) => (
@@ -608,6 +614,9 @@ export default function AdmissionDetailPage() {
                 />
               );
             })}
+
+            {/* Download all as ZIP */}
+            <DownloadAllZip admissionId={id!} linkType="SIGNATURE" candidateIds={approvedCandidates.map((c: any) => c.id)} label="assinaturas" />
 
             <Button onClick={() => handleStatusChange('concluido')} className="gap-2 w-full" size="sm">
               <CheckCircle className="w-4 h-4" /> Concluir Admissão
@@ -751,7 +760,54 @@ function CandidateFilesList({ admissionId, candidateId, linkType }: { admissionI
   );
 }
 
-// ===== ExamSection: Free-text clinic + date/time + result + auto-unlock timer + attachment =====
+// ===== DownloadAllZip: Download all files for a link type as ZIP =====
+function DownloadAllZip({ admissionId, linkType, candidateIds, label }: { admissionId: string; linkType: 'DOCUMENTS' | 'SIGNATURE'; candidateIds: string[]; label: string }) {
+  const { data: files } = useAdmissionFiles(admissionId, linkType);
+  const { toast } = useToast();
+  const [downloading, setDownloading] = useState(false);
+
+  const relevantFiles = files?.filter(f => candidateIds.includes(f.candidate_id)) || [];
+
+  if (relevantFiles.length === 0) return null;
+
+  const handleDownloadZip = async () => {
+    setDownloading(true);
+    try {
+      const zip = new JSZip();
+      for (const f of relevantFiles) {
+        const { data, error } = await supabase.storage.from('admissions').createSignedUrl(f.storage_path, 3600);
+        if (error || !data?.signedUrl) continue;
+        const response = await fetch(data.signedUrl);
+        if (!response.ok) continue;
+        const blob = await response.blob();
+        const fileName = f.original_filename || f.storage_path.split('/').pop() || 'arquivo';
+        const docLabel = DOC_KEY_LABELS[f.file_type] || f.file_type || '';
+        zip.file(`${docLabel ? docLabel + '_' : ''}${fileName}`, blob);
+      }
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${label}-${admissionId.slice(0, 8)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'ZIP baixado com sucesso!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao gerar ZIP', description: err.message, variant: 'destructive' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleDownloadZip} disabled={downloading} className="gap-2 w-full">
+      {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackageOpen className="w-4 h-4" />}
+      Baixar todos em ZIP ({relevantFiles.length} arquivo{relevantFiles.length !== 1 ? 's' : ''})
+    </Button>
+  );
+}
+
+// ===== ExamSection: Clinic via DynamicCategory + date/time + result + auto-unlock timer + attachment + block advance without attachment =====
 function ExamSection({ candidateId, candidateName, admissionId, currentStatus, onAdvance, onExamResultRegistered }: {
   candidateId: string; candidateName: string; admissionId: string; currentStatus: string; onAdvance: () => void; onExamResultRegistered?: () => void;
 }) {
@@ -792,6 +848,10 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
   const handleCreateExam = async () => {
     if (!clinicName || !examDate || !examTime) {
       toast({ title: 'Preencha clínica, data e hora', variant: 'destructive' });
+      return;
+    }
+    if (examDate < minDateToday()) {
+      toast({ title: 'A data do exame deve ser hoje ou uma data futura.', variant: 'destructive' });
       return;
     }
     const scheduledAt = toTimestampTZ(examDate, examTime);
@@ -836,7 +896,10 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
     return `Faltam ${mins}min`;
   };
 
-  const canAdvance = examResolved && isExamPast;
+  // Check if exam attachment exists - block advance without it
+  const { data: examFiles } = useAdmissionFiles(admissionId, 'EXAM');
+  const hasExamAttachment = (examFiles || []).some(f => f.candidate_id === candidateId);
+  const canAdvance = examResolved && isExamPast && hasExamAttachment;
 
   return (
     <div className="border border-border rounded-lg p-3 space-y-2">
@@ -874,6 +937,12 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
           {/* Exam Attachment Upload */}
           <ExamAttachmentUpload admissionId={admissionId} candidateId={candidateId} />
 
+          {examResolved && isExamPast && !hasExamAttachment && (
+            <p className="text-xs text-destructive flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" /> É obrigatório anexar o exame admissional antes de avançar.
+            </p>
+          )}
+
           {canAdvance && (
             <Button onClick={onAdvance} className="gap-2 w-full" size="sm">
               <CheckCircle className="w-4 h-4" /> Avançar para Assinatura
@@ -884,12 +953,21 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
         <div className="space-y-2">
           <div className="space-y-1.5">
             <Label className="text-xs">Nome da clínica *</Label>
-            <Input value={clinicName} onChange={e => setClinicName(e.target.value)} placeholder="Ex: Clínica São Lucas" />
+            <DynamicCategorySelect
+              module="admissions"
+              fieldKey="clinic_name"
+              value={clinicName}
+              onValueChange={setClinicName}
+              placeholder="Selecione ou adicione"
+            />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1.5">
               <Label className="text-xs">Data *</Label>
-              <Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} />
+              <Input type="date" value={examDate} onChange={e => setExamDate(e.target.value)} min={minDateToday()} />
+              {examDate && examDate < minDateToday() && (
+                <p className="text-xs text-destructive">A data do exame deve ser hoje ou uma data futura.</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Hora *</Label>
@@ -900,7 +978,7 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
             <Label className="text-xs">Observações</Label>
             <Input value={examNotes} onChange={e => setExamNotes(e.target.value)} placeholder="Opcional" />
           </div>
-          <Button size="sm" onClick={handleCreateExam} disabled={!clinicName || !examDate || !examTime}>
+          <Button size="sm" onClick={handleCreateExam} disabled={!clinicName || !examDate || !examTime || examDate < minDateToday()}>
             <Stethoscope className="w-3 h-3 mr-1" /> Agendar Exame
           </Button>
         </div>
@@ -1061,8 +1139,10 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
       {link ? (
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Link para o candidato</Label>
-          <div className="flex gap-2 items-center">
-            <Input value={link} readOnly className="text-xs flex-1" />
+          <div className="flex gap-2 items-center flex-wrap">
+            <Button size="sm" className="gap-1 text-xs" onClick={() => window.open(link, '_blank')}>
+              <ExternalLink className="w-3 h-3" /> Abrir link de assinatura
+            </Button>
             <Button variant="outline" size="sm" onClick={onCopyLink} className="gap-1 text-xs shrink-0">
               <Copy className="w-3 h-3" /> Copiar
             </Button>

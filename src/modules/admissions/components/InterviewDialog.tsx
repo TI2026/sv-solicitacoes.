@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { toTimestampTZ } from '@/lib/dateUtils';
+import { minDateToday } from '@/lib/masks';
 
 interface InterviewDialogProps {
   open: boolean;
@@ -83,7 +84,10 @@ export function InterviewDialog({ open, onOpenChange, candidateName, onSave }: I
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Data *</Label>
-              <Input type="date" value={form.date} onChange={e => set('date', e.target.value)} />
+              <Input type="date" value={form.date} onChange={e => set('date', e.target.value)} min={minDateToday()} />
+              {form.date && form.date < minDateToday() && (
+                <p className="text-xs text-destructive">A entrevista deve ser agendada para hoje ou uma data futura.</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Hora *</Label>
@@ -126,7 +130,7 @@ export function InterviewDialog({ open, onOpenChange, candidateName, onSave }: I
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving || !canSave}>
+          <Button onClick={handleSave} disabled={saving || !canSave || (form.date && form.date < minDateToday())}>
             {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             Agendar
           </Button>

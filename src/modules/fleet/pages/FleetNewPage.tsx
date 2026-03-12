@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MoneyInput } from '@/components/MoneyInput';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
-import { maskCPF, maskPhone, maskPlate, maskKM, maskAgency, maskAccount, maxDateToday, todayBR, isValidPlate, isValidCPF } from '@/lib/masks';
+import { maskCPF, maskPhone, maskKM, maskAgency, maskAccount, minDateToday, todayBR, isValidPlate, isValidCPF } from '@/lib/masks';
 
 export default function FleetNewPage() {
   const { user, hasAnyRole } = useAuth();
@@ -72,9 +72,20 @@ export default function FleetNewPage() {
     return digits.length === 10 || digits.length === 11;
   };
 
-  const isValid = () => {
+  // Abastecimento: today + future only. Diária: any date.
+  const isDateValid = () => {
+    if (!data) return false;
     if (type === 'abastecimento') {
-      return valorNum > 0 && valorNum <= 50000 && isValidPlate(placa) && !!data;
+      return data >= minDateToday();
+    }
+    // reembolso and diaria: any date
+    return true;
+  };
+
+  const isValid = () => {
+    if (!isDateValid()) return false;
+    if (type === 'abastecimento') {
+      return valorNum > 0 && valorNum <= 50000 && !!placa && isValidPlate(placa) && !!data;
     }
     if (type === 'reembolso') {
       return valorNum > 0 && valorNum <= 50000 && !!categoria && !!data && (paymentMethod === 'pix' ? isPixValid() : !!bankName);
@@ -156,14 +167,15 @@ export default function FleetNewPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Placa do Veículo *</Label>
-                  <Input
+                  <DynamicCategorySelect
+                    module="fleet"
+                    fieldKey="vehicle_plate"
                     value={placa}
-                    onChange={e => setPlaca(maskPlate(e.target.value))}
-                    placeholder="ABC-1234"
-                    maxLength={8}
+                    onValueChange={setPlaca}
+                    placeholder="Selecione ou adicione"
                   />
                   {placa && !isValidPlate(placa) && (
-                    <p className="text-xs text-destructive">Placa inválida (ex: ABC-1234)</p>
+                    <p className="text-xs text-destructive">Placa inválida (ex: ABC1234)</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -199,7 +211,10 @@ export default function FleetNewPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} max={maxDateToday()} />
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} min={minDateToday()} />
+                  {data && data < minDateToday() && (
+                    <p className="text-xs text-destructive">A data do abastecimento deve ser hoje ou uma data futura.</p>
+                  )}
                 </div>
               </div>
             </>
@@ -230,7 +245,7 @@ export default function FleetNewPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} max={maxDateToday()} />
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -358,7 +373,7 @@ export default function FleetNewPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} max={maxDateToday()} />
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} />
                 </div>
               </div>
             </>

@@ -6,9 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MoneyInput } from '@/components/MoneyInput';
-import { CargoCombobox } from './CargoCombobox';
+import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { Loader2 } from 'lucide-react';
-import { maskCurrency } from '@/lib/masks';
+import { maskCurrency, minDateToday } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -63,8 +63,23 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
 
   const set = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
+  const isFormValid = () => {
+    return (
+      form.cargo_funcao.trim() &&
+      form.local_contratacao.trim() &&
+      form.tipo_contrato.trim() &&
+      form.jornada.trim() &&
+      form.data_prevista_inicio &&
+      form.gestor_responsavel.trim() &&
+      salarioNum > 0
+    );
+  };
+
   const handleSave = async () => {
-    if (!form.cargo_funcao.trim()) return;
+    if (!isFormValid()) {
+      toast({ title: 'Preencha todos os campos obrigatórios.', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       const { error } = await supabase
@@ -85,7 +100,6 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
 
       if (error) throw error;
 
-      // Audit log
       const user = (await supabase.auth.getUser()).data.user;
       if (user) {
         await supabase.from('audit_logs').insert({
@@ -118,14 +132,26 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Cargo / Função *</Label>
-              <CargoCombobox value={form.cargo_funcao} onChange={v => set('cargo_funcao', v)} />
+              <DynamicCategorySelect
+                module="admissions"
+                fieldKey="job_title"
+                value={form.cargo_funcao}
+                onValueChange={v => set('cargo_funcao', v)}
+                placeholder="Selecione ou adicione"
+              />
             </div>
             <div className="space-y-2">
-              <Label>Local de Contratação</Label>
-              <Input value={form.local_contratacao} onChange={e => set('local_contratacao', e.target.value.slice(0, 100))} maxLength={100} />
+              <Label>Local de Contratação *</Label>
+              <DynamicCategorySelect
+                module="admissions"
+                fieldKey="hiring_location"
+                value={form.local_contratacao}
+                onValueChange={v => set('local_contratacao', v)}
+                placeholder="Selecione ou adicione"
+              />
             </div>
             <div className="space-y-2">
-              <Label>Tipo de Contrato</Label>
+              <Label>Tipo de Contrato *</Label>
               <Select value={form.tipo_contrato} onValueChange={v => set('tipo_contrato', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -137,7 +163,7 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Salário Previsto</Label>
+              <Label>Salário Previsto *</Label>
               <MoneyInput
                 value={salarioFormatted}
                 onChange={(fmt, num) => { setSalarioFormatted(fmt); setSalarioNum(num); }}
@@ -147,19 +173,31 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Jornada</Label>
-              <Input value={form.jornada} onChange={e => set('jornada', e.target.value.slice(0, 50))} maxLength={50} />
+              <Label>Jornada *</Label>
+              <DynamicCategorySelect
+                module="admissions"
+                fieldKey="work_shift"
+                value={form.jornada}
+                onValueChange={v => set('jornada', v)}
+                placeholder="Selecione ou adicione"
+              />
             </div>
             <div className="space-y-2">
-              <Label>Data Prevista Início</Label>
-              <Input type="date" value={form.data_prevista_inicio} onChange={e => set('data_prevista_inicio', e.target.value)} />
+              <Label>Data Prevista Início *</Label>
+              <Input type="date" value={form.data_prevista_inicio} onChange={e => set('data_prevista_inicio', e.target.value)} min={minDateToday()} />
             </div>
             <div className="space-y-2">
-              <Label>Gestor Responsável</Label>
-              <Input value={form.gestor_responsavel} onChange={e => set('gestor_responsavel', e.target.value.slice(0, 100))} maxLength={100} />
+              <Label>Gestor Responsável *</Label>
+              <DynamicCategorySelect
+                module="admissions"
+                fieldKey="manager_name"
+                value={form.gestor_responsavel}
+                onValueChange={v => set('gestor_responsavel', v)}
+                placeholder="Selecione ou adicione"
+              />
             </div>
             <div className="space-y-2">
-              <Label>Prioridade</Label>
+              <Label>Prioridade *</Label>
               <Select value={form.priority} onValueChange={v => set('priority', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -171,7 +209,7 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Motivo da Contratação *</Label>
+            <Label>Motivo da Contratação</Label>
             <Input value={form.motivo} onChange={e => set('motivo', e.target.value.slice(0, 200))} maxLength={200} />
           </div>
           <div className="space-y-2">
@@ -182,7 +220,7 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving || !form.cargo_funcao.trim()}>
+          <Button onClick={handleSave} disabled={saving || !isFormValid()}>
             {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             Salvar Alterações
           </Button>
