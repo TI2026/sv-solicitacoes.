@@ -10,6 +10,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import AuditLogsPage from "@/pages/AuditLogsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
+import PermissionsPage from "@/pages/PermissionsPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
@@ -71,6 +72,7 @@ const AppRoutes = () => (
     <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
     <Route path="/auditoria" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+    <Route path="/permissoes" element={<ProtectedRoute><PermissionsPage /></ProtectedRoute>} />
     <Route path="/admin/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
 
     {/* Fleet */}
