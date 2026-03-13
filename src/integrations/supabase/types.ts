@@ -227,6 +227,309 @@ export type Database = {
           },
         ]
       }
+      approval_flow_steps: {
+        Row: {
+          active: boolean
+          approver_user_id: string
+          created_at: string
+          flow_id: string
+          id: string
+          is_required: boolean
+          step_order: number
+        }
+        Insert: {
+          active?: boolean
+          approver_user_id: string
+          created_at?: string
+          flow_id: string
+          id?: string
+          is_required?: boolean
+          step_order: number
+        }
+        Update: {
+          active?: boolean
+          approver_user_id?: string
+          created_at?: string
+          flow_id?: string
+          id?: string
+          is_required?: boolean
+          step_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_flow_steps_approver_user_id_fkey"
+            columns: ["approver_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_flow_steps_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "approval_flows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_flows: {
+        Row: {
+          active: boolean
+          allow_return_for_adjustment: boolean
+          approval_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          module_id: string
+          name: string
+          notify_next_approver: boolean
+          require_rejection_reason: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          allow_return_for_adjustment?: boolean
+          approval_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module_id: string
+          name: string
+          notify_next_approver?: boolean
+          require_rejection_reason?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          allow_return_for_adjustment?: boolean
+          approval_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module_id?: string
+          name?: string
+          notify_next_approver?: boolean
+          require_rejection_reason?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_flows_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_flows_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "approval_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_history: {
+        Row: {
+          action: string
+          action_by: string
+          approval_request_id: string
+          comments: string | null
+          created_at: string
+          id: string
+          new_status: string | null
+          old_status: string | null
+          step_order: number | null
+        }
+        Insert: {
+          action: string
+          action_by: string
+          approval_request_id: string
+          comments?: string | null
+          created_at?: string
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          step_order?: number | null
+        }
+        Update: {
+          action?: string
+          action_by?: string
+          approval_request_id?: string
+          comments?: string | null
+          created_at?: string
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          step_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_history_action_by_fkey"
+            columns: ["action_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_history_approval_request_id_fkey"
+            columns: ["approval_request_id"]
+            isOneToOne: false
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_modules: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      approval_request_steps: {
+        Row: {
+          action_at: string | null
+          approval_request_id: string
+          approver_user_id: string
+          comments: string | null
+          flow_step_id: string | null
+          id: string
+          status: string
+          step_order: number
+        }
+        Insert: {
+          action_at?: string | null
+          approval_request_id: string
+          approver_user_id: string
+          comments?: string | null
+          flow_step_id?: string | null
+          id?: string
+          status?: string
+          step_order: number
+        }
+        Update: {
+          action_at?: string | null
+          approval_request_id?: string
+          approver_user_id?: string
+          comments?: string | null
+          flow_step_id?: string | null
+          id?: string
+          status?: string
+          step_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_request_steps_approval_request_id_fkey"
+            columns: ["approval_request_id"]
+            isOneToOne: false
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_request_steps_approver_user_id_fkey"
+            columns: ["approver_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_request_steps_flow_step_id_fkey"
+            columns: ["flow_step_id"]
+            isOneToOne: false
+            referencedRelation: "approval_flow_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      approval_requests: {
+        Row: {
+          created_at: string
+          current_approver_user_id: string | null
+          current_step_order: number | null
+          ended_at: string | null
+          flow_id: string
+          id: string
+          module_id: string
+          reference_id: string
+          requester_user_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_approver_user_id?: string | null
+          current_step_order?: number | null
+          ended_at?: string | null
+          flow_id: string
+          id?: string
+          module_id: string
+          reference_id: string
+          requester_user_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_approver_user_id?: string | null
+          current_step_order?: number | null
+          ended_at?: string | null
+          flow_id?: string
+          id?: string
+          module_id?: string
+          reference_id?: string
+          requester_user_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_current_approver_user_id_fkey"
+            columns: ["current_approver_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "approval_flows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "approval_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -793,6 +1096,54 @@ export type Database = {
         }
         Relationships: []
       }
+      permission_actions: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      permission_modules: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       permissions: {
         Row: {
           description: string
@@ -883,6 +1234,55 @@ export type Database = {
           },
         ]
       }
+      role_permission_matrix: {
+        Row: {
+          action_id: string
+          allowed: boolean
+          created_at: string
+          id: string
+          module_id: string
+          role_id: string
+        }
+        Insert: {
+          action_id: string
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          module_id: string
+          role_id: string
+        }
+        Update: {
+          action_id?: string
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          module_id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permission_matrix_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "permission_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permission_matrix_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "permission_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permission_matrix_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           permission_id: string
@@ -915,21 +1315,47 @@ export type Database = {
       }
       roles: {
         Row: {
+          active: boolean
           description: string
           id: string
+          is_master: boolean
+          is_system: boolean
           key: string
+          name: string
+          parent_role_id: string | null
+          updated_at: string
         }
         Insert: {
+          active?: boolean
           description?: string
           id?: string
+          is_master?: boolean
+          is_system?: boolean
           key: string
+          name?: string
+          parent_role_id?: string | null
+          updated_at?: string
         }
         Update: {
+          active?: boolean
           description?: string
           id?: string
+          is_master?: boolean
+          is_system?: boolean
           key?: string
+          name?: string
+          parent_role_id?: string | null
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "roles_parent_role_id_fkey"
+            columns: ["parent_role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       status_history: {
         Row: {
@@ -1009,6 +1435,160 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_admissions_list_items"
             referencedColumns: ["candidato_id"]
+          },
+        ]
+      }
+      user_effective_permissions: {
+        Row: {
+          action_id: string
+          allowed: boolean
+          created_at: string
+          id: string
+          module_id: string
+          user_id: string
+        }
+        Insert: {
+          action_id: string
+          allowed: boolean
+          created_at?: string
+          id?: string
+          module_id: string
+          user_id: string
+        }
+        Update: {
+          action_id?: string
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          module_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_effective_permissions_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "permission_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_effective_permissions_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "permission_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_effective_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_permission_overrides: {
+        Row: {
+          action_id: string
+          allowed: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          module_id: string
+          user_id: string
+        }
+        Insert: {
+          action_id: string
+          allowed: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module_id: string
+          user_id: string
+        }
+        Update: {
+          action_id?: string
+          allowed?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          module_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permission_overrides_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "permission_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_permission_overrides_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_permission_overrides_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "permission_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_permission_overrides_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_role_assignments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_role_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_role_assignments_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_role_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1111,6 +1691,10 @@ export type Database = {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
+      current_user_has_permission: {
+        Args: { p_action_code: string; p_module_code: string }
+        Returns: boolean
+      }
       current_user_id: { Args: never; Returns: string }
       fuel_set_status: {
         Args: {
@@ -1125,6 +1709,14 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
       }
+      has_permission: {
+        Args: {
+          p_action_code: string
+          p_module_code: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1132,8 +1724,28 @@ export type Database = {
         }
         Returns: boolean
       }
+      process_approval_action: {
+        Args: {
+          p_action: string
+          p_approval_request_id: string
+          p_comments?: string
+        }
+        Returns: Json
+      }
+      rebuild_user_permissions: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       soft_delete_request: {
         Args: { _reason?: string; _request_id: string }
+        Returns: Json
+      }
+      start_approval_flow: {
+        Args: {
+          p_module_code: string
+          p_reference_id: string
+          p_requester_user_id: string
+        }
         Returns: Json
       }
     }
