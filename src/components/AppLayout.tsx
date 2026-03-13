@@ -26,6 +26,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
     { to: '/perfil', label: 'Meu Perfil', icon: User, show: true },
     { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
+    { to: '/permissoes', label: 'Permissões', icon: Lock, show: true },
     { to: '/configuracoes', label: 'Configurações', icon: Settings, show: true },
   ].filter(item => item.show);
 
