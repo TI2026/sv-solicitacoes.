@@ -230,8 +230,10 @@ export type Database = {
       approval_flow_steps: {
         Row: {
           active: boolean
+          approver_type: string
           approver_user_id: string
           created_at: string
+          fixed_sector_id: string | null
           flow_id: string
           id: string
           is_required: boolean
@@ -239,8 +241,10 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          approver_type?: string
           approver_user_id: string
           created_at?: string
+          fixed_sector_id?: string | null
           flow_id: string
           id?: string
           is_required?: boolean
@@ -248,8 +252,10 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          approver_type?: string
           approver_user_id?: string
           created_at?: string
+          fixed_sector_id?: string | null
           flow_id?: string
           id?: string
           is_required?: boolean
@@ -261,6 +267,13 @@ export type Database = {
             columns: ["approver_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_flow_steps_fixed_sector_id_fkey"
+            columns: ["fixed_sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
             referencedColumns: ["id"]
           },
           {
@@ -408,30 +421,39 @@ export type Database = {
         Row: {
           action_at: string | null
           approval_request_id: string
+          approver_rule: string | null
           approver_user_id: string
           comments: string | null
           flow_step_id: string | null
           id: string
+          resolved_from_user_id: string | null
+          resolved_sector_id: string | null
           status: string
           step_order: number
         }
         Insert: {
           action_at?: string | null
           approval_request_id: string
+          approver_rule?: string | null
           approver_user_id: string
           comments?: string | null
           flow_step_id?: string | null
           id?: string
+          resolved_from_user_id?: string | null
+          resolved_sector_id?: string | null
           status?: string
           step_order: number
         }
         Update: {
           action_at?: string | null
           approval_request_id?: string
+          approver_rule?: string | null
           approver_user_id?: string
           comments?: string | null
           flow_step_id?: string | null
           id?: string
+          resolved_from_user_id?: string | null
+          resolved_sector_id?: string | null
           status?: string
           step_order?: number
         }
@@ -641,6 +663,9 @@ export type Database = {
           meeting_link: string | null
           nome: string
           observacoes: string | null
+          pants_size: string | null
+          shirt_size: string | null
+          shoe_size: string | null
           status_triagem: Database["public"]["Enums"]["candidate_status"]
           telefone: string | null
           updated_at: string
@@ -667,6 +692,9 @@ export type Database = {
           meeting_link?: string | null
           nome: string
           observacoes?: string | null
+          pants_size?: string | null
+          shirt_size?: string | null
+          shoe_size?: string | null
           status_triagem?: Database["public"]["Enums"]["candidate_status"]
           telefone?: string | null
           updated_at?: string
@@ -693,6 +721,9 @@ export type Database = {
           meeting_link?: string | null
           nome?: string
           observacoes?: string | null
+          pants_size?: string | null
+          shirt_size?: string | null
+          shoe_size?: string | null
           status_triagem?: Database["public"]["Enums"]["candidate_status"]
           telefone?: string | null
           updated_at?: string
@@ -1170,6 +1201,9 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          manager_user_id: string | null
+          notification_preferences: Json
+          sector_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1179,6 +1213,9 @@ export type Database = {
           email?: string
           full_name?: string
           id: string
+          manager_user_id?: string | null
+          notification_preferences?: Json
+          sector_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1188,9 +1225,27 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          manager_user_id?: string | null
+          notification_preferences?: Json
+          sector_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_manager_user_id_fkey"
+            columns: ["manager_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       public_tokens: {
         Row: {
@@ -1353,6 +1408,54 @@ export type Database = {
             columns: ["parent_role_id"]
             isOneToOne: false
             referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sectors: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+          responsible_user_id: string | null
+          substitute_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          responsible_user_id?: string | null
+          substitute_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          responsible_user_id?: string | null
+          substitute_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sectors_responsible_user_id_fkey"
+            columns: ["responsible_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sectors_substitute_user_id_fkey"
+            columns: ["substitute_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
