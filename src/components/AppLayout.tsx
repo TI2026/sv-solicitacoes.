@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
-import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, Settings, X, Fuel, UserPlus, Lock } from 'lucide-react';
+import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, Settings, X, Fuel, UserPlus, Lock, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
