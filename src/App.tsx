@@ -11,6 +11,7 @@ import AuditLogsPage from "@/pages/AuditLogsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
 import PermissionsPage from "@/pages/PermissionsPage";
+import SectorsPage from "@/pages/SectorsPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
