@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ADMISSION_STATUS_LABELS, FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
-import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase } from 'lucide-react';
+import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase, ShieldAlert } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
 import { useState, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,6 +16,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
+
+// Check if user has master role via user_role_assignments
+function useIsMaster() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['is_master_check', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data } = await supabase
+        .from('user_role_assignments')
+        .select('role_id, roles(is_master)')
+        .eq('user_id', user.id);
+      return (data || []).some((a: any) => a.roles?.is_master);
+    },
+    enabled: !!user?.id,
+  });
+}
 
 function MetricCard({ icon: Icon, label, value, onClick, accent }: {
   icon: any; label: string; value: string | number; onClick?: () => void; accent?: string;
@@ -54,9 +71,12 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
+  const { data: isMaster } = useIsMaster();
 
   const isRH = hasAnyRole(['diretoria', 'rh']);
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
+  // Only master users can see financial values
+  const canSeeFinancials = !!isMaster;
 
   useRealtimeSubscription({
     channelName: 'dashboard-realtime',
@@ -93,7 +113,6 @@ export default function DashboardPage() {
     enabled: !!user && isRH,
   });
 
-  // Memoized metrics
   const fuelMetrics = useMemo(() => {
     const d = fuelData || [];
     const total = d.length;
@@ -139,6 +158,7 @@ export default function DashboardPage() {
   const closeDrilldown = useCallback(() => setDrilldown(null), []);
 
   const formatCurrency = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  const maskedCurrency = () => '••••••';
 
   if (!user) return null;
   const primaryRole = user.roles[0];
@@ -164,7 +184,7 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">
                       {drilldown.type === 'fuel'
-                        ? formatCurrency(Number(item.valor || 0))
+                        ? (canSeeFinancials ? formatCurrency(Number(item.valor || 0)) : maskedCurrency())
                         : (item.cargo_funcao || 'Admissão')}
                     </span>
                     <StatusBadge
@@ -193,6 +213,7 @@ export default function DashboardPage() {
         <p className="text-muted-foreground mt-1">
           {primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'}
           {user.department && <> · {user.department}</>}
+          {isMaster && <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800"><ShieldAlert className="w-3 h-3" />Master</span>}
         </p>
       </div>
 
@@ -223,12 +244,17 @@ export default function DashboardPage() {
                   onClick={() => openDrilldown({ title: 'Admissões Concluídas', data: admMetrics.concluidosData, type: 'admission', summary: `${admMetrics.concluidos} concluídas` })} />}
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <MetricCard icon={DollarSign} label="Valor Total Frota" value={formatCurrency(fuelMetrics.valorTotal)}
-                  onClick={() => openDrilldown({ title: 'Valor Total Frota', data: fuelMetrics.allData, type: 'fuel', summary: `Total: ${formatCurrency(fuelMetrics.valorTotal)}` })} />
+                {canSeeFinancials ? (
+                  <MetricCard icon={DollarSign} label="Valor Total Frota" value={formatCurrency(fuelMetrics.valorTotal)}
+                    onClick={() => openDrilldown({ title: 'Valor Total Frota', data: fuelMetrics.allData, type: 'fuel', summary: `Total: ${formatCurrency(fuelMetrics.valorTotal)}` })} />
+                ) : (
+                  <MetricCard icon={DollarSign} label="Valor Total Frota" value="••••••" />
+                )}
                 <MetricCard icon={CheckCircle} label="Frota Aprovados" value={fuelMetrics.aprovados}
                   onClick={() => openDrilldown({ title: 'Frota Aprovados', data: fuelMetrics.aprovadosData, type: 'fuel', summary: `${fuelMetrics.aprovados} aprovados/concluídos` })} />
-                {isRH && <MetricCard icon={DollarSign} label="Salário Total Previsto" value={formatCurrency(admMetrics.salarioTotal)}
+                {isRH && canSeeFinancials && <MetricCard icon={DollarSign} label="Salário Total Previsto" value={formatCurrency(admMetrics.salarioTotal)}
                   onClick={() => openDrilldown({ title: 'Salário Total Previsto', data: admMetrics.pendentesData, type: 'admission', summary: `Total previsto: ${formatCurrency(admMetrics.salarioTotal)}` })} />}
+                {isRH && !canSeeFinancials && <MetricCard icon={DollarSign} label="Salário Total Previsto" value="••••••" />}
                 {isRH && <MetricCard icon={Users} label="Total Admissões" value={admMetrics.total} onClick={() => navigate('/admissions')} />}
               </div>
             </>
@@ -238,7 +264,6 @@ export default function DashboardPage() {
         {/* CONCLUÍDOS TAB */}
         <TabsContent value="concluidos" className="space-y-4 mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Abastecimentos Concluídos */}
             <Card>
               <CardContent className="p-4">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -252,7 +277,7 @@ export default function DashboardPage() {
                       {completed.slice(0, 20).map((item: any) => (
                         <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/fleet/${item.id}`)}>
                           <div>
-                            <span className="font-medium">{formatCurrency(Number(item.valor || 0))}</span>
+                            <span className="font-medium">{canSeeFinancials ? formatCurrency(Number(item.valor || 0)) : '••••••'}</span>
                             {item.placa && <span className="text-xs text-muted-foreground ml-2">🚗 {item.placa}</span>}
                           </div>
                           <div className="flex items-center gap-2">
@@ -268,7 +293,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Reembolsos Concluídos */}
             <Card>
               <CardContent className="p-4">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -282,7 +306,7 @@ export default function DashboardPage() {
                       {completed.slice(0, 20).map((item: any) => (
                         <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/fleet/${item.id}`)}>
                           <div>
-                            <span className="font-medium">{formatCurrency(Number(item.valor || 0))}</span>
+                            <span className="font-medium">{canSeeFinancials ? formatCurrency(Number(item.valor || 0)) : '••••••'}</span>
                             {item.categoria && <span className="text-xs text-muted-foreground ml-2">{item.categoria}</span>}
                           </div>
                           <div className="flex items-center gap-2">
@@ -308,8 +332,12 @@ export default function DashboardPage() {
                 onClick={() => openDrilldown({ title: 'Admissões Pendentes', data: admMetrics.pendentesData, type: 'admission' })} />
               <MetricCard icon={CheckCircle} label="Concluídos" value={admMetrics.concluidos}
                 onClick={() => openDrilldown({ title: 'Admissões Concluídas', data: admMetrics.concluidosData, type: 'admission' })} />
-              <MetricCard icon={DollarSign} label="Salário Total" value={formatCurrency(admMetrics.salarioTotal)}
-                onClick={() => openDrilldown({ title: 'Salário Total Previsto', data: admMetrics.pendentesData, type: 'admission', summary: formatCurrency(admMetrics.salarioTotal) })} />
+              {canSeeFinancials ? (
+                <MetricCard icon={DollarSign} label="Salário Total" value={formatCurrency(admMetrics.salarioTotal)}
+                  onClick={() => openDrilldown({ title: 'Salário Total Previsto', data: admMetrics.pendentesData, type: 'admission', summary: formatCurrency(admMetrics.salarioTotal) })} />
+              ) : (
+                <MetricCard icon={DollarSign} label="Salário Total" value="••••••" />
+              )}
             </div>
             {admMetrics.byStatus.length > 0 && (
               <Card>
@@ -339,10 +367,14 @@ export default function DashboardPage() {
               onClick={() => openDrilldown({ title: 'Pendentes', data: fuelMetrics.pendentesData, type: 'fuel' })} />
             <MetricCard icon={CheckCircle} label="Aprovados" value={fuelMetrics.aprovados}
               onClick={() => openDrilldown({ title: 'Aprovados', data: fuelMetrics.aprovadosData, type: 'fuel' })} />
-            <MetricCard icon={DollarSign} label="Valor Total" value={formatCurrency(fuelMetrics.valorTotal)}
-              onClick={() => openDrilldown({ title: 'Valor Total', data: fuelMetrics.allData, type: 'fuel', summary: formatCurrency(fuelMetrics.valorTotal) })} />
+            {canSeeFinancials ? (
+              <MetricCard icon={DollarSign} label="Valor Total" value={formatCurrency(fuelMetrics.valorTotal)}
+                onClick={() => openDrilldown({ title: 'Valor Total', data: fuelMetrics.allData, type: 'fuel', summary: formatCurrency(fuelMetrics.valorTotal) })} />
+            ) : (
+              <MetricCard icon={DollarSign} label="Valor Total" value="••••••" />
+            )}
           </div>
-          {(fuelMetrics.byType.length > 0 || fuelMetrics.byStatus.length > 0) && (
+          {canSeeFinancials && (fuelMetrics.byType.length > 0 || fuelMetrics.byStatus.length > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {fuelMetrics.byType.length > 0 && (
                 <Card>
@@ -386,12 +418,12 @@ export default function DashboardPage() {
         {/* CONTROLE DE FLUXOS TAB */}
         {isAdmin && (
           <TabsContent value="fluxos" className="space-y-4 mt-4">
-            <FlowControlPanel fuelData={fuelData || []} admData={admData || []} navigate={navigate} isRH={isRH} />
+            <FlowControlPanel fuelData={fuelData || []} admData={admData || []} navigate={navigate} isRH={isRH} canSeeFinancials={canSeeFinancials} />
           </TabsContent>
         )}
       </Tabs>
 
-      {/* Drilldown - Drawer on mobile, Dialog on desktop */}
+      {/* Drilldown */}
       {isMobile ? (
         <Drawer open={!!drilldown} onOpenChange={() => closeDrilldown()}>
           <DrawerContent className="max-h-[85vh]">
@@ -412,9 +444,8 @@ export default function DashboardPage() {
 }
 
 /* ========== Controle de Fluxos sub-component ========== */
-
-function FlowControlPanel({ fuelData, admData, navigate, isRH }: {
-  fuelData: any[]; admData: any[]; navigate: (p: string) => void; isRH: boolean;
+function FlowControlPanel({ fuelData, admData, navigate, isRH, canSeeFinancials }: {
+  fuelData: any[]; admData: any[]; navigate: (p: string) => void; isRH: boolean; canSeeFinancials: boolean;
 }) {
   const [tab, setTab] = useState(isRH ? 'admissions' : 'fuel');
 
@@ -439,6 +470,8 @@ function FlowControlPanel({ fuelData, admData, navigate, isRH }: {
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [admData]);
+
+  const formatCurrency = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
   return (
     <div className="space-y-4">
@@ -493,7 +526,7 @@ function FlowControlPanel({ fuelData, admData, navigate, isRH }: {
                   {items.slice(0, 5).map((item: any) => (
                     <div key={item.id} className="flex items-center justify-between text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1" onClick={() => navigate(`/fleet/${item.id}`)}>
                       <span className="truncate">
-                        R$ {Number(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {canSeeFinancials ? formatCurrency(Number(item.valor || 0)) : '••••••'}
                         {item.type && ` · ${REQUEST_TYPE_LABELS[item.type] || item.type}`}
                       </span>
                       <span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
@@ -517,7 +550,7 @@ function FlowControlPanel({ fuelData, admData, navigate, isRH }: {
               ].slice(0, 10).map((item: any) => (
                 <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(item._path)}>
                   <div>
-                    <span className="font-medium">R$ {Number(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <span className="font-medium">{canSeeFinancials ? formatCurrency(Number(item.valor || 0)) : '••••••'}</span>
                     <span className="text-xs text-muted-foreground ml-2">{item._action}</span>
                   </div>
                   <Button size="sm" variant="outline" className="h-7 text-xs">Abrir</Button>
