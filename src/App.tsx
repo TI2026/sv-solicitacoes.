@@ -74,6 +74,7 @@ const AppRoutes = () => (
     <Route path="/auditoria" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
     <Route path="/permissoes" element={<ProtectedRoute><PermissionsPage /></ProtectedRoute>} />
+    <Route path="/setores" element={<ProtectedRoute><SectorsPage /></ProtectedRoute>} />
     <Route path="/admin/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
 
     {/* Fleet */}
