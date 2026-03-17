@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useUpdateCandidate, useMedicalExam, useGeneratePublicLink, useAdmissionPublicLinks, useAdmissionFiles } from '../hooks/useAdmissionQueries';
+import { maskCPF, maskPhone, isValidCPF } from '@/lib/masks';
 import { Switch } from '@/components/ui/switch';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,6 +70,8 @@ export default function AdmissionDetailPage() {
   const isRH = hasAnyRole(['diretoria', 'rh', 'administrativo']);
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [candidateForm, setCandidateForm] = useState({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
+  const [editCandidateId, setEditCandidateId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [interviewCandidate, setInterviewCandidate] = useState<any | null>(null);
   const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({});
   const [linksGenerating, setLinksGenerating] = useState(false);
@@ -95,18 +98,61 @@ export default function AdmissionDetailPage() {
     await statusMutation.mutateAsync({ requestId: id, toStatus, reason });
   };
 
+  const cpfDigits = candidateForm.cpf.replace(/\D/g, '');
+  const phoneDigits = candidateForm.telefone.replace(/\D/g, '');
+  const cpfError = cpfDigits.length > 0 && cpfDigits.length === 11 && !isValidCPF(cpfDigits) ? 'CPF inválido' : '';
+
   const handleAddCandidate = async () => {
-    if (!id || !candidateForm.nome) return;
-    await createCandidate.mutateAsync({
-      admission_request_id: id,
-      nome: candidateForm.nome,
-      cpf: candidateForm.cpf || null,
-      telefone: candidateForm.telefone || null,
-      email: candidateForm.email || null,
-      cidade: candidateForm.cidade || null,
-    });
+    if (!id || !candidateForm.nome || createCandidate.isPending) return;
+    if (cpfDigits.length > 0 && (cpfDigits.length !== 11 || !isValidCPF(cpfDigits))) {
+      toast({ title: 'CPF inválido', variant: 'destructive' }); return;
+    }
+    if (editCandidateId) {
+      await updateCandidate.mutateAsync({
+        id: editCandidateId,
+        data: {
+          nome: candidateForm.nome,
+          cpf: cpfDigits || null,
+          telefone: phoneDigits || null,
+          email: candidateForm.email || null,
+          cidade: candidateForm.cidade || null,
+        },
+      });
+      setEditCandidateId(null);
+    } else {
+      await createCandidate.mutateAsync({
+        admission_request_id: id,
+        nome: candidateForm.nome,
+        cpf: cpfDigits || null,
+        telefone: phoneDigits || null,
+        email: candidateForm.email || null,
+        cidade: candidateForm.cidade || null,
+      });
+    }
     setShowAddCandidate(false);
     setCandidateForm({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
+  };
+
+  const handleEditCandidate = (c: any) => {
+    setEditCandidateId(c.id);
+    setCandidateForm({
+      nome: c.nome || '',
+      cpf: c.cpf ? maskCPF(c.cpf) : '',
+      telefone: c.telefone ? maskPhone(c.telefone) : '',
+      email: c.email || '',
+      cidade: c.cidade || '',
+    });
+    setShowAddCandidate(true);
+  };
+
+  const handleDeleteCandidate = async (candidateId: string) => {
+    const { error } = await supabase.from('candidates').delete().eq('id', candidateId);
+    if (error) toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+    else {
+      qc.invalidateQueries({ queryKey: ['candidates', id] });
+      toast({ title: 'Candidato excluído' });
+    }
+    setShowDeleteConfirm(null);
   };
 
   const handleScheduleInterview = async (data: any) => {
@@ -338,10 +384,27 @@ export default function AdmissionDetailPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-foreground">{c.nome}</p>
-                        <p className="text-xs text-muted-foreground">{c.telefone || c.email || '—'} {c.cidade && `· ${c.cidade}`}</p>
+                        <p className="text-xs text-muted-foreground">{c.cpf ? maskCPF(c.cpf) : ''} {c.telefone ? maskPhone(c.telefone) : c.email || '—'} {c.cidade && `· ${c.cidade}`}</p>
                       </div>
-                      <StatusBadge status={c.status_triagem} label={CANDIDATE_STATUS_LABELS[c.status_triagem] || c.status_triagem} />
+                      <div className="flex items-center gap-1">
+                        <StatusBadge status={c.status_triagem} label={CANDIDATE_STATUS_LABELS[c.status_triagem] || c.status_triagem} />
+                        <Button variant="ghost" size="sm" className="h-7 px-1.5" onClick={() => handleEditCandidate(c)}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 px-1.5 text-destructive" onClick={() => setShowDeleteConfirm(c.id)}>
+                          <XCircle className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
+                    {showDeleteConfirm === c.id && (
+                      <div className="mt-2 p-2 bg-destructive/10 rounded flex items-center justify-between">
+                        <span className="text-xs text-destructive">Confirmar exclusão?</span>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="destructive" className="h-6 text-xs" onClick={() => handleDeleteCandidate(c.id)}>Sim</Button>
+                          <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setShowDeleteConfirm(null)}>Não</Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -655,22 +718,42 @@ export default function AdmissionDetailPage() {
         </Card>
       )}
 
-      {/* Add candidate dialog */}
-      <Dialog open={showAddCandidate} onOpenChange={setShowAddCandidate}>
+      {/* Add/Edit candidate dialog */}
+      <Dialog open={showAddCandidate} onOpenChange={(open) => { if (!open) { setShowAddCandidate(false); setEditCandidateId(null); setCandidateForm({ nome: '', cpf: '', telefone: '', email: '', cidade: '' }); } }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Candidato</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editCandidateId ? 'Editar Candidato' : 'Adicionar Candidato'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5"><Label>Nome *</Label><Input value={candidateForm.nome} onChange={e => setCandidateForm(p => ({ ...p, nome: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label>CPF</Label><Input value={candidateForm.cpf} onChange={e => setCandidateForm(p => ({ ...p, cpf: e.target.value }))} /></div>
-              <div className="space-y-1.5"><Label>Telefone</Label><Input value={candidateForm.telefone} onChange={e => setCandidateForm(p => ({ ...p, telefone: e.target.value }))} /></div>
+              <div className="space-y-1.5">
+                <Label>CPF</Label>
+                <Input
+                  value={candidateForm.cpf}
+                  onChange={e => setCandidateForm(p => ({ ...p, cpf: maskCPF(e.target.value) }))}
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                />
+                {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Telefone</Label>
+                <Input
+                  value={candidateForm.telefone}
+                  onChange={e => setCandidateForm(p => ({ ...p, telefone: maskPhone(e.target.value) }))}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+              </div>
             </div>
             <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={candidateForm.email} onChange={e => setCandidateForm(p => ({ ...p, email: e.target.value }))} /></div>
             <div className="space-y-1.5"><Label>Cidade</Label><Input value={candidateForm.cidade} onChange={e => setCandidateForm(p => ({ ...p, cidade: e.target.value }))} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddCandidate(false)}>Cancelar</Button>
-            <Button onClick={handleAddCandidate} disabled={!candidateForm.nome}>Salvar</Button>
+            <Button variant="outline" onClick={() => { setShowAddCandidate(false); setEditCandidateId(null); }}>Cancelar</Button>
+            <Button onClick={handleAddCandidate} disabled={!candidateForm.nome || createCandidate.isPending || updateCandidate.isPending || !!cpfError}>
+              {(createCandidate.isPending || updateCandidate.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {editCandidateId ? 'Atualizar' : 'Salvar'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
