@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { Upload, Download, FileText, Loader2, Trash2 } from 'lucide-react';
+import { Upload, Download, FileText, Loader2 } from 'lucide-react';
 
 interface ExamAttachmentUploadProps {
   admissionId: string;
@@ -19,7 +19,7 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
   const [files, setFiles] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
     const { data } = await supabase
       .from('admission_files')
       .select('*')
@@ -29,11 +29,12 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
       .order('created_at', { ascending: false });
     setFiles(data || []);
     setLoaded(true);
-  };
+  }, [admissionId, candidateId]);
 
   if (!loaded) loadFiles();
 
   const handleUpload = async (file: File) => {
+    if (uploading) return; // prevent double submit
     const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowed.includes(file.type)) {
       toast({ title: 'Tipo de arquivo não permitido', description: 'Aceitos: PDF, JPG, JPEG, PNG', variant: 'destructive' });
@@ -61,8 +62,10 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
         link_type: 'EXAM',
       } as any);
       toast({ title: 'Exame anexado com sucesso!' });
-      loadFiles();
+      await loadFiles();
+      // Invalidate ALL matching query keys so parent ExamSection sees the new file
       qc.invalidateQueries({ queryKey: ['admission_files', admissionId] });
+      qc.invalidateQueries({ queryKey: ['admission_files', admissionId, 'EXAM'] });
     }
     setUploading(false);
   };
@@ -99,7 +102,7 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
           type="file"
           accept=".pdf,.jpg,.jpeg,.png"
           disabled={uploading}
-          onChange={e => { if (e.target.files?.[0]) handleUpload(e.target.files[0]); }}
+          onChange={e => { if (e.target.files?.[0]) handleUpload(e.target.files[0]); e.target.value = ''; }}
           className="text-xs h-8"
         />
         {uploading && <Loader2 className="w-4 h-4 animate-spin" />}

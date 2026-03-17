@@ -98,18 +98,61 @@ export default function AdmissionDetailPage() {
     await statusMutation.mutateAsync({ requestId: id, toStatus, reason });
   };
 
+  const cpfDigits = candidateForm.cpf.replace(/\D/g, '');
+  const phoneDigits = candidateForm.telefone.replace(/\D/g, '');
+  const cpfError = cpfDigits.length > 0 && cpfDigits.length === 11 && !isValidCPF(cpfDigits) ? 'CPF inválido' : '';
+
   const handleAddCandidate = async () => {
-    if (!id || !candidateForm.nome) return;
-    await createCandidate.mutateAsync({
-      admission_request_id: id,
-      nome: candidateForm.nome,
-      cpf: candidateForm.cpf || null,
-      telefone: candidateForm.telefone || null,
-      email: candidateForm.email || null,
-      cidade: candidateForm.cidade || null,
-    });
+    if (!id || !candidateForm.nome || createCandidate.isPending) return;
+    if (cpfDigits.length > 0 && (cpfDigits.length !== 11 || !isValidCPF(cpfDigits))) {
+      toast({ title: 'CPF inválido', variant: 'destructive' }); return;
+    }
+    if (editCandidateId) {
+      await updateCandidate.mutateAsync({
+        id: editCandidateId,
+        data: {
+          nome: candidateForm.nome,
+          cpf: cpfDigits || null,
+          telefone: phoneDigits || null,
+          email: candidateForm.email || null,
+          cidade: candidateForm.cidade || null,
+        },
+      });
+      setEditCandidateId(null);
+    } else {
+      await createCandidate.mutateAsync({
+        admission_request_id: id,
+        nome: candidateForm.nome,
+        cpf: cpfDigits || null,
+        telefone: phoneDigits || null,
+        email: candidateForm.email || null,
+        cidade: candidateForm.cidade || null,
+      });
+    }
     setShowAddCandidate(false);
     setCandidateForm({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
+  };
+
+  const handleEditCandidate = (c: any) => {
+    setEditCandidateId(c.id);
+    setCandidateForm({
+      nome: c.nome || '',
+      cpf: c.cpf ? maskCPF(c.cpf) : '',
+      telefone: c.telefone ? maskPhone(c.telefone) : '',
+      email: c.email || '',
+      cidade: c.cidade || '',
+    });
+    setShowAddCandidate(true);
+  };
+
+  const handleDeleteCandidate = async (candidateId: string) => {
+    const { error } = await supabase.from('candidates').delete().eq('id', candidateId);
+    if (error) toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+    else {
+      qc.invalidateQueries({ queryKey: ['candidates', id] });
+      toast({ title: 'Candidato excluído' });
+    }
+    setShowDeleteConfirm(null);
   };
 
   const handleScheduleInterview = async (data: any) => {
