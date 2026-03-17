@@ -384,10 +384,27 @@ export default function AdmissionDetailPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-foreground">{c.nome}</p>
-                        <p className="text-xs text-muted-foreground">{c.telefone || c.email || '—'} {c.cidade && `· ${c.cidade}`}</p>
+                        <p className="text-xs text-muted-foreground">{c.cpf ? maskCPF(c.cpf) : ''} {c.telefone ? maskPhone(c.telefone) : c.email || '—'} {c.cidade && `· ${c.cidade}`}</p>
                       </div>
-                      <StatusBadge status={c.status_triagem} label={CANDIDATE_STATUS_LABELS[c.status_triagem] || c.status_triagem} />
+                      <div className="flex items-center gap-1">
+                        <StatusBadge status={c.status_triagem} label={CANDIDATE_STATUS_LABELS[c.status_triagem] || c.status_triagem} />
+                        <Button variant="ghost" size="sm" className="h-7 px-1.5" onClick={() => handleEditCandidate(c)}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 px-1.5 text-destructive" onClick={() => setShowDeleteConfirm(c.id)}>
+                          <XCircle className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
+                    {showDeleteConfirm === c.id && (
+                      <div className="mt-2 p-2 bg-destructive/10 rounded flex items-center justify-between">
+                        <span className="text-xs text-destructive">Confirmar exclusão?</span>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="destructive" className="h-6 text-xs" onClick={() => handleDeleteCandidate(c.id)}>Sim</Button>
+                          <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setShowDeleteConfirm(null)}>Não</Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
