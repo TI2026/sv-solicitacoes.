@@ -718,22 +718,42 @@ export default function AdmissionDetailPage() {
         </Card>
       )}
 
-      {/* Add candidate dialog */}
-      <Dialog open={showAddCandidate} onOpenChange={setShowAddCandidate}>
+      {/* Add/Edit candidate dialog */}
+      <Dialog open={showAddCandidate} onOpenChange={(open) => { if (!open) { setShowAddCandidate(false); setEditCandidateId(null); setCandidateForm({ nome: '', cpf: '', telefone: '', email: '', cidade: '' }); } }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Adicionar Candidato</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editCandidateId ? 'Editar Candidato' : 'Adicionar Candidato'}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5"><Label>Nome *</Label><Input value={candidateForm.nome} onChange={e => setCandidateForm(p => ({ ...p, nome: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label>CPF</Label><Input value={candidateForm.cpf} onChange={e => setCandidateForm(p => ({ ...p, cpf: e.target.value }))} /></div>
-              <div className="space-y-1.5"><Label>Telefone</Label><Input value={candidateForm.telefone} onChange={e => setCandidateForm(p => ({ ...p, telefone: e.target.value }))} /></div>
+              <div className="space-y-1.5">
+                <Label>CPF</Label>
+                <Input
+                  value={candidateForm.cpf}
+                  onChange={e => setCandidateForm(p => ({ ...p, cpf: maskCPF(e.target.value) }))}
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                />
+                {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Telefone</Label>
+                <Input
+                  value={candidateForm.telefone}
+                  onChange={e => setCandidateForm(p => ({ ...p, telefone: maskPhone(e.target.value) }))}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+              </div>
             </div>
             <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={candidateForm.email} onChange={e => setCandidateForm(p => ({ ...p, email: e.target.value }))} /></div>
             <div className="space-y-1.5"><Label>Cidade</Label><Input value={candidateForm.cidade} onChange={e => setCandidateForm(p => ({ ...p, cidade: e.target.value }))} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddCandidate(false)}>Cancelar</Button>
-            <Button onClick={handleAddCandidate} disabled={!candidateForm.nome}>Salvar</Button>
+            <Button variant="outline" onClick={() => { setShowAddCandidate(false); setEditCandidateId(null); }}>Cancelar</Button>
+            <Button onClick={handleAddCandidate} disabled={!candidateForm.nome || createCandidate.isPending || updateCandidate.isPending || !!cpfError}>
+              {(createCandidate.isPending || updateCandidate.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {editCandidateId ? 'Atualizar' : 'Salvar'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
