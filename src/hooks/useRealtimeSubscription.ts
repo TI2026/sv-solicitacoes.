@@ -31,7 +31,7 @@ export function useRealtimeSubscription({ channelName, tables, enabled = true }:
     let channel: RealtimeChannel = supabase.channel(channelName);
 
     for (const t of tables) {
-      channel = channel.on(
+      channel = (channel as any).on(
         'postgres_changes',
         {
           event: t.event || '*',
@@ -40,7 +40,6 @@ export function useRealtimeSubscription({ channelName, tables, enabled = true }:
           ...(t.filter ? { filter: t.filter } : {}),
         },
         () => {
-          // Invalidate all related query keys
           for (const key of t.queryKeys) {
             queryClient.invalidateQueries({ queryKey: key });
           }
