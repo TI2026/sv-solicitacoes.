@@ -70,6 +70,8 @@ export default function AdmissionDetailPage() {
   const isRH = hasAnyRole(['diretoria', 'rh', 'administrativo']);
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [candidateForm, setCandidateForm] = useState({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
+  const [editCandidateId, setEditCandidateId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [interviewCandidate, setInterviewCandidate] = useState<any | null>(null);
   const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({});
   const [linksGenerating, setLinksGenerating] = useState(false);
