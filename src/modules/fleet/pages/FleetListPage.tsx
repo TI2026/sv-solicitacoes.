@@ -214,15 +214,17 @@ export default function FleetListPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="diaria" className="space-y-3 mt-3">
-          <InfoCard title="Como funciona a Diária?">
-            <p>• Disponível apenas para Administração e Diretores</p>
-            <p>• Registre categoria, nome, horas e valor</p>
-            <p>• A diária pode ser editada ou encerrada</p>
-            <p>• Custos são somados por período no dashboard</p>
-          </InfoCard>
-          <RequestList requests={diariaData} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária registrada" canDelete={isAdmin} onDelete={setDeleteTarget} />
-        </TabsContent>
+        {canSeeDiaria && (
+          <TabsContent value="diaria" className="space-y-3 mt-3">
+            <InfoCard title="Como funciona a Diária?">
+              <p>• Disponível apenas para Administração e Diretores</p>
+              <p>• Registre categoria, nome, horas e valor</p>
+              <p>• A diária pode ser editada ou encerrada</p>
+              <p>• Custos são somados por período no dashboard</p>
+            </InfoCard>
+            <RequestList requests={diariaData} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária registrada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Delete confirmation dialog */}
