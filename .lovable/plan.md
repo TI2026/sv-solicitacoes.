@@ -1,151 +1,252 @@
+# Corrected Implementation Plan — Surgical Corrections & Hardening
 
+## Critical Schema Facts (from inspection)
 
-# Plan: Surgical Corrections and Hardening (7 Blocks)
-
-## Summary
-
-This plan addresses 7 targeted corrections across the existing system: approval chain dynamic types, master visibility, dashboard improvements, hiding Diária for colaborador, exam step 4 fix, profile photo resize, and route-level security hardening. All changes are incremental, non-destructive, and limited to the files specified.
-
----
-
-## Block 1: Approval Chains Tab — Dynamic Approver Types
-
-**Files:** `ApprovalChainsTab.tsx`, `usePermissionsData.ts`
-
-**Current problem:** The `StepDraft` interface only has `approverUserId` + `stepOrder`. The DB table `approval_flow_steps` already has `approver_type`, `fixed_sector_id` columns, but the frontend ignores them.
-
-**Changes in `usePermissionsData.ts`:**
-- Update `useSaveApprovalFlow` mutation params to accept new `StepDraft` shape: `{ stepOrder, approverType, fixedUserId, fixedSectorId }`
-- On insert, write `approver_type`, `approver_user_id` (set to `fixedUserId` for `usuario_fixo`, or a placeholder UUID for dynamic types since column is NOT NULL), `fixed_sector_id`
-- Add `useSectors()` hook (simple query on `sectors` table, active only)
-
-**Changes in `ApprovalChainsTab.tsx`:**
-- Replace `StepDraft` interface with: `{ stepOrder, approverType, fixedUserId, fixedSectorId }`
-- On load (`openEditFlow`): map existing steps with fallback — if `approver_type` is null, assume `usuario_fixo`; if `fixed_user_id` is null but `approver_user_id` exists, use it as `fixedUserId`
-- Each step row renders:
-  - Select for `approverType` (5 options with labels from `approvalLabels.ts`)
-  - Conditionally: user select (for `usuario_fixo`), sector select (for `responsavel_do_setor_especifico`), or helper text (for the 3 automatic rules)
-- Validation: block save if `usuario_fixo` without user, or `responsavel_do_setor_especifico` without sector
-- Display in flow summary: Badge showing `[Type Label] User/Sector` per step
-
-**Note on `approver_user_id` NOT NULL constraint:** The column `approver_user_id` on `approval_flow_steps` is NOT NULL. For dynamic types (non-fixed user), we'll need a DB migration to make it nullable, OR we store the `created_by` user as a placeholder. Migration approach is cleaner — we'll add a migration to `ALTER TABLE approval_flow_steps ALTER COLUMN approver_user_id DROP NOT NULL`.
+1. **`approval_flow_steps`** has: `approver_user_id` (NOT NULL), `approver_type` (NOT NULL, default `'usuario_fixo'`), `fixed_sector_id` (nullable). There is **NO `fixed_user_id` column** — `approver_user_id` serves this role for `usuario_fixo`.
+2. **RPCs `start_approval_flow` and `process_approval_action`** both use `approver_user_id` directly for runtime resolution. Dynamic approver types are **NOT yet supported at runtime**.
+3. **Storage buckets**: `fleet` and `admissions` are both **private**. No public `avatars` bucket exists.
+4. **`/permissoes`** route is accessible to all users — the page itself gates admin tabs via `isAdmin`, keeping "Minhas Aprovações" visible to everyone.
 
 ---
 
-## Block 2: Master Visibility & Permissions
+## Block 1 — Approval Chains: Dynamic Approver Configuration
 
-**Files:** `AuthContext.tsx` (no change needed — master detection already via `useIsMaster` in DashboardPage), `AppLayout.tsx`, `PermissionsPage.tsx`
+### Problem
+The UI only supports `usuario_fixo` (1 step = 1 fixed user). The DB already has `approver_type` and `fixed_sector_id` columns, but:
+- The UI ignores them
+- The RPCs (`start_approval_flow`, `process_approval_action`) still resolve approvers exclusively via `approver_user_id`
 
-**Changes:**
-- Create a small reusable hook `src/hooks/useIsMaster.ts` extracting the logic already in `DashboardPage.tsx` (query `user_role_assignments` joined with `roles.is_master`)
-- In `PermissionsPage.tsx`: use `useIsMaster()` alongside `hasAnyRole(['diretoria'])` — show admin tabs if either is true
-- In `AppLayout.tsx`: restrict "Auditoria", "Setores", "Permissões" nav items to `canManage` OR `isMaster` (currently Permissões shows for everyone — restrict admin tabs within the page, but keep menu visible for "Minhas Aprovações")
+### Architecture Decision
+**Phase 1 (this implementation):** Update the UI to read/write `approver_type` and `fixed_sector_id`. For `usuario_fixo`, continue using `approver_user_id` as the fixed user ID. For dynamic types, store the `approver_type` and `fixed_sector_id` but **leave `approver_user_id` populated** with a sensible fallback (the flow creator's ID) — this preserves the NOT NULL constraint and keeps legacy RPCs functional until Phase 2.
+
+**Phase 2 (future, NOT this implementation):** Update the backend RPCs to resolve dynamic approvers at runtime based on `approver_type`. This requires updating `start_approval_flow` to look up sector responsibles / managers dynamically.
+
+### Honest Limitation
+Until Phase 2, dynamic approver types are **configuration-only** — the UI will store the intent, but runtime execution still falls back to `approver_user_id`. The UI must clearly communicate this: display a warning badge on dynamic steps saying "Resolução automática pendente de ativação no backend".
+
+### Changes
+
+**`usePermissionsData.ts`:**
+- Add `useSectors()` hook (query `sectors` table, active only)
+- Update `useSaveApprovalFlow` mutation params to accept `StepDraft` with `{ stepOrder, approverType, fixedUserId, fixedSectorId }`
+- On insert: write `approver_type`, `approver_user_id` (= `fixedUserId` for `usuario_fixo`, or `createdBy` as fallback for dynamic types), `fixed_sector_id`
+- Query in `useApprovalFlows` already returns `approval_flow_steps(*)` — ensure `approver_type` and `fixed_sector_id` are included (they are, via `*`)
+
+**`ApprovalChainsTab.tsx`:**
+- Replace `StepDraft` interface:
+  ```ts
+  interface StepDraft {
+    stepOrder: number;
+    approverType: 'usuario_fixo' | 'diretor_do_setor_do_solicitante' | 'diretor_do_setor_do_colaborador_relacionado' | 'responsavel_do_setor_especifico' | 'gestor_imediato';
+    fixedUserId: string | null;
+    fixedSectorId: string | null;
+  }
+  ```
+- On load (`openEditFlow`): map existing steps with fallback:
+  - If `approver_type` is `'usuario_fixo'` (or missing/null), use `approver_user_id` as `fixedUserId`
+  - `fixedSectorId` from `fixed_sector_id`
+- Conditional rendering per `approverType`:
+  - `usuario_fixo` → user select
+  - `responsavel_do_setor_especifico` → sector select
+  - Others → helper text explaining automatic resolution
+- Badge on dynamic steps: `⚠️ Resolução automática (pendente ativação backend)`
+- Validation: block `usuario_fixo` without user, `responsavel_do_setor_especifico` without sector
+- Display in flow summary: `[Type Label] User/Sector`
+
+### Files Changed
+- `src/modules/permissions/hooks/usePermissionsData.ts`
+- `src/modules/permissions/components/ApprovalChainsTab.ts`
+
+### No DB Migration Needed
+`approver_type` (NOT NULL, default `'usuario_fixo'`) and `fixed_sector_id` (nullable) already exist. `approver_user_id` stays NOT NULL.
 
 ---
 
-## Block 3: Dashboard — Master vs Non-Master
+## Block 2 — Master Visibility & Permissions
 
-**File:** `DashboardPage.tsx`
+### Problem
+Master detection uses `useIsMaster()` in `DashboardPage.tsx` but isn't reusable. Admin tabs in `PermissionsPage.tsx` only check `hasAnyRole(['diretoria'])`, missing master users who may not have the `diretoria` app_role.
 
-**Current state:** Already has `useIsMaster()` hook and `canSeeFinancials` flag. Queries load all data for everyone.
+### Changes
 
-**Changes:**
-- For non-admin/non-master users: scope `fuel_requests` query to `requester_user_id = user.id` (RLS already does this, but we make the intent explicit)
-- Remove the `admData` query entirely for non-RH users (already gated by `enabled: isRH`, good)
-- For non-master: hide charts (byType, byStatus financial charts) — keep only count-based metrics
-- Add a "Master" section at top when `isMaster`: quick stats row with total users count, pending approvals count, and a link to admin areas
-- Keep existing structure, just conditionally render more for master
+**New file `src/hooks/useIsMaster.ts`:**
+- Extract the `useIsMaster()` hook from `DashboardPage.tsx` into a reusable hook
+- Query `user_role_assignments` joined with `roles(is_master)` for current user
+
+**`DashboardPage.tsx`:**
+- Import from `src/hooks/useIsMaster.ts` instead of inline definition
+
+**`PermissionsPage.tsx`:**
+- Import `useIsMaster`
+- Show admin tabs if `isAdmin || isMaster`
+
+**`AppLayout.tsx`:**
+- No change needed — Permissões nav item already shows for everyone (line 29: `show: true`), which is correct since "Minhas Aprovações" is accessible to all
+
+### Files Changed
+- `src/hooks/useIsMaster.ts` (NEW)
+- `src/pages/DashboardPage.tsx`
+- `src/pages/PermissionsPage.tsx`
 
 ---
 
-## Block 4: Hide Diária Tab for Colaborador
+## Block 3 — Dashboard Master vs Non-Master
 
-**File:** `FleetListPage.tsx`, `FleetNewPage.tsx`
+### Problem
+Dashboard loads all `fuel_requests` for everyone (RLS scopes it, but the intent should be explicit). Financial values are masked for non-master but data is still fetched. No differentiated master view.
 
-**Changes in `FleetListPage.tsx`:**
+### Changes
+
+**`DashboardPage.tsx`:**
+- For non-admin users: the query already respects RLS (returns only own requests), so data scope is correct server-side. No query change needed for security.
+- For non-master users: hide financial charts (`byType` value chart, salary totals). Keep count-based metrics only.
+- For master users: add a small "Admin Quick Stats" row at top of overview:
+  - Total active users count (query `profiles` count)
+  - Pending approvals count (query `approval_requests` where `status LIKE 'awaiting%'`)
+  - Quick links to `/permissoes`, `/setores`, `/auditoria`
+- Users online section for master only (see Block 2 addendum below)
+
+### Users Online for Master
+- Use Supabase Realtime Presence on a dedicated channel (`system:presence`)
+- Each authenticated user tracks presence in `AppLayout.tsx` on mount
+- Only master dashboard renders and reads the presence state
+- Non-master users still track (so master can see them), but never read/display the list
+- No persistent table needed — purely ephemeral Realtime Presence
+- Implementation:
+  - In `AppLayout.tsx`: join presence channel on mount, track `{ user_id, full_name }`, untrack on unmount
+  - In `DashboardPage.tsx` (master only): subscribe to presence state, render online user count + list
+
+### Files Changed
+- `src/pages/DashboardPage.tsx`
+- `src/components/AppLayout.tsx` (add presence tracking)
+
+---
+
+## Block 4 — Hide Diária for Colaborador
+
+### Problem
+The "Diária" tab appears in `FleetListPage.tsx` for all users. Colaborador can also navigate to `/fleet/new?type=diaria` directly.
+
+### Changes
+
+**`FleetListPage.tsx`:**
 - Add `const canSeeDiaria = hasAnyRole(['diretoria', 'administrativo']);`
-- Wrap the `<TabsTrigger value="diaria">` and `<TabsContent value="diaria">` in `{canSeeDiaria && ...}`
-- If `activeTab === 'diaria'` and `!canSeeDiaria`, force `activeTab` to `'abastecimento'`
-- Hide "Nova" button when `activeTab === 'diaria' && !canCreateDiaria` (already partially done)
+- Wrap `<TabsTrigger value="diaria">` in `{canSeeDiaria && ...}`
+- Wrap `<TabsContent value="diaria">` in `{canSeeDiaria && ...}`
+- If `activeTab === 'diaria' && !canSeeDiaria`, force to `'abastecimento'`
+- Conditionally load diária query: `enabled: !!user && canSeeDiaria` on `useFuelRequests(user?.id, isAdmin, 'diaria')`
+- Adjust TabsList `gridTemplateColumns` or `w-full` styling to account for 2 vs 3 tabs
 
-**Changes in `FleetNewPage.tsx`:**
-- If `initialType === 'diaria'` and user doesn't have `['diretoria', 'administrativo']`, redirect to `/fleet/new?type=abastecimento` or navigate away
-- Add a guard at top of component
+**`FleetNewPage.tsx`:**
+- At top of component: if `initialType === 'diaria' && !hasAnyRole(['diretoria', 'administrativo'])`, redirect to `/fleet/new?type=abastecimento`
 
----
-
-## Block 5: Exam Step 4 — Visual Separation & Fix
-
-**File:** `AdmissionDetailPage.tsx` (ExamSection component, lines ~893-1071)
-
-**Current state:** The ExamSection already works with subparts (schedule → result → attachment → advance), but the `ExamAttachmentUpload` appears always (even before result is registered), and the visual separation is poor.
-
-**Changes:**
-- Only render `<ExamAttachmentUpload>` when `examResolved` is true (after result is registered) — this implements the "show attachment only after result" requirement
-- Add clear visual section headers:
-  - "A — Agendamento" (when no exam exists)
-  - "B — Resultado" (after exam is past)
-  - "C — Anexo do Exame" (after result registered)
-  - "D — Avançar" (always visible but disabled when not ready, with reason text)
-- Always show the advance button area but with clear disabled state and reason text (e.g., "Registre o resultado do exame" or "Anexe o exame admissional")
-- The `ExamAttachmentUpload` component itself is fine — the query invalidation already works. The issue is likely that `useAdmissionFiles` data doesn't refresh immediately. Add explicit `await qc.refetchQueries({ queryKey: ['admission_files', admissionId, 'EXAM'] })` after the insert in `ExamAttachmentUpload.tsx` to guarantee immediate state update.
+### Files Changed
+- `src/modules/fleet/pages/FleetListPage.tsx`
+- `src/modules/fleet/pages/FleetNewPage.tsx`
 
 ---
 
-## Block 6: Profile Photo with Client-Side Resize
+## Block 5 — Exam Step 4 Visual Separation & Fix
 
-**File:** `ProfilePage.tsx`
+### Problem
+The `ExamSection` component shows the attachment upload (`ExamAttachmentUpload`) immediately after exam creation, even before the result is registered. Visual separation between subparts is poor. The advance button only appears when all conditions are met but doesn't explain why it's missing.
 
-**Current problem:** Uploads raw file to `fleet` bucket (which is private), then calls `getPublicUrl()` — but the bucket is NOT public, so the URL won't work. Also no resize.
+### Changes
 
-**Changes:**
-- Create inline `resizeImage()` helper using Canvas API: max 512x512, JPEG 0.85 quality, returns Blob
+**`AdmissionDetailPage.tsx` (ExamSection, lines ~893-1071):**
+- Add visual section headers:
+  - **A — Agendamento** (when no exam exists)
+  - **B — Resultado do Exame** (after exam is scheduled and past)
+  - **C — Anexo do Exame** (only render `ExamAttachmentUpload` when `examResolved` is true)
+  - **D — Avançar** (always visible area with disabled state + reason text)
+- Always show the advance area but with clear disabled state and reason:
+  - If `!examResolved`: "Registre o resultado do exame"
+  - If `examResolved && !hasExamAttachment`: "Anexe o exame admissional"
+  - If `canAdvance`: active button
+- Move `ExamAttachmentUpload` render from line 1021 to inside `{examResolved && (...)}` block
+
+**`ExamAttachmentUpload.tsx`:**
+- After successful upload, add explicit refetch: `await qc.refetchQueries({ queryKey: ['admission_files', admissionId, 'EXAM'] })`
+- This is already mostly done (lines 67-68) but ensure `refetchQueries` (not just `invalidateQueries`) for immediate UI update
+
+### Files Changed
+- `src/modules/admissions/pages/AdmissionDetailPage.tsx`
+- `src/modules/admissions/components/ExamAttachmentUpload.tsx`
+
+---
+
+## Block 6 — Profile Photo with Client-Side Resize
+
+### Problem
+Avatar uploads go to `fleet` bucket (private), then calls `getPublicUrl()` which returns a non-functional URL since the bucket isn't public.
+
+### Chosen Strategy: Create public `avatars` bucket + client-side resize
+
+**DB Migration:**
+- Create public `avatars` storage bucket
+- Add RLS policy: authenticated users can upload/update/delete their own avatars (`(bucket_id = 'avatars') AND (auth.uid()::text = (storage.foldername(name))[1])`)
+
+**`ProfilePage.tsx`:**
+- Add inline `resizeImage()` helper using Canvas API: max 512×512, JPEG quality 0.85, returns Blob
 - Before upload: resize the image
-- Fix bucket issue: either use `admissions` bucket or create a proper public `avatars` bucket via migration. Since we can't modify storage schema, we'll use signed URLs instead of public URLs — change `getPublicUrl` to `createSignedUrl` with long expiry, or upload with `upsert: true` and use a signed URL approach.
-- Actually, simpler fix: upload to `fleet` bucket (already exists), but use `createSignedUrl()` for the avatar URL and store the path (not public URL) in `avatar_url`. Then in `AppLayout`/`ProfilePage`, resolve it to a signed URL. BUT this would require changing how avatar is displayed everywhere.
-- **Simplest approach:** Create a public `avatars` bucket via SQL migration. Upload resized image there. Use `getPublicUrl()`.
-- Add cache-busting `?t=timestamp` to avatar URL (already done)
+- Upload to `avatars` bucket (public) instead of `fleet`
+- Use `getPublicUrl()` from `avatars` bucket (works because bucket is public)
+- Path: `avatars/{user.id}/avatar.jpg` (always overwrite)
+- Cache-busting: append `?t=timestamp` to URL
+- Update `profiles.avatar_url` with the public URL
+
+### Files Changed
+- `src/pages/ProfilePage.tsx`
+- DB migration (create `avatars` bucket + RLS)
 
 ---
 
-## Block 7: Route-Level Security Hardening
+## Block 7 — Route Security Hardening
 
-**File:** `App.tsx`
+### Problem
+`ProtectedRoute` only checks authentication. Sensitive routes like `/auditoria`, `/setores`, `/admin/maintenance` have no role-based route guard.
 
-**Changes:**
+### Changes
+
+**`App.tsx`:**
 - Import `RoleGuard` from `src/lib/roleGuard.tsx`
-- Wrap sensitive routes with `RoleGuard`:
-  - `/auditoria` → `roles={['diretoria', 'administrativo']}`
-  - `/setores` → `roles={['diretoria']}`
-  - `/admin/maintenance` → `roles={['diretoria']}`
-- `/permissoes` stays accessible (has its own tab-level gating via `isAdmin`)
-- In `FleetNewPage.tsx`: add guard for `diaria` type
+- Wrap sensitive routes:
+  - `/auditoria` → `<RoleGuard roles={['diretoria', 'administrativo']}>`
+  - `/setores` → `<RoleGuard roles={['diretoria']}>`
+  - `/admin/maintenance` → `<RoleGuard roles={['diretoria']}>`
+- **DO NOT** wrap `/permissoes` — it must remain accessible for "Minhas Aprovações"
+- `/configuracoes` stays accessible to all (profile-level settings)
+
+**`FleetNewPage.tsx`:**
+- Guard already added in Block 4
+
+### Files Changed
+- `src/App.tsx`
 
 ---
 
-## Database Migration Required
-
-One migration with:
-1. `ALTER TABLE approval_flow_steps ALTER COLUMN approver_user_id DROP NOT NULL;` — allow null for dynamic approver types
-2. Create public `avatars` storage bucket with appropriate RLS
-
----
-
-## Files Changed Summary
+## Summary of All Files Changed
 
 | File | Change |
 |------|--------|
-| `src/hooks/useIsMaster.ts` | **NEW** — reusable hook |
-| `src/modules/permissions/hooks/usePermissionsData.ts` | Add `useSectors`, update `useSaveApprovalFlow` params |
-| `src/modules/permissions/components/ApprovalChainsTab.tsx` | Full rewrite of step editing UI for dynamic types |
-| `src/pages/PermissionsPage.tsx` | Use `useIsMaster` for tab visibility |
-| `src/pages/DashboardPage.tsx` | Conditional rendering for master, scope queries |
-| `src/modules/fleet/pages/FleetListPage.tsx` | Hide Diária tab for colaborador |
-| `src/modules/fleet/pages/FleetNewPage.tsx` | Guard against diaria creation by URL |
-| `src/modules/admissions/pages/AdmissionDetailPage.tsx` | ExamSection visual separation, conditional attachment render |
-| `src/modules/admissions/components/ExamAttachmentUpload.tsx` | Add `refetchQueries` after upload |
-| `src/pages/ProfilePage.tsx` | Add canvas resize, fix bucket usage |
-| `src/App.tsx` | Add `RoleGuard` to sensitive routes |
-| `src/components/AppLayout.tsx` | Minor nav visibility adjustments |
-| Migration SQL | `approver_user_id` nullable + `avatars` bucket |
+| `src/hooks/useIsMaster.ts` | **NEW** — reusable hook for master detection |
+| `src/modules/permissions/hooks/usePermissionsData.ts` | Add `useSectors()`, update `useSaveApprovalFlow` for dynamic step types |
+| `src/modules/permissions/components/ApprovalChainsTab.tsx` | Dynamic approver type UI with conditional fields, validation, legacy fallback |
+| `src/pages/PermissionsPage.tsx` | Use `useIsMaster` alongside `hasAnyRole` for tab visibility |
+| `src/pages/DashboardPage.tsx` | Extract `useIsMaster`, master quick stats, presence display, hide financials for non-master |
+| `src/components/AppLayout.tsx` | Add Supabase Realtime Presence tracking on mount |
+| `src/modules/fleet/pages/FleetListPage.tsx` | Hide Diária tab/content/query for colaborador |
+| `src/modules/fleet/pages/FleetNewPage.tsx` | Guard against diária creation by URL for unauthorized users |
+| `src/modules/admissions/pages/AdmissionDetailPage.tsx` | ExamSection visual separation, conditional attachment render, always-visible advance area |
+| `src/modules/admissions/components/ExamAttachmentUpload.tsx` | Add `refetchQueries` after upload for immediate state update |
+| `src/pages/ProfilePage.tsx` | Canvas resize, upload to public `avatars` bucket, fix URL strategy |
+| `src/App.tsx` | Add `RoleGuard` to `/auditoria`, `/setores`, `/admin/maintenance` |
+| DB migration | Create public `avatars` storage bucket with user-scoped RLS |
 
+## What This Plan Does NOT Do (by design)
+- Does NOT make `approver_user_id` nullable (RPCs depend on it)
+- Does NOT store placeholder/fake UUIDs for dynamic approvers (stores flow creator's ID as documented fallback)
+- Does NOT update backend RPCs for dynamic resolution (Phase 2)
+- Does NOT block `/permissoes` route (keeps "Minhas Aprovações" accessible)
+- Does NOT recreate any module or page
+- Does NOT remove any existing functionality
