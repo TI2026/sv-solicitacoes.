@@ -94,17 +94,23 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
 export default function FleetListPage() {
   const { user, hasAnyRole } = useAuth();
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
+  const canSeeDiaria = hasAnyRole(['diretoria', 'administrativo']);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('abastecimento');
   const [subFilter, setSubFilter] = useState<'pendentes' | 'negados'>('pendentes');
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const softDelete = useSoftDeleteRequest();
 
+  // If activeTab is diaria but user can't see it, force to abastecimento
+  if (activeTab === 'diaria' && !canSeeDiaria) {
+    setActiveTab('abastecimento');
+  }
+
   // Pending queries
   const { data: abastPending, isLoading: abastPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'abastecimento');
   const { data: reembolsoPending, isLoading: reembolsoPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'reembolso');
-  // Diaria: show all (not filtered by pending)
-  const { data: diariaData, isLoading: diariaLoading } = useFuelRequests(user?.id, isAdmin, 'diaria');
+  // Diaria: only load if user can see it
+  const { data: diariaData, isLoading: diariaLoading } = useFuelRequests(canSeeDiaria ? user?.id : undefined, canSeeDiaria ? isAdmin : false, canSeeDiaria ? 'diaria' : undefined);
 
   // Rejected queries
   const { data: abastRejected, isLoading: abastRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'abastecimento');
@@ -116,7 +122,7 @@ export default function FleetListPage() {
     tables: [{ table: 'fuel_requests', queryKeys: [['fuel_requests'], ['fuel_requests_pending'], ['fuel_requests_rejected'], ['fuel_requests_completed'], ['fuel_metrics']] }],
   });
 
-  const canCreateDiaria = hasAnyRole(['diretoria', 'administrativo']);
+  const canCreateDiaria = canSeeDiaria;
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -149,9 +155,11 @@ export default function FleetListPage() {
           <TabsTrigger value="reembolso" className="gap-1.5">
             <Receipt className="w-3.5 h-3.5" /> Reembolso
           </TabsTrigger>
-          <TabsTrigger value="diaria" className="gap-1.5">
-            <Briefcase className="w-3.5 h-3.5" /> Diária
-          </TabsTrigger>
+          {canSeeDiaria && (
+            <TabsTrigger value="diaria" className="gap-1.5">
+              <Briefcase className="w-3.5 h-3.5" /> Diária
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="abastecimento" className="space-y-3 mt-3">
@@ -206,15 +214,17 @@ export default function FleetListPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="diaria" className="space-y-3 mt-3">
-          <InfoCard title="Como funciona a Diária?">
-            <p>• Disponível apenas para Administração e Diretores</p>
-            <p>• Registre categoria, nome, horas e valor</p>
-            <p>• A diária pode ser editada ou encerrada</p>
-            <p>• Custos são somados por período no dashboard</p>
-          </InfoCard>
-          <RequestList requests={diariaData} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária registrada" canDelete={isAdmin} onDelete={setDeleteTarget} />
-        </TabsContent>
+        {canSeeDiaria && (
+          <TabsContent value="diaria" className="space-y-3 mt-3">
+            <InfoCard title="Como funciona a Diária?">
+              <p>• Disponível apenas para Administração e Diretores</p>
+              <p>• Registre categoria, nome, horas e valor</p>
+              <p>• A diária pode ser editada ou encerrada</p>
+              <p>• Custos são somados por período no dashboard</p>
+            </InfoCard>
+            <RequestList requests={diariaData} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária registrada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Delete confirmation dialog */}

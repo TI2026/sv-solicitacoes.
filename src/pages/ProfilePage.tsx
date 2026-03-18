@@ -10,6 +10,34 @@ import { Label } from '@/components/ui/label';
 import { User, Shield, Camera, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+/** Resize image to max dimensions using Canvas, returns JPEG blob */
+async function resizeImage(file: File, maxSize = 512): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width;
+      let h = img.height;
+      // Crop to square (center crop)
+      const min = Math.min(w, h);
+      const sx = (w - min) / 2;
+      const sy = (h - min) / 2;
+      canvas.width = maxSize;
+      canvas.height = maxSize;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('Canvas not supported')); return; }
+      ctx.drawImage(img, sx, sy, min, min, 0, 0, maxSize, maxSize);
+      canvas.toBlob(
+        blob => blob ? resolve(blob) : reject(new Error('Falha ao comprimir imagem')),
+        'image/jpeg',
+        0.85
+      );
+    };
+    img.onerror = () => reject(new Error('Erro ao carregar imagem'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export default function ProfilePage() {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
@@ -44,20 +72,29 @@ export default function ProfilePage() {
     }
     setUploadingAvatar(true);
     try {
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `avatars/${user.id}.${ext}`;
+      // Resize to 512x512 JPEG before upload
+      const resized = await resizeImage(file, 512);
+      const path = `${user.id}/avatar.jpg`;
+
       // Remove old avatar if exists
-      await supabase.storage.from('fleet').remove([path]);
-      const { error: uploadError } = await supabase.storage.from('fleet').upload(path, file, { upsert: true });
+      await supabase.storage.from('avatars').remove([path]);
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, resized, {
+        upsert: true,
+        contentType: 'image/jpeg',
+      });
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from('fleet').getPublicUrl(path);
+
+      // Get public URL from the public avatars bucket
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       const avatarUrl = urlData.publicUrl + '?t=' + Date.now();
+
       const { error: updateError } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', user.id);
       if (updateError) throw updateError;
+
       toast({ title: 'Foto atualizada!' });
       await refreshProfile();
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro ao enviar foto', description: err.message, variant: 'destructive' });
     }
     setUploadingAvatar(false);
   };

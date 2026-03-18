@@ -985,13 +985,22 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
   const canAdvance = examResolved && isExamPast && hasExamAttachment;
 
   return (
-    <div className="border border-border rounded-lg p-3 space-y-2">
+    <div className="border border-border rounded-lg p-3 space-y-3">
       <p className="text-sm font-medium">{candidateName}</p>
       {exam ? (
-        <div className="space-y-2">
-          <div className="text-xs text-muted-foreground space-y-0.5">
-            <p>Clínica: {(exam as any).clinic_name || (exam as any).clinics?.nome || '—'}</p>
-            <p>Data: {formatDateTimeBR(exam.scheduled_at)}</p>
+        <div className="space-y-3">
+          {/* Sub-step A: Agendamento (info) */}
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">A — Agendamento</p>
+            <div className="text-xs text-muted-foreground space-y-0.5">
+              <p>Clínica: {(exam as any).clinic_name || (exam as any).clinics?.nome || '—'}</p>
+              <p>Data: {formatDateTimeBR(exam.scheduled_at)}</p>
+            </div>
+          </div>
+
+          {/* Sub-step B: Resultado */}
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">B — Resultado</p>
             <StatusBadge status={exam.status} label={EXAM_STATUS_LABELS[exam.status] || exam.status} />
             {exam.status === 'aguardando' && !isExamPast && (
               <div className="mt-1 space-y-0.5">
@@ -1004,36 +1013,58 @@ function ExamSection({ candidateId, candidateName, admissionId, currentStatus, o
               </div>
             )}
             {isExamPast && exam.status === 'aguardando' && (
-              <p className="flex items-center gap-1 text-xs text-primary font-medium mt-1">
-                <CheckCircle className="w-3 h-3" /> Liberado — registre o resultado
-              </p>
+              <>
+                <p className="flex items-center gap-1 text-xs text-primary font-medium mt-1">
+                  <CheckCircle className="w-3 h-3" /> Liberado — registre o resultado
+                </p>
+                <div className="flex gap-2 flex-wrap mt-1">
+                  <Button size="sm" onClick={() => handleExamResult('apto')} className="gap-1"><CheckCircle className="w-3 h-3" /> Apto</Button>
+                  <Button size="sm" variant="outline" onClick={() => handleExamResult('apto_com_restricao')}>Apto c/ Restrição</Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleExamResult('inapto')}>Inapto</Button>
+                </div>
+              </>
             )}
           </div>
-          {exam.status === 'aguardando' && isExamPast && (
-            <div className="flex gap-2 flex-wrap">
-              <Button size="sm" onClick={() => handleExamResult('apto')} className="gap-1"><CheckCircle className="w-3 h-3" /> Apto</Button>
-              <Button size="sm" variant="outline" onClick={() => handleExamResult('apto_com_restricao')}>Apto c/ Restrição</Button>
-              <Button size="sm" variant="destructive" onClick={() => handleExamResult('inapto')}>Inapto</Button>
+
+          {/* Sub-step C: Anexo do Exame — only after result is registered */}
+          {examResolved && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">C — Anexo do Exame</p>
+              <ExamAttachmentUpload admissionId={admissionId} candidateId={candidateId} />
             </div>
           )}
 
-          {/* Exam Attachment Upload */}
-          <ExamAttachmentUpload admissionId={admissionId} candidateId={candidateId} />
-
-          {examResolved && isExamPast && !hasExamAttachment && (
-            <p className="text-xs text-destructive flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" /> É obrigatório anexar o exame admissional antes de avançar.
-            </p>
-          )}
-
-          {canAdvance && (
-            <Button onClick={onAdvance} className="gap-2 w-full" size="sm">
+          {/* Sub-step D: Avanço — always visible when exam exists */}
+          <div className="space-y-1 pt-2 border-t border-border">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">D — Avançar</p>
+            {!isExamPast && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Aguarde a data/hora do exame para prosseguir.
+              </p>
+            )}
+            {isExamPast && !examResolved && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-destructive" /> Registre o resultado do exame antes de avançar.
+              </p>
+            )}
+            {examResolved && !hasExamAttachment && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" /> Anexe o exame admissional antes de avançar.
+              </p>
+            )}
+            <Button
+              onClick={onAdvance}
+              disabled={!canAdvance}
+              className="gap-2 w-full"
+              size="sm"
+            >
               <CheckCircle className="w-4 h-4" /> Avançar para Assinatura
             </Button>
-          )}
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">A — Agendar Exame</p>
           <div className="space-y-1.5">
             <Label className="text-xs">Nome da clínica *</Label>
             <DynamicCategorySelect
