@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,6 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [files, setFiles] = useState<any[]>([]);
-  const [loaded, setLoaded] = useState(false);
 
   const loadFiles = useCallback(async () => {
     const { data } = await supabase
@@ -28,13 +27,15 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
       .eq('link_type', 'EXAM')
       .order('created_at', { ascending: false });
     setFiles(data || []);
-    setLoaded(true);
   }, [admissionId, candidateId]);
 
-  if (!loaded) loadFiles();
+  // Load files on mount and when ids change — no side effect in render
+  useEffect(() => {
+    loadFiles();
+  }, [loadFiles]);
 
   const handleUpload = async (file: File) => {
-    if (uploading) return; // prevent double submit
+    if (uploading) return;
     const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowed.includes(file.type)) {
       toast({ title: 'Tipo de arquivo não permitido', description: 'Aceitos: PDF, JPG, JPEG, PNG', variant: 'destructive' });
@@ -48,25 +49,37 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
     const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = `exam/${admissionId}/${candidateId}/${Date.now()}-${sanitized}`;
 
-    const { error } = await supabase.storage.from('admissions').upload(path, file);
-    if (error) {
-      toast({ title: 'Erro no upload', description: error.message, variant: 'destructive' });
-    } else {
-      await supabase.from('admission_files').insert({
-        admission_request_id: admissionId,
-        candidate_id: candidateId,
-        file_type: 'EXAME_ADICIONAL',
-        storage_path: path,
-        original_filename: sanitized,
-        uploaded_by: 'ADMIN',
-        link_type: 'EXAM',
-      } as any);
-      toast({ title: 'Exame anexado com sucesso!' });
-      await loadFiles();
-      // Invalidate ALL matching query keys so parent ExamSection sees the new file
-      qc.invalidateQueries({ queryKey: ['admission_files', admissionId] });
-      qc.invalidateQueries({ queryKey: ['admission_files', admissionId, 'EXAM'] });
+    const { error: uploadError } = await supabase.storage.from('admissions').upload(path, file);
+    if (uploadError) {
+      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' });
+      setUploading(false);
+      return;
     }
+
+    // Insert record in admission_files
+    const { error: insertError } = await supabase.from('admission_files').insert({
+      admission_request_id: admissionId,
+      candidate_id: candidateId,
+      file_type: 'EXAME_ADMISSIONAL',
+      storage_path: path,
+      original_filename: sanitized,
+      uploaded_by: 'ADMIN',
+      link_type: 'EXAM',
+    } as any);
+
+    if (insertError) {
+      // Rollback: remove orphan file from storage
+      await supabase.storage.from('admissions').remove([path]);
+      toast({ title: 'Erro ao registrar arquivo', description: insertError.message, variant: 'destructive' });
+      setUploading(false);
+      return;
+    }
+
+    toast({ title: 'Exame anexado com sucesso!' });
+    await loadFiles();
+    // Invalidate queries so parent ExamSection sees the new file immediately
+    await qc.refetchQueries({ queryKey: ['admission_files', admissionId, 'EXAM'] });
+    qc.invalidateQueries({ queryKey: ['admission_files', admissionId] });
     setUploading(false);
   };
 
@@ -78,7 +91,7 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
   return (
     <div className="space-y-2 pt-2 border-t border-border mt-2">
       <Label className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
-        <Upload className="w-3 h-3" /> Exame Adicional (Anexo)
+        <Upload className="w-3 h-3" /> Anexo do Exame Admissional
       </Label>
 
       {files.length > 0 && (
