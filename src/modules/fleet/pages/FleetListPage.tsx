@@ -94,17 +94,23 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
 export default function FleetListPage() {
   const { user, hasAnyRole } = useAuth();
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
+  const canSeeDiaria = hasAnyRole(['diretoria', 'administrativo']);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('abastecimento');
   const [subFilter, setSubFilter] = useState<'pendentes' | 'negados'>('pendentes');
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const softDelete = useSoftDeleteRequest();
 
+  // If activeTab is diaria but user can't see it, force to abastecimento
+  if (activeTab === 'diaria' && !canSeeDiaria) {
+    setActiveTab('abastecimento');
+  }
+
   // Pending queries
   const { data: abastPending, isLoading: abastPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'abastecimento');
   const { data: reembolsoPending, isLoading: reembolsoPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'reembolso');
-  // Diaria: show all (not filtered by pending)
-  const { data: diariaData, isLoading: diariaLoading } = useFuelRequests(user?.id, isAdmin, 'diaria');
+  // Diaria: only load if user can see it
+  const { data: diariaData, isLoading: diariaLoading } = useFuelRequests(user?.id, isAdmin, 'diaria', canSeeDiaria);
 
   // Rejected queries
   const { data: abastRejected, isLoading: abastRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'abastecimento');
@@ -116,7 +122,7 @@ export default function FleetListPage() {
     tables: [{ table: 'fuel_requests', queryKeys: [['fuel_requests'], ['fuel_requests_pending'], ['fuel_requests_rejected'], ['fuel_requests_completed'], ['fuel_metrics']] }],
   });
 
-  const canCreateDiaria = hasAnyRole(['diretoria', 'administrativo']);
+  const canCreateDiaria = canSeeDiaria;
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
