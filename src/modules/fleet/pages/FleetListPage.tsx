@@ -155,9 +155,11 @@ export default function FleetListPage() {
           <TabsTrigger value="reembolso" className="gap-1.5">
             <Receipt className="w-3.5 h-3.5" /> Reembolso
           </TabsTrigger>
-          <TabsTrigger value="diaria" className="gap-1.5">
-            <Briefcase className="w-3.5 h-3.5" /> Diária
-          </TabsTrigger>
+          {canSeeDiaria && (
+            <TabsTrigger value="diaria" className="gap-1.5">
+              <Briefcase className="w-3.5 h-3.5" /> Diária
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="abastecimento" className="space-y-3 mt-3">
