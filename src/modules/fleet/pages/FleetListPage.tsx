@@ -110,7 +110,7 @@ export default function FleetListPage() {
   const { data: abastPending, isLoading: abastPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'abastecimento');
   const { data: reembolsoPending, isLoading: reembolsoPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'reembolso');
   // Diaria: only load if user can see it
-  const { data: diariaData, isLoading: diariaLoading } = useFuelRequests(user?.id, isAdmin, 'diaria', canSeeDiaria);
+  const { data: diariaData, isLoading: diariaLoading } = useFuelRequests(canSeeDiaria ? user?.id : undefined, canSeeDiaria ? isAdmin : false, canSeeDiaria ? 'diaria' : undefined);
 
   // Rejected queries
   const { data: abastRejected, isLoading: abastRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'abastecimento');
