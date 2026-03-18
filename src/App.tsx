@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
+import { RoleGuard } from "@/lib/roleGuard";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 import AuditLogsPage from "@/pages/AuditLogsPage";
@@ -71,11 +72,13 @@ const AppRoutes = () => (
     {/* Protected */}
     <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
     <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-    <Route path="/auditoria" element={<ProtectedRoute><AuditLogsPage /></ProtectedRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
     <Route path="/permissoes" element={<ProtectedRoute><PermissionsPage /></ProtectedRoute>} />
-    <Route path="/setores" element={<ProtectedRoute><SectorsPage /></ProtectedRoute>} />
-    <Route path="/admin/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
+
+    {/* Admin-only routes */}
+    <Route path="/auditoria" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><AuditLogsPage /></RoleGuard></ProtectedRoute>} />
+    <Route path="/setores" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><SectorsPage /></RoleGuard></ProtectedRoute>} />
+    <Route path="/admin/maintenance" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><MaintenancePage /></RoleGuard></ProtectedRoute>} />
 
     {/* Fleet */}
     <Route path="/fleet" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />
