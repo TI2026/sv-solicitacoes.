@@ -1,13 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Upload, CheckCircle, ShieldX, FileText, AlertTriangle, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Upload, CheckCircle, ShieldX, FileText, AlertTriangle, X, CreditCard, Clock } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
+import { maskAgency, maskAccount } from '@/lib/masks';
 import logo from '@/assets/logo.png';
 
 interface LinkData {
@@ -47,6 +51,11 @@ const DEPENDENT_DOCS: DocItem[] = [
   { key: 'DEP_LAUDO', label: 'Laudo médico (dependente com deficiência)', required: false, category: 'dependente' },
 ];
 
+const BANK_LIST = [
+  'Itaú Unibanco', 'Banco do Brasil', 'Bradesco', 'Caixa Econômica Federal',
+  'Santander Brasil', 'Nubank', 'Banco Inter', 'C6 Bank', 'PicPay', 'PagBank',
+];
+
 export default function PublicDocumentsPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
@@ -57,7 +66,6 @@ export default function PublicDocumentsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // Per-item upload state: doc_key -> { file: File | null, uploading, uploaded, filename }
   const [docStates, setDocStates] = useState<Record<string, {
     file: File | null;
     uploading: boolean;
@@ -66,9 +74,15 @@ export default function PublicDocumentsPage() {
   }>>({});
 
   const [hasDependents, setHasDependents] = useState(false);
-  const [bankInfo, setBankInfo] = useState({ banco: '', agencia: '', conta: '', tipo: 'corrente' });
+  const [bankSelection, setBankSelection] = useState('');
+  const [bankCustom, setBankCustom] = useState('');
+  const [bankInfo, setBankInfo] = useState({ agencia: '', conta: '', tipo: 'corrente' });
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'zeaerqlvhrbcuubueolh';
+
+  // Derive the final bank name
+  const bankName = bankSelection === '__outro__' ? bankCustom.trim() : bankSelection;
+  const bankComplete = bankName.length > 0 && bankInfo.agencia.replace(/\D/g, '').length >= 3 && bankInfo.conta.replace(/\D/g, '').length >= 3 && bankInfo.tipo;
 
   useEffect(() => {
     if (!token) { setError('Token não fornecido'); setLoading(false); return; }
@@ -94,7 +108,6 @@ export default function PublicDocumentsPage() {
           setData(result);
         } else {
           setData(result);
-          // Populate already-uploaded docs
           const initialStates: Record<string, any> = {};
           for (const f of (result.uploaded_files || [])) {
             if (f.file_type && f.file_type !== 'generic') {
@@ -161,22 +174,26 @@ export default function PublicDocumentsPage() {
   const requiredPersonalKeys = PERSONAL_DOCS.filter(d => d.required).map(d => d.key);
   const requiredDependentKeys = hasDependents ? DEPENDENT_DOCS.filter(d => d.required).map(d => d.key) : [];
   const allRequiredKeys = [...requiredPersonalKeys, ...requiredDependentKeys];
-
   const allRequiredUploaded = allRequiredKeys.every(k => docStates[k]?.uploaded);
-  const bankComplete = bankInfo.banco.trim() && bankInfo.agencia.trim() && bankInfo.conta.trim();
+
+  const personalUploaded = PERSONAL_DOCS.filter(d => docStates[d.key]?.uploaded).length;
+  const depUploaded = hasDependents ? DEPENDENT_DOCS.filter(d => docStates[d.key]?.uploaded).length : 0;
+  const totalDocs = PERSONAL_DOCS.length + (hasDependents ? DEPENDENT_DOCS.length : 0);
+  const totalUploaded = personalUploaded + depUploaded;
+  const overallProgress = totalDocs > 0 ? Math.round((totalUploaded / totalDocs) * 100) : 0;
+
   const canFinalize = allRequiredUploaded && bankComplete;
 
   const handleFinalize = async () => {
     if (!token || !canFinalize) return;
     setSubmitting(true);
     try {
-      // Send bank info along with finalization
       await fetch(
         `https://${projectId}.supabase.co/functions/v1/admissions-finalize-signed-docs`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, bank_info: bankInfo }),
+          body: JSON.stringify({ token, bank_info: { banco: bankName, agencia: bankInfo.agencia.replace(/\D/g, ''), conta: bankInfo.conta.replace(/\D/g, ''), tipo: bankInfo.tipo } }),
         }
       );
       setSubmitted(true);
@@ -187,22 +204,43 @@ export default function PublicDocumentsPage() {
     setSubmitting(false);
   };
 
+  // Auto-detect bank from existing data on load
+  useEffect(() => {
+    if (data && bankSelection === '' && bankName === '') {
+      // If previously saved bank info exists in uploaded_files metadata, it would be here
+      // For now, just leave empty for new submissions
+    }
+  }, [data]);
+
   const renderDocItem = (doc: DocItem) => {
     const state = docStates[doc.key];
     const isUploaded = state?.uploaded;
     const isUploading = state?.uploading;
 
     return (
-      <div key={doc.key} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
+      <div key={doc.key} className="flex items-center gap-3 py-3 px-3 border border-border rounded-lg mb-2 bg-card">
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground">
-            {doc.label}
-            {doc.required && <span className="text-destructive ml-1">*</span>}
-          </p>
+          <div className="flex items-center gap-2 mb-0.5">
+            <p className="text-sm font-medium text-foreground">{doc.label}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {doc.required ? (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Obrigatório</Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">Opcional</Badge>
+            )}
+            {isUploaded ? (
+              <Badge className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0 gap-1">
+                <CheckCircle className="w-3 h-3" /> Enviado
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
+                <Clock className="w-3 h-3" /> Pendente
+              </Badge>
+            )}
+          </div>
           {isUploaded && state?.filename && (
-            <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
-              <CheckCircle className="w-3 h-3" /> {state.filename}
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 truncate">{state.filename}</p>
           )}
         </div>
         <div className="shrink-0 flex items-center gap-1">
@@ -210,7 +248,7 @@ export default function PublicDocumentsPage() {
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
           ) : isUploaded ? (
             <div className="flex items-center gap-1">
-              <CheckCircle className="w-4 h-4 text-primary" />
+              <CheckCircle className="w-5 h-5 text-primary" />
               {!submitted && (
                 <Button variant="ghost" size="sm" className="h-6 px-1" onClick={() => removeDoc(doc.key)}>
                   <X className="w-3 h-3 text-muted-foreground" />
@@ -228,8 +266,8 @@ export default function PublicDocumentsPage() {
                   e.target.value = '';
                 }}
               />
-              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-input bg-background hover:bg-accent text-foreground transition-colors">
-                <Upload className="w-3 h-3" /> Enviar
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-primary bg-primary/5 hover:bg-primary/10 text-primary transition-colors">
+                <Upload className="w-3.5 h-3.5" /> Enviar
               </span>
             </label>
           )}
@@ -274,113 +312,189 @@ export default function PublicDocumentsPage() {
     );
   }
 
+  const personalComplete = requiredPersonalKeys.every(k => docStates[k]?.uploaded);
+  const depComplete = !hasDependents || requiredDependentKeys.every(k => docStates[k]?.uploaded);
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-lg mx-auto space-y-5 animate-fade-in">
         {/* Header */}
-        <div className="flex flex-col items-center">
-          <img src={logo} alt="Logo" className="w-16 h-16 rounded-full object-contain bg-white shadow border-2 border-primary/20 p-0.5 mb-3" />
-          <h1 className="text-xl font-bold text-foreground">Envio de Documentos</h1>
-          <p className="text-sm text-muted-foreground mt-1">Olá, {data.candidate_name}!</p>
-          <p className="text-xs text-muted-foreground">Válido até {new Date(data.expires_at).toLocaleDateString('pt-BR')}</p>
-        </div>
+        <Card className="border-primary/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4 mb-4">
+              <img src={logo} alt="Logo" className="w-14 h-14 rounded-full object-contain bg-white shadow border-2 border-primary/20 p-0.5" />
+              <div>
+                <h1 className="text-lg font-bold text-foreground">Envio de Documentos</h1>
+                <p className="text-sm text-foreground font-medium">{data.candidate_name}</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Envie os documentos solicitados abaixo. Documentos marcados como <span className="text-destructive font-medium">obrigatórios</span> devem ser enviados para prosseguir.
+            </p>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+              <span>Progresso geral</span>
+              <span className="font-medium">{totalUploaded}/{totalDocs} documentos</span>
+            </div>
+            <Progress value={overallProgress} className="h-2" />
+            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Válido até {new Date(data.expires_at).toLocaleDateString('pt-BR')}
+            </p>
+          </CardContent>
+        </Card>
 
-        {/* Personal documents */}
+        {/* Documents */}
         <Accordion type="multiple" defaultValue={['pessoais', 'bancarios']}>
+          {/* Personal */}
           <AccordionItem value="pessoais">
-            <AccordionTrigger className="text-sm font-semibold">
+            <AccordionTrigger className="text-sm font-semibold px-1">
               <span className="flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Documentos Pessoais
-                <span className="text-xs font-normal text-muted-foreground ml-1">
-                  ({requiredPersonalKeys.filter(k => docStates[k]?.uploaded).length}/{requiredPersonalKeys.length})
-                </span>
+                <FileText className="w-4 h-4 text-primary" />
+                Documentos Pessoais
+                <Badge variant={personalComplete ? 'default' : 'outline'} className="text-[10px] ml-1">
+                  {personalUploaded}/{PERSONAL_DOCS.length}
+                </Badge>
+                {personalComplete && <CheckCircle className="w-3.5 h-3.5 text-primary" />}
               </span>
             </AccordionTrigger>
-            <AccordionContent>
+            <AccordionContent className="pt-1">
               {PERSONAL_DOCS.map(renderDocItem)}
             </AccordionContent>
           </AccordionItem>
 
-          {/* Dependents toggle */}
+          {/* Dependents */}
           <AccordionItem value="dependentes">
-            <AccordionTrigger className="text-sm font-semibold">
+            <AccordionTrigger className="text-sm font-semibold px-1">
               <span className="flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Dependentes
+                <FileText className="w-4 h-4 text-primary" />
+                Dependentes
+                {hasDependents && (
+                  <Badge variant={depComplete ? 'default' : 'outline'} className="text-[10px] ml-1">
+                    {depUploaded}/{DEPENDENT_DOCS.length}
+                  </Badge>
+                )}
+                {hasDependents && depComplete && <CheckCircle className="w-3.5 h-3.5 text-primary" />}
               </span>
             </AccordionTrigger>
-            <AccordionContent>
-              <div className="flex items-center gap-3 mb-3 py-2">
+            <AccordionContent className="pt-1">
+              <div className="flex items-center gap-3 mb-3 py-2 px-3 border border-border rounded-lg bg-muted/50">
                 <Switch checked={hasDependents} onCheckedChange={setHasDependents} id="has-deps" />
                 <Label htmlFor="has-deps" className="text-sm">Possui dependentes?</Label>
               </div>
               {hasDependents && DEPENDENT_DOCS.map(renderDocItem)}
               {!hasDependents && (
-                <p className="text-xs text-muted-foreground py-2">Ative o toggle acima se possui dependentes.</p>
+                <p className="text-xs text-muted-foreground py-2 px-3">Ative o toggle acima se possui dependentes.</p>
               )}
             </AccordionContent>
           </AccordionItem>
 
           {/* Banking */}
           <AccordionItem value="bancarios">
-            <AccordionTrigger className="text-sm font-semibold">
+            <AccordionTrigger className="text-sm font-semibold px-1">
               <span className="flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Dados Bancários
-                {bankComplete && <CheckCircle className="w-3 h-3 text-primary" />}
+                <CreditCard className="w-4 h-4 text-primary" />
+                Dados Bancários
+                {bankComplete && <CheckCircle className="w-3.5 h-3.5 text-primary" />}
               </span>
             </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Banco *</Label>
-                  <Input value={bankInfo.banco} onChange={e => setBankInfo(p => ({ ...p, banco: e.target.value }))} placeholder="Ex: Banco do Brasil" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+            <AccordionContent className="pt-1">
+              <Card className="border-border">
+                <CardContent className="p-4 space-y-4">
+                  <p className="text-xs text-muted-foreground">
+                    Informe os dados da conta onde receberá o pagamento. Todos os campos são obrigatórios.
+                  </p>
+
+                  {/* Bank select */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Agência *</Label>
-                    <Input value={bankInfo.agencia} onChange={e => setBankInfo(p => ({ ...p, agencia: e.target.value }))} />
+                    <Label className="text-xs font-medium">Banco <span className="text-destructive">*</span></Label>
+                    <Select value={bankSelection} onValueChange={(v) => { setBankSelection(v); if (v !== '__outro__') setBankCustom(''); }}>
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Selecione o banco" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BANK_LIST.map(b => (
+                          <SelectItem key={b} value={b} className="text-sm">{b}</SelectItem>
+                        ))}
+                        <SelectItem value="__outro__" className="text-sm font-medium">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  {bankSelection === '__outro__' && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Informe o banco <span className="text-destructive">*</span></Label>
+                      <Input
+                        value={bankCustom}
+                        onChange={e => setBankCustom(e.target.value)}
+                        placeholder="Digite o nome do banco"
+                        maxLength={60}
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Agência <span className="text-destructive">*</span></Label>
+                      <Input
+                        value={bankInfo.agencia}
+                        onChange={e => setBankInfo(p => ({ ...p, agencia: maskAgency(e.target.value) }))}
+                        placeholder="0000-0"
+                        maxLength={7}
+                      />
+                      <p className="text-[10px] text-muted-foreground">Apenas números, com dígito se houver</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Número da conta <span className="text-destructive">*</span></Label>
+                      <Input
+                        value={bankInfo.conta}
+                        onChange={e => setBankInfo(p => ({ ...p, conta: maskAccount(e.target.value) }))}
+                        placeholder="00000-0"
+                        maxLength={15}
+                      />
+                      <p className="text-[10px] text-muted-foreground">Com dígito verificador</p>
+                    </div>
+                  </div>
+
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Número da conta *</Label>
-                    <Input value={bankInfo.conta} onChange={e => setBankInfo(p => ({ ...p, conta: e.target.value }))} />
+                    <Label className="text-xs font-medium">Tipo de conta <span className="text-destructive">*</span></Label>
+                    <Select value={bankInfo.tipo} onValueChange={v => setBankInfo(p => ({ ...p, tipo: v }))}>
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="corrente">Conta Corrente</SelectItem>
+                        <SelectItem value="poupanca">Conta Poupança</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Tipo de conta</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={bankInfo.tipo}
-                    onChange={e => setBankInfo(p => ({ ...p, tipo: e.target.value }))}
-                  >
-                    <option value="corrente">Corrente</option>
-                    <option value="poupanca">Poupança</option>
-                  </select>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </AccordionContent>
           </AccordionItem>
         </Accordion>
 
         {/* Finalize */}
-        <div className="space-y-2">
-          {!canFinalize && (
-            <div className="text-xs text-muted-foreground text-center space-y-1">
-              {!allRequiredUploaded && (
-                <p className="flex items-center justify-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> Envie todos os documentos obrigatórios (marcados com *)
-                </p>
-              )}
-              {!bankComplete && (
-                <p className="flex items-center justify-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> Preencha os dados bancários
-                </p>
-              )}
-            </div>
-          )}
-          <Button onClick={handleFinalize} disabled={!canFinalize || submitting} className="w-full gap-2">
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-            Finalizar Envio
-          </Button>
-        </div>
+        <Card className="border-primary/20">
+          <CardContent className="p-4 space-y-3">
+            {!canFinalize && (
+              <div className="text-xs text-muted-foreground space-y-1">
+                {!allRequiredUploaded && (
+                  <p className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-yellow-600" /> Envie todos os documentos obrigatórios
+                  </p>
+                )}
+                {!bankComplete && (
+                  <p className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-yellow-600" /> Preencha todos os dados bancários
+                  </p>
+                )}
+              </div>
+            )}
+            <Button onClick={handleFinalize} disabled={!canFinalize || submitting} className="w-full gap-2" size="lg">
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              Finalizar Envio
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
