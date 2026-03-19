@@ -144,9 +144,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="px-3 py-4 border-t border-sidebar-border">
             <div className="flex items-center gap-3 px-3 py-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-sm font-semibold">
-                {user.full_name?.charAt(0) || '?'}
-              </div>
+              <Avatar className="w-8 h-8">
+                {user.avatar_url ? (
+                  <AvatarImage src={user.avatar_url} alt={user.full_name || 'Avatar'} />
+                ) : null}
+                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm font-semibold">
+                  {user.full_name?.charAt(0) || '?'}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-primary truncate">{user.full_name || user.email}</p>
                 <p className="text-[11px] text-sidebar-muted">{primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'}</p>
