@@ -28,8 +28,8 @@ export default function MyApprovalsTab() {
   const { user } = useAuth();
   const { data: approvals, isLoading } = useMyApprovals(user?.id);
   const processAction = useProcessApproval();
-  const [rejectDialog, setRejectDialog] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
+  const [actionDialog, setActionDialog] = useState<{ id: string; type: 'reject' | 'return' } | null>(null);
+  const [actionReason, setActionReason] = useState('');
 
   const myPending = approvals?.filter((a: any) => a.current_approver_user_id === user?.id && !a.ended_at) || [];
   const otherApprovals = approvals?.filter((a: any) => !(a.current_approver_user_id === user?.id && !a.ended_at)) || [];
@@ -38,16 +38,12 @@ export default function MyApprovalsTab() {
     processAction.mutate({ approvalRequestId: id, action: 'approve' });
   };
 
-  const handleReject = () => {
-    if (!rejectDialog || rejectReason.trim().length < 5) return;
+  const handleActionConfirm = () => {
+    if (!actionDialog || actionReason.trim().length < 5) return;
     processAction.mutate(
-      { approvalRequestId: rejectDialog, action: 'reject', comments: rejectReason },
-      { onSuccess: () => { setRejectDialog(null); setRejectReason(''); } }
+      { approvalRequestId: actionDialog.id, action: actionDialog.type === 'reject' ? 'reject' : 'return', comments: actionReason },
+      { onSuccess: () => { setActionDialog(null); setActionReason(''); } }
     );
-  };
-
-  const handleReturn = (id: string) => {
-    processAction.mutate({ approvalRequestId: id, action: 'return', comments: 'Devolvido para ajuste' });
   };
 
   if (isLoading) {
@@ -73,14 +69,18 @@ export default function MyApprovalsTab() {
           <div className="space-y-3">
             {myPending.map((a: any) => {
               const statusInfo = getStatusBadge(a.status);
+              const canReturn = a.approval_flows?.allow_return_for_adjustment;
               return (
                 <Card key={a.id} className="border-l-4 border-l-primary">
                   <CardContent className="p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Badge variant="secondary" className="text-xs">{a.approval_modules?.name}</Badge>
                           <Badge variant={statusInfo.variant} className="text-xs">{statusInfo.label}</Badge>
+                          {a.current_step_order && (
+                            <Badge variant="outline" className="text-[10px]">Etapa {a.current_step_order}</Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <User className="w-3 h-3" />
@@ -99,25 +99,32 @@ export default function MyApprovalsTab() {
                                 variant={
                                   step.status === 'approved' ? 'default' :
                                   step.status === 'rejected' ? 'destructive' :
+                                  step.status === 'returned' ? 'secondary' :
                                   step.step_order === a.current_step_order ? 'secondary' : 'outline'
                                 }
                                 className="text-[10px] gap-1"
                               >
                                 {step.status === 'approved' && <CheckCircle2 className="w-3 h-3" />}
                                 {step.status === 'rejected' && <XCircle className="w-3 h-3" />}
+                                {step.status === 'returned' && <RotateCcw className="w-3 h-3" />}
                                 {step.step_order}. {step.profiles?.full_name || 'Aprovador'}
                               </Badge>
                             ))
                         }
                         </div>
                       </div>
-                      <div className="flex gap-2 shrink-0">
+                      <div className="flex gap-2 shrink-0 flex-wrap">
                         <Button size="sm" onClick={() => handleApprove(a.id)} disabled={processAction.isPending} className="gap-1">
                           <CheckCircle2 className="w-4 h-4" /> Aprovar
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => { setRejectDialog(a.id); setRejectReason(''); }} disabled={processAction.isPending} className="gap-1">
+                        <Button size="sm" variant="destructive" onClick={() => { setActionDialog({ id: a.id, type: 'reject' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1">
                           <XCircle className="w-4 h-4" /> Recusar
                         </Button>
+                        {canReturn && (
+                          <Button size="sm" variant="outline" onClick={() => { setActionDialog({ id: a.id, type: 'return' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1">
+                            <RotateCcw className="w-4 h-4" /> Devolver
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -140,9 +147,12 @@ export default function MyApprovalsTab() {
               return (
                 <Card key={a.id} className={a.ended_at ? 'opacity-70' : ''}>
                   <CardContent className="p-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="secondary" className="text-[10px]">{a.approval_modules?.name}</Badge>
                       <Badge variant={statusInfo.variant} className="text-[10px]">{statusInfo.label}</Badge>
+                      <span className="text-[10px] text-muted-foreground">
+                        {a.profiles?.full_name}
+                      </span>
                       <span className="text-xs text-muted-foreground ml-auto">
                         {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}
                       </span>
@@ -155,30 +165,34 @@ export default function MyApprovalsTab() {
         </div>
       )}
 
-      {/* Reject Dialog */}
-      <Dialog open={!!rejectDialog} onOpenChange={(open) => { if (!open) setRejectDialog(null); }}>
+      {/* Reject/Return Dialog */}
+      <Dialog open={!!actionDialog} onOpenChange={(open) => { if (!open) setActionDialog(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Motivo da Recusa</DialogTitle>
+            <DialogTitle>
+              {actionDialog?.type === 'reject' ? 'Motivo da Recusa' : 'Motivo da Devolução'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Textarea
-              value={rejectReason}
-              onChange={e => setRejectReason(e.target.value)}
-              placeholder="Informe o motivo da recusa (mínimo 5 caracteres)"
+              value={actionReason}
+              onChange={e => setActionReason(e.target.value)}
+              placeholder={actionDialog?.type === 'reject'
+                ? 'Informe o motivo da recusa (mínimo 5 caracteres)'
+                : 'Informe o motivo da devolução (mínimo 5 caracteres)'}
               rows={4}
             />
-            {rejectReason.length > 0 && rejectReason.length < 5 && (
+            {actionReason.length > 0 && actionReason.length < 5 && (
               <p className="text-xs text-destructive">O motivo deve ter pelo menos 5 caracteres.</p>
             )}
             <Button
-              onClick={handleReject}
-              disabled={processAction.isPending || rejectReason.trim().length < 5}
-              variant="destructive"
+              onClick={handleActionConfirm}
+              disabled={processAction.isPending || actionReason.trim().length < 5}
+              variant={actionDialog?.type === 'reject' ? 'destructive' : 'default'}
               className="w-full"
             >
               {processAction.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Confirmar recusa
+              {actionDialog?.type === 'reject' ? 'Confirmar recusa' : 'Confirmar devolução'}
             </Button>
           </div>
         </DialogContent>

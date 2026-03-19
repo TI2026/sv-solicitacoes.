@@ -82,6 +82,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, [user, fetchNotifications]);
 
+  // Supabase Realtime Presence tracking
+  const presenceChannelRef = useRef<any>(null);
+  useEffect(() => {
+    if (!user) return;
+    const presenceChannel = supabase.channel('online-users', {
+      config: { presence: { key: user.id } },
+    });
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {})
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            user_id: user.id,
+            full_name: user.full_name || user.email,
+            email: user.email,
+            avatar_url: user.avatar_url || null,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+    presenceChannelRef.current = presenceChannel;
+    return () => {
+      presenceChannel.untrack();
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [user]);
+
   const markAllRead = async () => {
     if (!user) return;
     await supabase.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('user_id', user.id).eq('read', false);

@@ -99,7 +99,7 @@ export function useUsersWithRoleAssignments() {
     queryFn: async () => {
       const { data: profiles, error: pErr } = await supabase
         .from('profiles')
-        .select('id, full_name, email, department, created_at')
+        .select('id, full_name, email, department, avatar_url, created_at')
         .order('full_name');
       if (pErr) throw pErr;
 
@@ -122,7 +122,6 @@ export function useAssignUserRole() {
 
   return useMutation({
     mutationFn: async (params: { userId: string; roleId: string; assignedBy: string }) => {
-      // Remove existing assignments for this user first (1 role at a time)
       await supabase.from('user_role_assignments').delete().eq('user_id', params.userId);
       const { error } = await supabase
         .from('user_role_assignments')
@@ -177,12 +176,34 @@ export function useApprovalFlows() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_flows')
-        .select('*, approval_modules(code, name), approval_flow_steps(*, profiles(full_name, email))')
+        .select('*, approval_modules(code, name), approval_flow_steps(*, profiles(full_name, email), sectors:fixed_sector_id(id, name))')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
   });
+}
+
+export function useSectors() {
+  return useQuery({
+    queryKey: ['active_sectors'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sectors')
+        .select('id, name, code, responsible_user_id')
+        .eq('active', true)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+export interface StepDraft {
+  stepOrder: number;
+  approverType: 'usuario_fixo' | 'responsavel_do_setor_do_solicitante' | 'responsavel_do_setor_especifico' | 'gestor_imediato';
+  fixedUserId: string | null;
+  fixedSectorId: string | null;
 }
 
 export function useSaveApprovalFlow() {
@@ -197,9 +218,10 @@ export function useSaveApprovalFlow() {
       approvalType: string;
       requireRejectionReason: boolean;
       allowReturn: boolean;
+      returnMode: string;
       notifyNext: boolean;
       createdBy: string;
-      steps: { approverUserId: string; stepOrder: number }[];
+      steps: StepDraft[];
     }) => {
       let flowId = params.id;
 
@@ -211,15 +233,14 @@ export function useSaveApprovalFlow() {
             approval_type: params.approvalType,
             require_rejection_reason: params.requireRejectionReason,
             allow_return_for_adjustment: params.allowReturn,
+            return_mode: params.returnMode,
             notify_next_approver: params.notifyNext,
           })
           .eq('id', flowId);
         if (error) throw error;
 
-        // Delete existing steps and re-insert
         await supabase.from('approval_flow_steps').delete().eq('flow_id', flowId);
       } else {
-        // Deactivate existing flows for this module
         await supabase
           .from('approval_flows')
           .update({ active: false })
@@ -234,6 +255,7 @@ export function useSaveApprovalFlow() {
             approval_type: params.approvalType,
             require_rejection_reason: params.requireRejectionReason,
             allow_return_for_adjustment: params.allowReturn,
+            return_mode: params.returnMode,
             notify_next_approver: params.notifyNext,
             created_by: params.createdBy,
           })
@@ -243,7 +265,6 @@ export function useSaveApprovalFlow() {
         flowId = data.id;
       }
 
-      // Insert steps
       if (params.steps.length > 0) {
         const { error } = await supabase
           .from('approval_flow_steps')
@@ -251,7 +272,9 @@ export function useSaveApprovalFlow() {
             params.steps.map(s => ({
               flow_id: flowId!,
               step_order: s.stepOrder,
-              approver_user_id: s.approverUserId,
+              approver_type: s.approverType,
+              approver_user_id: s.approverType === 'usuario_fixo' ? s.fixedUserId : null,
+              fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
             }))
           );
         if (error) throw error;
@@ -275,12 +298,26 @@ export function useMyApprovals(userId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
-        .select('*, approval_modules(code, name), profiles!approval_requests_requester_user_id_fkey(full_name, email), approval_request_steps(*, profiles(full_name))')
+        .select('*, approval_modules(code, name), approval_flows(allow_return_for_adjustment, return_mode), profiles!approval_requests_requester_user_id_fkey(full_name, email), approval_request_steps(*, profiles(full_name))')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
     enabled: !!userId,
+  });
+}
+
+export function useAllApprovalRequests() {
+  return useQuery({
+    queryKey: ['all_approval_requests'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('approval_requests')
+        .select('*, approval_modules(code, name), profiles!approval_requests_requester_user_id_fkey(full_name, email), approval_request_steps(*, profiles(full_name))')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
   });
 }
 
@@ -302,6 +339,7 @@ export function useProcessApproval() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my_approvals'] });
+      qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
       qc.invalidateQueries({ queryKey: ['approval_flows'] });
       toast({ title: 'Ação registrada com sucesso' });
     },
@@ -317,7 +355,7 @@ export function useProfiles() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, avatar_url')
         .order('full_name');
       if (error) throw error;
       return data || [];
