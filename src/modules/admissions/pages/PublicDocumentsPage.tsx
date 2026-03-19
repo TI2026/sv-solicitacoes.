@@ -36,9 +36,9 @@ const PERSONAL_DOCS: DocItem[] = [
   { key: 'CPF', label: 'CPF', required: true, category: 'pessoal' },
   { key: 'CTPS', label: 'CTPS Digital (CPF vinculado)', required: true, category: 'pessoal' },
   { key: 'RESIDENCIA', label: 'Comprovante de residência atualizado', required: true, category: 'pessoal' },
-  { key: 'CERTIDAO', label: 'Certidão de nascimento ou casamento', required: true, category: 'pessoal' },
-  { key: 'TITULO_ELEITOR', label: 'Título de eleitor', required: true, category: 'pessoal' },
-  { key: 'QUITACAO_ELEITORAL', label: 'Quitação eleitoral', required: true, category: 'pessoal' },
+  { key: 'CERTIDAO', label: 'Certidão de nascimento ou casamento', required: false, category: 'pessoal' },
+  { key: 'TITULO_ELEITOR', label: 'Título de eleitor', required: false, category: 'pessoal' },
+  { key: 'QUITACAO_ELEITORAL', label: 'Quitação eleitoral', required: false, category: 'pessoal' },
   { key: 'RESERVISTA', label: 'Certificado de reservista (quando aplicável)', required: false, category: 'pessoal' },
   { key: 'PIS_PASEP', label: 'Número do PIS/PASEP', required: true, category: 'pessoal' },
 ];
