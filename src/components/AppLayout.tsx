@@ -3,10 +3,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
 import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, Settings, X, Fuel, UserPlus, Lock, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, hasAnyRole } = useAuth();
