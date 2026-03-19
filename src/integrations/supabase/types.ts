@@ -231,7 +231,7 @@ export type Database = {
         Row: {
           active: boolean
           approver_type: string
-          approver_user_id: string
+          approver_user_id: string | null
           created_at: string
           fixed_sector_id: string | null
           flow_id: string
@@ -242,7 +242,7 @@ export type Database = {
         Insert: {
           active?: boolean
           approver_type?: string
-          approver_user_id: string
+          approver_user_id?: string | null
           created_at?: string
           fixed_sector_id?: string | null
           flow_id: string
@@ -253,7 +253,7 @@ export type Database = {
         Update: {
           active?: boolean
           approver_type?: string
-          approver_user_id?: string
+          approver_user_id?: string | null
           created_at?: string
           fixed_sector_id?: string | null
           flow_id?: string
@@ -297,6 +297,7 @@ export type Database = {
           name: string
           notify_next_approver: boolean
           require_rejection_reason: boolean
+          return_mode: string | null
           updated_at: string
         }
         Insert: {
@@ -310,6 +311,7 @@ export type Database = {
           name: string
           notify_next_approver?: boolean
           require_rejection_reason?: boolean
+          return_mode?: string | null
           updated_at?: string
         }
         Update: {
@@ -323,6 +325,7 @@ export type Database = {
           name?: string
           notify_next_approver?: boolean
           require_rejection_reason?: boolean
+          return_mode?: string | null
           updated_at?: string
         }
         Relationships: [

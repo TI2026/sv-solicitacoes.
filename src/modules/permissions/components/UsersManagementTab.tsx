@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, User, ChevronDown, ChevronUp, CheckCircle2, XCircle } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Loader2, ChevronDown, ChevronUp, CheckCircle2, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsersWithRoleAssignments, useRoles, useAssignUserRole, useUserEffectivePermissions } from '../hooks/usePermissionsData';
 
@@ -15,7 +16,6 @@ function EffectivePermissions({ userId }: { userId: string }) {
     return <p className="text-xs text-muted-foreground italic">Nenhuma permissão efetiva encontrada</p>;
   }
 
-  // Group by module
   const grouped: Record<string, any[]> = {};
   perms.forEach((p: any) => {
     const modName = p.permission_modules?.name || 'Desconhecido';
@@ -73,9 +73,14 @@ export default function UsersManagementTab() {
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4 text-primary" />
-                  </div>
+                  <Avatar className="w-9 h-9 shrink-0">
+                    {u.avatar_url ? (
+                      <AvatarImage src={u.avatar_url} alt={u.full_name || 'Avatar'} />
+                    ) : null}
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                      {(u.full_name || '?').charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">
                       {u.full_name || 'Sem nome'}

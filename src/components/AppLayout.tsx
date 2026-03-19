@@ -3,10 +3,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
 import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, Settings, X, Fuel, UserPlus, Lock, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, hasAnyRole } = useAuth();
@@ -81,6 +82,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, [user, fetchNotifications]);
 
+  // Supabase Realtime Presence tracking
+  const presenceChannelRef = useRef<any>(null);
+  useEffect(() => {
+    if (!user) return;
+    const presenceChannel = supabase.channel('online-users', {
+      config: { presence: { key: user.id } },
+    });
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {})
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            user_id: user.id,
+            full_name: user.full_name || user.email,
+            email: user.email,
+            avatar_url: user.avatar_url || null,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+    presenceChannelRef.current = presenceChannel;
+    return () => {
+      presenceChannel.untrack();
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [user]);
+
   const markAllRead = async () => {
     if (!user) return;
     await supabase.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('user_id', user.id).eq('read', false);
@@ -143,9 +171,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="px-3 py-4 border-t border-sidebar-border">
             <div className="flex items-center gap-3 px-3 py-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-sidebar-accent text-sidebar-accent-foreground text-sm font-semibold">
-                {user.full_name?.charAt(0) || '?'}
-              </div>
+              <Avatar className="w-8 h-8">
+                {user.avatar_url ? (
+                  <AvatarImage src={user.avatar_url} alt={user.full_name || 'Avatar'} />
+                ) : null}
+                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm font-semibold">
+                  {user.full_name?.charAt(0) || '?'}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-primary truncate">{user.full_name || user.email}</p>
                 <p className="text-[11px] text-sidebar-muted">{primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'}</p>

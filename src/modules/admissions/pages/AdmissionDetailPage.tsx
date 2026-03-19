@@ -107,6 +107,25 @@ export default function AdmissionDetailPage() {
     if (cpfDigits.length > 0 && (cpfDigits.length !== 11 || !isValidCPF(cpfDigits))) {
       toast({ title: 'CPF inválido', variant: 'destructive' }); return;
     }
+
+    // Duplicate check against existing candidates
+    const existingCandidates = candidates || [];
+    const normalizedEmail = candidateForm.email?.trim().toLowerCase();
+    for (const existing of existingCandidates) {
+      // Skip self when editing
+      if (editCandidateId && existing.id === editCandidateId) continue;
+
+      if (cpfDigits.length === 11 && existing.cpf && existing.cpf.replace(/\D/g, '') === cpfDigits) {
+        toast({ title: 'Candidato duplicado', description: `Já existe um candidato com este CPF: ${existing.nome}`, variant: 'destructive' }); return;
+      }
+      if (normalizedEmail && existing.email && existing.email.trim().toLowerCase() === normalizedEmail) {
+        toast({ title: 'Candidato duplicado', description: `Já existe um candidato com este e-mail: ${existing.nome}`, variant: 'destructive' }); return;
+      }
+      if (phoneDigits.length >= 10 && existing.telefone && existing.telefone.replace(/\D/g, '') === phoneDigits) {
+        toast({ title: 'Candidato duplicado', description: `Já existe um candidato com este telefone: ${existing.nome}`, variant: 'destructive' }); return;
+      }
+    }
+
     if (editCandidateId) {
       await updateCandidate.mutateAsync({
         id: editCandidateId,
