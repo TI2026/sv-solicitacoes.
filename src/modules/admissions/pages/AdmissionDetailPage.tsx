@@ -63,6 +63,7 @@ export default function AdmissionDetailPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: req, isLoading } = useAdmissionRequest(id!);
+  const { data: approvalRequest } = useApprovalRequestForReference(id);
   const { data: candidates } = useCandidates(id!);
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
