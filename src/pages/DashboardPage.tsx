@@ -281,7 +281,29 @@ export default function DashboardPage() {
               </div>
             </>
           )}
-        </TabsContent>
+
+          {/* Online Users - Master only */}
+          {isMaster && onlineUsers.length > 0 && (
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Wifi className="w-4 h-4 text-green-500" /> Usuários Online ({onlineUsers.length})
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {onlineUsers.map((u: any) => (
+                    <div key={u.user_id} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-muted/50 text-xs">
+                      <Avatar className="w-5 h-5">
+                        {u.avatar_url ? <AvatarImage src={u.avatar_url} /> : null}
+                        <AvatarFallback className="text-[8px]">{(u.full_name || '?')[0]}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-foreground font-medium">{u.full_name || u.email}</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
         {/* CONCLUÍDOS TAB */}
         <TabsContent value="concluidos" className="space-y-4 mt-4">
