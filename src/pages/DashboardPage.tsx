@@ -304,6 +304,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
 
         {/* CONCLUÍDOS TAB */}
         <TabsContent value="concluidos" className="space-y-4 mt-4">
