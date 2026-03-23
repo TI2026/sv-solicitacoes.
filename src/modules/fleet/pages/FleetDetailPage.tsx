@@ -25,6 +25,7 @@ export default function FleetDetailPage() {
   const { toast } = useToast();
   const { data: req, isLoading, refetch } = useFuelRequest(id!);
   const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
+  const { data: approvalRequest } = useApprovalRequestForReference(id);
   const statusMutation = useFuelSetStatus();
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
