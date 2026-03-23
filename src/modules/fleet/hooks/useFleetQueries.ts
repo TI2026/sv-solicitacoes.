@@ -165,7 +165,7 @@ export function useFuelSetStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (params: { requestId: string; toStatus: string; reason?: string }) => {
+    mutationFn: async (params: { requestId: string; toStatus: string; reason?: string; startApproval?: { moduleCode: string; requesterUserId: string } }) => {
       const { data, error } = await supabase.rpc('fuel_set_status', {
         _request_id: params.requestId,
         _to_status: params.toStatus as any,
@@ -174,6 +174,23 @@ export function useFuelSetStatus() {
       if (error) throw error;
       const result = data as any;
       if (result?.error) throw new Error(result.error);
+
+      // If transitioning to em_aprovacao, try to start approval flow
+      if (params.toStatus === 'em_aprovacao' && params.startApproval) {
+        try {
+          const { data: flowResult } = await supabase.rpc('start_approval_flow', {
+            p_module_code: params.startApproval.moduleCode,
+            p_reference_id: params.requestId,
+            p_requester_user_id: params.startApproval.requesterUserId,
+          });
+          if (flowResult && !(flowResult as any).error) {
+            console.log('Approval flow started:', flowResult);
+          }
+        } catch (e) {
+          console.warn('Approval flow not started (no active flow?):', e);
+        }
+      }
+
       return result;
     },
     onSuccess: () => {
@@ -185,6 +202,9 @@ export function useFuelSetStatus() {
       qc.invalidateQueries({ queryKey: ['fuel_reviews'] });
       qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
       qc.invalidateQueries({ queryKey: ['status_history'] });
+      qc.invalidateQueries({ queryKey: ['approval_request_for'] });
+      qc.invalidateQueries({ queryKey: ['my_approvals'] });
+      qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
       toast({ title: 'Status atualizado!' });
     },
     onError: (err: any) => {
