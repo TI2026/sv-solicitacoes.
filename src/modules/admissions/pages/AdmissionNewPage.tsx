@@ -76,7 +76,11 @@ export default function AdmissionNewPage() {
       };
       const result = await createMutation.mutateAsync(payload);
       if (send && result?.id) {
-        await statusMutation.mutateAsync({ requestId: result.id, toStatus: 'aguardando_triagem' });
+        await statusMutation.mutateAsync({
+          requestId: result.id,
+          toStatus: 'aguardando_triagem',
+          startApproval: { requesterUserId: user.id },
+        });
       }
       navigate('/admissions');
     } catch {

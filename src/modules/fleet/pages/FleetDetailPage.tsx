@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFuelRequest, useFuelAttachments, useFuelSetStatus } from '../hooks/useFleetQueries';
+import { useApprovalRequestForReference } from '@/hooks/useApprovalFlow';
+import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +25,7 @@ export default function FleetDetailPage() {
   const { toast } = useToast();
   const { data: req, isLoading, refetch } = useFuelRequest(id!);
   const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
+  const { data: approvalRequest } = useApprovalRequestForReference(id);
   const statusMutation = useFuelSetStatus();
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
@@ -46,7 +49,10 @@ export default function FleetDetailPage() {
 
   const handleStatusChange = async (toStatus: string, reason?: string) => {
     if (!id || statusMutation.isPending) return;
-    await statusMutation.mutateAsync({ requestId: id, toStatus, reason });
+    const startApproval = toStatus === 'em_aprovacao' && req
+      ? { moduleCode: reqType, requesterUserId: req.requester_user_id }
+      : undefined;
+    await statusMutation.mutateAsync({ requestId: id, toStatus, reason, startApproval });
     setShowReasonDialog(null);
     setActionReason('');
   };
@@ -196,7 +202,7 @@ export default function FleetDetailPage() {
             </Button>
           )}
 
-          {/* ADMIN: forward to approval */}
+          {/* ADMIN: forward to approval — also starts approval flow */}
           {isAdmin && req.status === 'enviado' && (
             <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Encaminhar para Aprovação
@@ -260,6 +266,9 @@ export default function FleetDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Approval Flow Status */}
+      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
 
       {/* Attachments (abastecimento) */}
       {reqType === 'abastecimento' && (canUpload || (attachments && attachments.length > 0)) && (

@@ -164,7 +164,7 @@ export function useAdmissionSetStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (params: { requestId: string; toStatus: string; reason?: string }) => {
+    mutationFn: async (params: { requestId: string; toStatus: string; reason?: string; startApproval?: { requesterUserId: string } }) => {
       const { data, error } = await supabase.rpc('admission_set_status', {
         _request_id: params.requestId,
         _to_status: params.toStatus as any,
@@ -173,6 +173,23 @@ export function useAdmissionSetStatus() {
       if (error) throw error;
       const result = data as any;
       if (result?.error) throw new Error(result.error);
+
+      // Try to start approval flow when entering triagem
+      if (params.toStatus === 'aguardando_triagem' && params.startApproval) {
+        try {
+          const { data: flowResult } = await supabase.rpc('start_approval_flow', {
+            p_module_code: 'admissao',
+            p_reference_id: params.requestId,
+            p_requester_user_id: params.startApproval.requesterUserId,
+          });
+          if (flowResult && !(flowResult as any).error) {
+            console.log('Admission approval flow started:', flowResult);
+          }
+        } catch (e) {
+          console.warn('Admission approval flow not started:', e);
+        }
+      }
+
       return result;
     },
     onSuccess: () => {
@@ -181,6 +198,9 @@ export function useAdmissionSetStatus() {
       qc.invalidateQueries({ queryKey: ['admission_metrics'] });
       qc.invalidateQueries({ queryKey: ['adm_all'] });
       qc.invalidateQueries({ queryKey: ['status_history'] });
+      qc.invalidateQueries({ queryKey: ['approval_request_for'] });
+      qc.invalidateQueries({ queryKey: ['my_approvals'] });
+      qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
       toast({ title: 'Status atualizado!' });
     },
     onError: (err: any) => {

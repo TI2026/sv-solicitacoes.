@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useUpdateCandidate, useMedicalExam, useGeneratePublicLink, useAdmissionPublicLinks, useAdmissionFiles } from '../hooks/useAdmissionQueries';
+import { useApprovalRequestForReference } from '@/hooks/useApprovalFlow';
+import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { maskCPF, maskPhone, isValidCPF } from '@/lib/masks';
 import { Switch } from '@/components/ui/switch';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
@@ -61,6 +63,7 @@ export default function AdmissionDetailPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: req, isLoading } = useAdmissionRequest(id!);
+  const { data: approvalRequest } = useApprovalRequestForReference(id);
   const { data: candidates } = useCandidates(id!);
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
@@ -795,6 +798,9 @@ export default function AdmissionDetailPage() {
           admission={req}
         />
       )}
+
+      {/* Approval Flow Status */}
+      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
 
       {/* Timeline */}
       <Card>

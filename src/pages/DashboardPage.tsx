@@ -6,9 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ADMISSION_STATUS_LABELS, FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
-import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase, ShieldAlert } from 'lucide-react';
+import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase, ShieldAlert, Wifi } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 // Check if user has master role via user_role_assignments
 function useIsMaster() {
@@ -72,11 +73,32 @@ export default function DashboardPage() {
   const isMobile = useIsMobile();
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
   const { data: isMaster } = useIsMaster();
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
 
   const isRH = hasAnyRole(['diretoria', 'rh']);
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   // Only master users can see financial values
   const canSeeFinancials = !!isMaster;
+
+  // Track online presence for master users
+  useEffect(() => {
+    if (!isMaster || !user) return;
+    const channel = supabase.channel('online-users');
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      const users = Object.values(state).flat().map((p: any) => ({
+        user_id: p.user_id,
+        full_name: p.full_name,
+        email: p.email,
+        avatar_url: p.avatar_url,
+      }));
+      // Deduplicate by user_id
+      const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
+      setOnlineUsers(unique);
+    });
+    channel.subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isMaster, user]);
 
   useRealtimeSubscription({
     channelName: 'dashboard-realtime',
@@ -258,6 +280,29 @@ export default function DashboardPage() {
                 {isRH && <MetricCard icon={Users} label="Total Admissões" value={admMetrics.total} onClick={() => navigate('/admissions')} />}
               </div>
             </>
+          )}
+
+          {/* Online Users - Master only */}
+          {isMaster && onlineUsers.length > 0 && (
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Wifi className="w-4 h-4 text-green-500" /> Usuários Online ({onlineUsers.length})
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {onlineUsers.map((u: any) => (
+                    <div key={u.user_id} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-muted/50 text-xs">
+                      <Avatar className="w-5 h-5">
+                        {u.avatar_url ? <AvatarImage src={u.avatar_url} /> : null}
+                        <AvatarFallback className="text-[8px]">{(u.full_name || '?')[0]}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-foreground font-medium">{u.full_name || u.email}</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
