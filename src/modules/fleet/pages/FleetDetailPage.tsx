@@ -267,6 +267,9 @@ export default function FleetDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Approval Flow Status */}
+      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
+
       {/* Attachments (abastecimento) */}
       {reqType === 'abastecimento' && (canUpload || (attachments && attachments.length > 0)) && (
         <Card>
