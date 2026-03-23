@@ -799,6 +799,9 @@ export default function AdmissionDetailPage() {
         />
       )}
 
+      {/* Approval Flow Status */}
+      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
+
       {/* Timeline */}
       <Card>
         <CardContent className="p-4">
