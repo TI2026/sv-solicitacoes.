@@ -49,7 +49,10 @@ export default function FleetDetailPage() {
 
   const handleStatusChange = async (toStatus: string, reason?: string) => {
     if (!id || statusMutation.isPending) return;
-    await statusMutation.mutateAsync({ requestId: id, toStatus, reason });
+    const startApproval = toStatus === 'em_aprovacao' && req
+      ? { moduleCode: reqType, requesterUserId: req.requester_user_id }
+      : undefined;
+    await statusMutation.mutateAsync({ requestId: id, toStatus, reason, startApproval });
     setShowReasonDialog(null);
     setActionReason('');
   };
