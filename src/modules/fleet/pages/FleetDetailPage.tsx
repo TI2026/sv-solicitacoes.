@@ -199,7 +199,7 @@ export default function FleetDetailPage() {
             </Button>
           )}
 
-          {/* ADMIN: forward to approval */}
+          {/* ADMIN: forward to approval — also starts approval flow */}
           {isAdmin && req.status === 'enviado' && (
             <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Encaminhar para Aprovação
