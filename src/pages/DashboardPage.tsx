@@ -6,9 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ADMISSION_STATUS_LABELS, FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
-import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase, ShieldAlert } from 'lucide-react';
+import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase, ShieldAlert, Wifi } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 // Check if user has master role via user_role_assignments
 function useIsMaster() {
