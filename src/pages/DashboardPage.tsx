@@ -73,11 +73,32 @@ export default function DashboardPage() {
   const isMobile = useIsMobile();
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
   const { data: isMaster } = useIsMaster();
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
 
   const isRH = hasAnyRole(['diretoria', 'rh']);
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   // Only master users can see financial values
   const canSeeFinancials = !!isMaster;
+
+  // Track online presence for master users
+  useEffect(() => {
+    if (!isMaster || !user) return;
+    const channel = supabase.channel('online-users');
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      const users = Object.values(state).flat().map((p: any) => ({
+        user_id: p.user_id,
+        full_name: p.full_name,
+        email: p.email,
+        avatar_url: p.avatar_url,
+      }));
+      // Deduplicate by user_id
+      const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
+      setOnlineUsers(unique);
+    });
+    channel.subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isMaster, user]);
 
   useRealtimeSubscription({
     channelName: 'dashboard-realtime',
