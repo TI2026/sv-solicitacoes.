@@ -190,7 +190,7 @@ export function useSectors() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sectors')
-        .select('id, name, code, responsible_user_id')
+        .select('id, name, code, responsible_user_id, profiles:responsible_user_id(full_name)')
         .eq('active', true)
         .order('name');
       if (error) throw error;
@@ -201,9 +201,11 @@ export function useSectors() {
 
 export interface StepDraft {
   stepOrder: number;
-  approverType: 'usuario_fixo' | 'responsavel_do_setor_do_solicitante' | 'responsavel_do_setor_especifico' | 'gestor_imediato';
+  approverType: 'usuario_fixo' | 'responsavel_do_setor_do_solicitante' | 'responsavel_do_setor_especifico' | 'gestor_imediato' | 'cargo_perfil';
   fixedUserId: string | null;
   fixedSectorId: string | null;
+  /** For cargo_perfil type: role key to match */
+  approverRoleKey: string | null;
 }
 
 export function useSaveApprovalFlow() {
@@ -272,7 +274,9 @@ export function useSaveApprovalFlow() {
             params.steps.map(s => ({
               flow_id: flowId!,
               step_order: s.stepOrder,
-              approver_type: s.approverType,
+              approver_type: s.approverType === 'cargo_perfil'
+                ? `cargo_perfil:${s.approverRoleKey || ''}`
+                : s.approverType,
               approver_user_id: s.approverType === 'usuario_fixo' ? s.fixedUserId : null,
               fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
             }))
@@ -298,7 +302,13 @@ export function useMyApprovals(userId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
-        .select('*, approval_modules(code, name), approval_flows(allow_return_for_adjustment, return_mode), profiles!approval_requests_requester_user_id_fkey(full_name, email), approval_request_steps(*, profiles(full_name))')
+        .select(`
+          *,
+          approval_modules(code, name),
+          approval_flows(name, allow_return_for_adjustment, return_mode, approval_type),
+          profiles!approval_requests_requester_user_id_fkey(full_name, email),
+          approval_request_steps(*, profiles(full_name))
+        `)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -313,7 +323,13 @@ export function useAllApprovalRequests() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
-        .select('*, approval_modules(code, name), profiles!approval_requests_requester_user_id_fkey(full_name, email), approval_request_steps(*, profiles(full_name))')
+        .select(`
+          *,
+          approval_modules(code, name),
+          approval_flows(name, allow_return_for_adjustment, return_mode, approval_type),
+          profiles!approval_requests_requester_user_id_fkey(full_name, email),
+          approval_request_steps(*, profiles(full_name))
+        `)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -341,6 +357,9 @@ export function useProcessApproval() {
       qc.invalidateQueries({ queryKey: ['my_approvals'] });
       qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
       qc.invalidateQueries({ queryKey: ['approval_flows'] });
+      qc.invalidateQueries({ queryKey: ['approval_request_for'] });
+      qc.invalidateQueries({ queryKey: ['fuel_requests'] });
+      qc.invalidateQueries({ queryKey: ['fuel_request'] });
       toast({ title: 'Ação registrada com sucesso' });
     },
     onError: (err: any) => {
@@ -349,6 +368,57 @@ export function useProcessApproval() {
   });
 }
 
+/** Profiles eligible as approvers: exclude colaborador role */
+export function useEligibleApprovers() {
+  return useQuery({
+    queryKey: ['eligible_approvers'],
+    queryFn: async () => {
+      // Get all profiles
+      const { data: profiles, error: pErr } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, avatar_url')
+        .order('full_name');
+      if (pErr) throw pErr;
+
+      // Get user_roles to filter out pure colaborador users
+      const { data: userRoles, error: rErr } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+      if (rErr) throw rErr;
+
+      // Also get role assignments for extra context
+      const { data: assignments, error: aErr } = await supabase
+        .from('user_role_assignments')
+        .select('user_id, roles(key, is_master)');
+      if (aErr) throw aErr;
+
+      // Build a set of user IDs that have at least one non-colaborador role
+      const eligibleUserIds = new Set<string>();
+      
+      // From user_roles (legacy enum roles)
+      (userRoles || []).forEach((ur: any) => {
+        if (ur.role !== 'colaborador') {
+          eligibleUserIds.add(ur.user_id);
+        }
+      });
+
+      // From user_role_assignments (new RBAC)
+      (assignments || []).forEach((a: any) => {
+        const roleKey = a.roles?.key;
+        if (roleKey && roleKey !== 'colaborador') {
+          eligibleUserIds.add(a.user_id);
+        }
+        if (a.roles?.is_master) {
+          eligibleUserIds.add(a.user_id);
+        }
+      });
+
+      return (profiles || []).filter((p: any) => eligibleUserIds.has(p.id));
+    },
+  });
+}
+
+/** All profiles (kept for backward compatibility) */
 export function useProfiles() {
   return useQuery({
     queryKey: ['all_profiles'],
@@ -359,6 +429,23 @@ export function useProfiles() {
         .order('full_name');
       if (error) throw error;
       return data || [];
+    },
+  });
+}
+
+/** Roles eligible as approver profiles (non-colaborador, active) */
+export function useApproverRoles() {
+  return useQuery({
+    queryKey: ['approver_roles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('id, key, name, is_master')
+        .eq('active', true)
+        .order('name');
+      if (error) throw error;
+      // Exclude colaborador
+      return (data || []).filter((r: any) => r.key !== 'colaborador');
     },
   });
 }

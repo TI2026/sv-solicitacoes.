@@ -4,16 +4,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, Clock, CheckCircle2, XCircle, RotateCcw, ClipboardCheck, User } from 'lucide-react';
+import { Loader2, Clock, CheckCircle2, XCircle, RotateCcw, ClipboardCheck, User, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyApprovals, useProcessApproval } from '../hooks/usePermissionsData';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getApproverTypeLabel } from '@/lib/approvalLabels';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   approved: { label: 'Aprovado', variant: 'default' },
   rejected: { label: 'Recusado', variant: 'destructive' },
   returned_for_adjustment: { label: 'Devolvido', variant: 'secondary' },
+  returned_to_requester: { label: 'Devolvido ao solicitante', variant: 'secondary' },
   pending_approval: { label: 'Pendente', variant: 'outline' },
 };
 
@@ -31,8 +33,21 @@ export default function MyApprovalsTab() {
   const [actionDialog, setActionDialog] = useState<{ id: string; type: 'reject' | 'return' } | null>(null);
   const [actionReason, setActionReason] = useState('');
 
-  const myPending = approvals?.filter((a: any) => a.current_approver_user_id === user?.id && !a.ended_at) || [];
-  const otherApprovals = approvals?.filter((a: any) => !(a.current_approver_user_id === user?.id && !a.ended_at)) || [];
+  // Only show as "my pending" if I am the CURRENT approver of the CURRENT step
+  const myPending = approvals?.filter((a: any) =>
+    a.current_approver_user_id === user?.id && !a.ended_at
+  ) || [];
+
+  // Everything else: history or others' items
+  const otherApprovals = approvals?.filter((a: any) =>
+    !(a.current_approver_user_id === user?.id && !a.ended_at)
+  ) || [];
+
+  // Only items where I participated (as requester or step approver)
+  const myHistory = otherApprovals.filter((a: any) => {
+    if (a.requester_user_id === user?.id) return true;
+    return a.approval_request_steps?.some((s: any) => s.approver_user_id === user?.id);
+  });
 
   const handleApprove = (id: string) => {
     processAction.mutate({ approvalRequestId: id, action: 'approve' });
@@ -52,6 +67,17 @@ export default function MyApprovalsTab() {
 
   return (
     <div className="space-y-6">
+      {/* Info box */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-3">
+          <p className="text-xs text-muted-foreground flex items-start gap-1">
+            <Info className="w-3 h-3 mt-0.5 shrink-0" />
+            Apenas solicitações onde você é o aprovador elegível da etapa atual aparecem como pendentes.
+            Ações de aprovação, recusa e devolução são exclusivas do aprovador da etapa em curso.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Pending for me */}
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -62,7 +88,7 @@ export default function MyApprovalsTab() {
           <Card>
             <CardContent className="py-10 text-center">
               <ClipboardCheck className="w-10 h-10 mx-auto text-muted-foreground/30 mb-2" />
-              <p className="text-sm text-muted-foreground">Nenhuma aprovação pendente</p>
+              <p className="text-sm text-muted-foreground">Nenhuma aprovação pendente para você</p>
             </CardContent>
           </Card>
         ) : (
@@ -70,6 +96,11 @@ export default function MyApprovalsTab() {
             {myPending.map((a: any) => {
               const statusInfo = getStatusBadge(a.status);
               const canReturn = a.approval_flows?.allow_return_for_adjustment;
+              const returnModeLabel = a.approval_flows?.return_mode === 'previous_step'
+                ? 'Devolver à etapa anterior'
+                : 'Devolver ao solicitante';
+              const currentStep = a.approval_request_steps?.find((s: any) => s.step_order === a.current_step_order);
+              const approverRule = currentStep?.approver_rule;
               return (
                 <Card key={a.id} className="border-l-4 border-l-primary">
                   <CardContent className="p-4">
@@ -80,6 +111,9 @@ export default function MyApprovalsTab() {
                           <Badge variant={statusInfo.variant} className="text-xs">{statusInfo.label}</Badge>
                           {a.current_step_order && (
                             <Badge variant="outline" className="text-[10px]">Etapa {a.current_step_order}</Badge>
+                          )}
+                          {approverRule && (
+                            <Badge variant="outline" className="text-[10px]">{getApproverTypeLabel(approverRule)}</Badge>
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -113,12 +147,13 @@ export default function MyApprovalsTab() {
                         }
                         </div>
                       </div>
+                      {/* Actions: ONLY for the eligible approver of the current step */}
                       <div className="flex gap-2 shrink-0 flex-wrap">
                         <Button size="sm" onClick={() => handleApprove(a.id)} disabled={processAction.isPending} className="gap-1">
                           <CheckCircle2 className="w-4 h-4" /> Aprovar
                         </Button>
                         <Button size="sm" variant="destructive" onClick={() => { setActionDialog({ id: a.id, type: 'reject' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1">
-                          <XCircle className="w-4 h-4" /> Recusar
+                          <XCircle className="w-4 h-4" /> Reprovar
                         </Button>
                         {canReturn && (
                           <Button size="sm" variant="outline" onClick={() => { setActionDialog({ id: a.id, type: 'return' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1">
@@ -135,14 +170,14 @@ export default function MyApprovalsTab() {
         )}
       </div>
 
-      {/* Other approvals */}
-      {otherApprovals.length > 0 && (
+      {/* History */}
+      {myHistory.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             Histórico de aprovações
           </h3>
           <div className="space-y-2">
-            {otherApprovals.map((a: any) => {
+            {myHistory.map((a: any) => {
               const statusInfo = getStatusBadge(a.status);
               return (
                 <Card key={a.id} className={a.ended_at ? 'opacity-70' : ''}>
@@ -153,6 +188,9 @@ export default function MyApprovalsTab() {
                       <span className="text-[10px] text-muted-foreground">
                         {a.profiles?.full_name}
                       </span>
+                      {a.current_step_order && !a.ended_at && (
+                        <Badge variant="outline" className="text-[10px]">Etapa {a.current_step_order}</Badge>
+                      )}
                       <span className="text-xs text-muted-foreground ml-auto">
                         {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}
                       </span>
@@ -165,7 +203,7 @@ export default function MyApprovalsTab() {
         </div>
       )}
 
-      {/* Reject/Return Dialog */}
+      {/* Reject/Return Dialog — justification always mandatory */}
       <Dialog open={!!actionDialog} onOpenChange={(open) => { if (!open) setActionDialog(null); }}>
         <DialogContent>
           <DialogHeader>
@@ -174,6 +212,11 @@ export default function MyApprovalsTab() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              {actionDialog?.type === 'reject'
+                ? 'A justificativa é obrigatória para recusar uma solicitação.'
+                : 'A justificativa é obrigatória para devolver uma solicitação.'}
+            </p>
             <Textarea
               value={actionReason}
               onChange={e => setActionReason(e.target.value)}

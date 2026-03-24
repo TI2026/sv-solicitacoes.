@@ -7,15 +7,16 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, Plus, Trash2, GitBranch, CheckCircle2, XCircle, Info, Users, Building2, UserCheck } from 'lucide-react';
+import { Loader2, Plus, Trash2, GitBranch, CheckCircle2, XCircle, Info, Users, Building2, UserCheck, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useApprovalModules, useApprovalFlows, useSaveApprovalFlow, useProfiles, useSectors, StepDraft } from '../hooks/usePermissionsData';
+import { useApprovalModules, useApprovalFlows, useSaveApprovalFlow, useEligibleApprovers, useSectors, useApproverRoles, StepDraft } from '../hooks/usePermissionsData';
 
 const APPROVER_TYPE_LABELS: Record<string, string> = {
-  usuario_fixo: 'Usuário fixo',
+  usuario_fixo: 'Pessoa (usuário fixo)',
   responsavel_do_setor_do_solicitante: 'Responsável do setor do solicitante',
-  responsavel_do_setor_especifico: 'Responsável do setor específico',
+  responsavel_do_setor_especifico: 'Responsável de setor específico',
   gestor_imediato: 'Gestor imediato',
+  cargo_perfil: 'Cargo / Perfil aprovador',
 };
 
 const APPROVER_TYPE_ICONS: Record<string, any> = {
@@ -23,19 +24,34 @@ const APPROVER_TYPE_ICONS: Record<string, any> = {
   responsavel_do_setor_do_solicitante: Building2,
   responsavel_do_setor_especifico: Building2,
   gestor_imediato: Users,
+  cargo_perfil: ShieldCheck,
 };
 
 const APPROVER_TYPE_HELPERS: Record<string, string> = {
   responsavel_do_setor_do_solicitante: 'O sistema localizará automaticamente o responsável do setor do solicitante.',
   gestor_imediato: 'O sistema localizará automaticamente o gestor imediato do usuário relacionado.',
+  cargo_perfil: 'Qualquer usuário com o cargo/perfil selecionado poderá aprovar esta etapa.',
 };
+
+function parseApproverType(raw: string): { type: StepDraft['approverType']; roleKey: string | null } {
+  if (raw.startsWith('cargo_perfil:')) {
+    return { type: 'cargo_perfil', roleKey: raw.replace('cargo_perfil:', '') };
+  }
+  return { type: raw as StepDraft['approverType'], roleKey: null };
+}
+
+function getDisplayApproverType(raw: string): string {
+  if (raw.startsWith('cargo_perfil:')) return 'cargo_perfil';
+  return raw;
+}
 
 export default function ApprovalChainsTab() {
   const { user } = useAuth();
   const { data: modules, isLoading: modLoading } = useApprovalModules();
   const { data: flows, isLoading: flowsLoading } = useApprovalFlows();
-  const { data: profiles } = useProfiles();
+  const { data: eligibleApprovers } = useEligibleApprovers();
   const { data: sectors } = useSectors();
+  const { data: approverRoles } = useApproverRoles();
   const saveMutation = useSaveApprovalFlow();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -74,20 +90,22 @@ export default function ApprovalChainsTab() {
     setSteps(
       (flow.approval_flow_steps || [])
         .sort((a: any, b: any) => a.step_order - b.step_order)
-        .map((s: any) => ({
-          stepOrder: s.step_order,
-          approverType: s.approver_type || 'usuario_fixo',
-          fixedUserId: s.approver_type === 'usuario_fixo' || !s.approver_type
-            ? (s.approver_user_id || null)
-            : null,
-          fixedSectorId: s.fixed_sector_id || null,
-        }))
+        .map((s: any) => {
+          const parsed = parseApproverType(s.approver_type || 'usuario_fixo');
+          return {
+            stepOrder: s.step_order,
+            approverType: parsed.type,
+            fixedUserId: parsed.type === 'usuario_fixo' ? (s.approver_user_id || null) : null,
+            fixedSectorId: s.fixed_sector_id || null,
+            approverRoleKey: parsed.roleKey,
+          };
+        })
     );
     setDialogOpen(true);
   };
 
   const addStep = () => {
-    setSteps(prev => [...prev, { stepOrder: prev.length + 1, approverType: 'usuario_fixo', fixedUserId: null, fixedSectorId: null }]);
+    setSteps(prev => [...prev, { stepOrder: prev.length + 1, approverType: 'usuario_fixo', fixedUserId: null, fixedSectorId: null, approverRoleKey: null }]);
   };
 
   const removeStep = (idx: number) => {
@@ -101,6 +119,7 @@ export default function ApprovalChainsTab() {
   const isStepValid = (step: StepDraft) => {
     if (step.approverType === 'usuario_fixo') return !!step.fixedUserId;
     if (step.approverType === 'responsavel_do_setor_especifico') return !!step.fixedSectorId;
+    if (step.approverType === 'cargo_perfil') return !!step.approverRoleKey;
     return true;
   };
 
@@ -123,15 +142,29 @@ export default function ApprovalChainsTab() {
   };
 
   const getStepBadgeLabel = (step: any) => {
-    const type = step.approver_type || 'usuario_fixo';
-    const label = APPROVER_TYPE_LABELS[type] || type;
-    if (type === 'usuario_fixo') {
+    const raw = step.approver_type || 'usuario_fixo';
+    const displayType = getDisplayApproverType(raw);
+    const label = APPROVER_TYPE_LABELS[displayType] || raw;
+    if (displayType === 'usuario_fixo') {
       return `${label}: ${step.profiles?.full_name || 'N/A'}`;
     }
-    if (type === 'responsavel_do_setor_especifico') {
+    if (displayType === 'responsavel_do_setor_especifico') {
       return `${label}: ${step.sectors?.name || 'N/A'}`;
     }
+    if (raw.startsWith('cargo_perfil:')) {
+      const roleKey = raw.replace('cargo_perfil:', '');
+      return `Cargo: ${roleKey}`;
+    }
     return label;
+  };
+
+  // Check sectors without responsible
+  const getSectorWarning = (sectorId: string | null) => {
+    if (!sectorId || !sectors) return null;
+    const sector = sectors.find((s: any) => s.id === sectorId);
+    if (!sector) return 'Setor não encontrado';
+    if (!sector.responsible_user_id) return `Setor "${sector.name}" sem responsável configurado`;
+    return null;
   };
 
   if (modLoading || flowsLoading) {
@@ -144,7 +177,8 @@ export default function ApprovalChainsTab() {
         <CardContent className="p-4">
           <h3 className="text-sm font-semibold text-foreground mb-1">Central de Aprovações</h3>
           <p className="text-xs text-muted-foreground">
-            Configure os fluxos de aprovação para cada módulo do sistema. Os fluxos definem quem aprova cada solicitação e em qual ordem.
+            Configure os fluxos de aprovação para cada módulo. Apenas aprovadores elegíveis (não-colaboradores) podem ser selecionados.
+            A aprovação obedece exclusivamente ao fluxo configurado — papéis administrativos não substituem a elegibilidade por etapa.
           </p>
         </CardContent>
       </Card>
@@ -194,7 +228,9 @@ export default function ApprovalChainsTab() {
                     Motivo recusa
                   </Badge>
                   <Badge variant={activeFlow.allow_return_for_adjustment ? 'default' : 'outline'} className="text-xs gap-1">
-                    Devolução
+                    Devolução {activeFlow.allow_return_for_adjustment
+                      ? (activeFlow.return_mode === 'previous_step' ? '(etapa anterior)' : '(solicitante)')
+                      : ''}
                   </Badge>
                   {activeFlow.active && <Badge className="bg-green-100 text-green-800 text-xs">Ativo</Badge>}
                 </div>
@@ -203,7 +239,8 @@ export default function ApprovalChainsTab() {
                     ?.sort((a: any, b: any) => a.step_order - b.step_order)
                     .filter((s: any) => s.active)
                     .map((step: any, idx: number) => {
-                      const Icon = APPROVER_TYPE_ICONS[step.approver_type || 'usuario_fixo'] || UserCheck;
+                      const displayType = getDisplayApproverType(step.approver_type || 'usuario_fixo');
+                      const Icon = APPROVER_TYPE_ICONS[displayType] || UserCheck;
                       return (
                         <div key={step.id} className="flex items-center gap-1">
                           {idx > 0 && <span className="text-muted-foreground">→</span>}
@@ -229,6 +266,7 @@ export default function ApprovalChainsTab() {
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Flow config */}
             <div>
               <Label>Nome do fluxo</Label>
               <Input value={flowName} onChange={e => setFlowName(e.target.value)} placeholder="Ex: Aprovação padrão" />
@@ -240,12 +278,16 @@ export default function ApprovalChainsTab() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="sequential">Sequencial</SelectItem>
-                  <SelectItem value="parallel">Paralela (fase 2)</SelectItem>
+                  <SelectItem value="parallel" disabled>Paralela (em breve)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Sequencial: cada etapa é processada na ordem. A próxima etapa só fica ativa após a conclusão da anterior.
+              </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 border border-border rounded-lg p-3">
+              <p className="text-xs font-semibold text-foreground">Configuração do fluxo</p>
               <div className="flex items-center justify-between">
                 <Label className="text-sm">Exigir motivo na recusa</Label>
                 <Switch checked={requireReason} onCheckedChange={setRequireReason} />
@@ -272,15 +314,16 @@ export default function ApprovalChainsTab() {
               </div>
             </div>
 
+            {/* Steps */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Etapas de Aprovação</Label>
                 <Button variant="outline" size="sm" onClick={addStep} className="gap-1">
-                  <Plus className="w-3 h-3" /> Adicionar
+                  <Plus className="w-3 h-3" /> Adicionar etapa
                 </Button>
               </div>
               {steps.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">Adicione ao menos uma etapa</p>
+                <p className="text-xs text-muted-foreground italic">Adicione ao menos uma etapa de aprovação</p>
               )}
               {steps.map((step, idx) => (
                 <div key={idx} className="border border-border rounded-lg p-3 mb-2 space-y-2">
@@ -299,6 +342,7 @@ export default function ApprovalChainsTab() {
                         approverType: v as StepDraft['approverType'],
                         fixedUserId: null,
                         fixedSectorId: null,
+                        approverRoleKey: null,
                       })}
                     >
                       <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
@@ -310,6 +354,7 @@ export default function ApprovalChainsTab() {
                     </Select>
                   </div>
 
+                  {/* Pessoa (usuario_fixo) - only eligible approvers */}
                   {step.approverType === 'usuario_fixo' && (
                     <div>
                       <Label className="text-xs">Aprovador</Label>
@@ -321,7 +366,7 @@ export default function ApprovalChainsTab() {
                           <SelectValue placeholder="Selecionar aprovador" />
                         </SelectTrigger>
                         <SelectContent>
-                          {profiles?.map((p: any) => (
+                          {eligibleApprovers?.map((p: any) => (
                             <SelectItem key={p.id} value={p.id} className="text-xs">{p.full_name} ({p.email})</SelectItem>
                           ))}
                         </SelectContent>
@@ -329,9 +374,11 @@ export default function ApprovalChainsTab() {
                       {!step.fixedUserId && (
                         <p className="text-xs text-destructive mt-1">Selecione um aprovador</p>
                       )}
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Apenas usuários com perfil aprovador (não-colaborador) são exibidos.</p>
                     </div>
                   )}
 
+                  {/* Setor específico */}
                   {step.approverType === 'responsavel_do_setor_especifico' && (
                     <div>
                       <Label className="text-xs">Setor</Label>
@@ -344,12 +391,47 @@ export default function ApprovalChainsTab() {
                         </SelectTrigger>
                         <SelectContent>
                           {sectors?.map((s: any) => (
-                            <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>
+                            <SelectItem key={s.id} value={s.id} className="text-xs">
+                              {s.name}
+                              {s.responsible_user_id ? ` (resp: ${(s as any).profiles?.full_name || '—'})` : ' ⚠ sem responsável'}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       {!step.fixedSectorId && (
                         <p className="text-xs text-destructive mt-1">Selecione um setor</p>
+                      )}
+                      {step.fixedSectorId && getSectorWarning(step.fixedSectorId) && (
+                        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          {getSectorWarning(step.fixedSectorId)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Cargo / Perfil aprovador */}
+                  {step.approverType === 'cargo_perfil' && (
+                    <div>
+                      <Label className="text-xs">Cargo / Perfil aprovador</Label>
+                      <Select
+                        value={step.approverRoleKey || ''}
+                        onValueChange={(v) => updateStep(idx, { approverRoleKey: v })}
+                      >
+                        <SelectTrigger className="text-xs">
+                          <SelectValue placeholder="Selecionar cargo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {approverRoles?.map((r: any) => (
+                            <SelectItem key={r.key} value={r.key} className="text-xs">
+                              {r.name || r.key}
+                              {r.is_master && ' (Master)'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {!step.approverRoleKey && (
+                        <p className="text-xs text-destructive mt-1">Selecione um cargo</p>
                       )}
                     </div>
                   )}
