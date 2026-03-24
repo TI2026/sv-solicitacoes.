@@ -408,7 +408,7 @@ function ReembolsoDetails({ req }: { req: any }) {
 }
 
 function DiariaDetails({ req }: { req: any }) {
-  const { data: categories } = useDynamicCategories('fleet', 'daily_category');
+  const { categories } = useDynamicCategories('fleet', 'daily_category');
   const catLabel = categories?.find((c: any) => c.label === req.daily_category)?.label || req.daily_category;
   return (
     <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
