@@ -33,8 +33,19 @@ export default function FleetDetailPage() {
 
   const isOwner = req?.requester_user_id === user?.id;
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
-  const isDiretoria = hasRole('diretoria');
   const reqType = (req as any)?.type || 'abastecimento';
+
+  // ===== APPROVAL FLOW ELIGIBILITY =====
+  // When an approval_request exists for this reference, the approval/reject/return
+  // actions are ONLY available to the current step's eligible approver — NOT to
+  // admin/diretoria by default. The old role-based guards are replaced.
+  const isCurrentFlowApprover = approvalRequest
+    ? approvalRequest.current_approver_user_id === user?.id && !approvalRequest.ended_at
+    : false;
+
+  const flowAllowsReturn = approvalRequest?.approval_flows?.allow_return_for_adjustment ?? false;
+  const flowReturnMode = approvalRequest?.approval_flows?.return_mode || 'requester';
+  const hasActiveFlow = !!approvalRequest && !approvalRequest.ended_at;
 
   // Realtime subscription
   useEffect(() => {
@@ -61,7 +72,6 @@ export default function FleetDetailPage() {
     if (!e.target.files?.[0] || !id) return;
     const file = e.target.files[0];
     
-    // Client-side validation
     if (file.size > 10 * 1024 * 1024) {
       toast({ title: 'Arquivo muito grande', description: 'Máximo 10MB', variant: 'destructive' });
       return;
@@ -117,20 +127,6 @@ export default function FleetDetailPage() {
   const canUpload = isOwner && ['aguardando_fotos', 'retornado'].includes(req.status);
   const canSendToReview = isOwner && req.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
   const isPending = statusMutation.isPending;
-
-  // ================== FLUXO DO ABASTECIMENTO ==================
-  // 1. Colaborador cria (rascunho) → envia (enviado)
-  // 2. Admin encaminha para aprovação (em_aprovacao)
-  // 3. Diretoria aprova ou reprova
-  // 4. Se aprovado → Admin marca depósito feito (aguardando_fotos)
-  // 5. Colaborador envia fotos hodômetro + nota (em_revisao_admin)
-  // 6. Admin revisa → conclui ou devolve
-
-  // ================== FLUXO DO REEMBOLSO ==================
-  // 1. Colaborador cria → envia (enviado)
-  // 2. Admin encaminha para aprovação (em_aprovacao)
-  // 3. Diretoria aprova ou reprova
-  // 4. Se aprovado → Admin marca como pago/concluído
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
@@ -202,15 +198,32 @@ export default function FleetDetailPage() {
             </Button>
           )}
 
-          {/* ADMIN: forward to approval — also starts approval flow */}
+          {/* ADMIN: forward to approval — starts approval flow */}
           {isAdmin && req.status === 'enviado' && (
             <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Encaminhar para Aprovação
             </Button>
           )}
 
-          {/* DIRETORIA: approve or reject */}
-          {isDiretoria && req.status === 'em_aprovacao' && (
+          {/* APPROVAL FLOW: approve/reject/return — ONLY for eligible approver of current step */}
+          {req.status === 'em_aprovacao' && hasActiveFlow && isCurrentFlowApprover && (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleStatusChange('aprovado')} disabled={isPending} className="gap-2">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Aprovar
+              </Button>
+              <Button onClick={() => setShowReasonDialog('reprovado')} variant="destructive" className="gap-2" disabled={isPending}>
+                <XCircle className="w-4 h-4" /> Reprovar
+              </Button>
+              {flowAllowsReturn && (
+                <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2" disabled={isPending}>
+                  <RotateCcw className="w-4 h-4" /> Devolver
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* LEGACY: em_aprovacao without active flow — fallback to old isDiretoria */}
+          {req.status === 'em_aprovacao' && !hasActiveFlow && hasRole('diretoria') && (
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => handleStatusChange('aprovado')} disabled={isPending} className="gap-2">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Aprovar
@@ -221,14 +234,21 @@ export default function FleetDetailPage() {
             </div>
           )}
 
-          {/* ABASTECIMENTO: Admin marks card loaded → aguardando_fotos */}
+          {/* Info for non-eligible users viewing em_aprovacao with active flow */}
+          {req.status === 'em_aprovacao' && hasActiveFlow && !isCurrentFlowApprover && isAdmin && (
+            <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
+              Esta solicitação está em fluxo de aprovação. Apenas o aprovador elegível da etapa atual pode agir.
+            </p>
+          )}
+
+          {/* ABASTECIMENTO: Admin marks card loaded */}
           {isAdmin && reqType === 'abastecimento' && req.status === 'aprovado' && (
             <Button onClick={() => handleStatusChange('aguardando_fotos')} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />} Confirmar Recarga do Cartão
             </Button>
           )}
 
-          {/* OWNER: Send photos for review (abastecimento only) */}
+          {/* OWNER: Send photos for review */}
           {canSendToReview && (
             <Button onClick={() => handleStatusChange('em_revisao_admin')} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar para Revisão
@@ -247,7 +267,7 @@ export default function FleetDetailPage() {
             </div>
           )}
 
-          {/* REEMBOLSO: Admin marks as paid after diretoria approval */}
+          {/* REEMBOLSO: Admin marks as paid */}
           {isAdmin && reqType === 'reembolso' && req.status === 'aprovado' && (
             <Button onClick={() => handleStatusChange('concluido')} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Marcar como Pago / Concluir
@@ -261,7 +281,7 @@ export default function FleetDetailPage() {
             </Button>
           )}
 
-          {!isOwner && !isAdmin && !isDiretoria && (
+          {!isOwner && !isAdmin && !isCurrentFlowApprover && req.status !== 'em_aprovacao' && (
             <p className="text-sm text-muted-foreground">Nenhuma ação disponível</p>
           )}
         </CardContent>
@@ -318,29 +338,40 @@ export default function FleetDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Reason Dialog (mandatory for rejections) */}
+      {/* Reason Dialog — mandatory justification for reject & return */}
       <Dialog open={!!showReasonDialog} onOpenChange={() => setShowReasonDialog(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {showReasonDialog === 'reprovado' ? 'Motivo da Recusa' : 'Motivo'}
+              {showReasonDialog === 'reprovado' ? 'Motivo da Recusa' : 'Motivo da Devolução'}
             </DialogTitle>
           </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            A justificativa é obrigatória.
+          </p>
           <Textarea
             value={actionReason}
             onChange={e => setActionReason(e.target.value.slice(0, 500))}
-            placeholder={showReasonDialog === 'reprovado' ? 'Informe o motivo da recusa (obrigatório)...' : 'Descreva o motivo...'}
+            placeholder={showReasonDialog === 'reprovado' ? 'Informe o motivo da recusa (mínimo 10 caracteres)...' : 'Informe o motivo da devolução (mínimo 5 caracteres)...'}
             rows={3}
             maxLength={500}
           />
-          {showReasonDialog === 'reprovado' && actionReason.trim().length < 10 && actionReason.trim().length > 0 && (
+          {showReasonDialog === 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 10 && (
             <p className="text-xs text-destructive">Mínimo 10 caracteres</p>
+          )}
+          {showReasonDialog !== 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 5 && (
+            <p className="text-xs text-destructive">Mínimo 5 caracteres</p>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
             <Button
               onClick={() => showReasonDialog && handleStatusChange(showReasonDialog, actionReason)}
-              disabled={!actionReason.trim() || (showReasonDialog === 'reprovado' && actionReason.trim().length < 10) || isPending}
+              disabled={
+                !actionReason.trim() ||
+                (showReasonDialog === 'reprovado' && actionReason.trim().length < 10) ||
+                (showReasonDialog !== 'reprovado' && actionReason.trim().length < 5) ||
+                isPending
+              }
               variant={showReasonDialog === 'reprovado' ? 'destructive' : 'default'}
             >
               {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
@@ -360,21 +391,43 @@ function ReembolsoDetails({ req }: { req: any }) {
     <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
       {req.categoria && <p>Categoria: {req.categoria}</p>}
       {req.payment_method === 'pix' && req.pix_key && (
-        <p>PIX ({pixLabel}): {req.pix_key}</p>
+        <p>Pix ({pixLabel}): {req.pix_key}</p>
       )}
-      {req.payment_method === 'banco' && (
-        <p>Banco: {req.bank_name} | Ag: {req.bank_agency} | Conta: {req.bank_account}</p>
+      {req.payment_method === 'conta_bancaria' && (
+        <>
+          {req.bank_name && <p>Banco: {req.bank_name}</p>}
+          {req.bank_agency && <p>Agência: {req.bank_agency}</p>}
+          {req.bank_account && <p>Conta: {req.bank_account}</p>}
+        </>
       )}
+      {req.person_name && <p>Beneficiário: {req.person_name}</p>}
+      {req.person_cpf && <p>CPF: {req.person_cpf}</p>}
+      {req.motivo && <p>Motivo: {req.motivo}</p>}
     </div>
   );
 }
 
 function DiariaDetails({ req }: { req: any }) {
+  const { categories } = useDynamicCategories('fleet', 'daily_category');
+  const catLabel = categories?.find((c: any) => c.label === req.daily_category)?.label || req.daily_category;
   return (
     <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
-      {req.daily_category && <p>Categoria: {req.daily_category}</p>}
-      {req.person_name && <p>Prestador: {req.person_name}</p>}
+      {req.daily_category && <p>Categoria: {catLabel}</p>}
+      {req.daily_value && <p>Valor diário: R$ {Number(req.daily_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>}
       {req.hours && <p>Horas: {req.hours}h</p>}
+      {req.person_name && <p>Profissional: {req.person_name}</p>}
+      {req.person_cpf && <p>CPF: {req.person_cpf}</p>}
+      {req.payment_method === 'pix' && req.pix_key && (
+        <p>Pix: {req.pix_key}</p>
+      )}
+      {req.payment_method === 'conta_bancaria' && (
+        <>
+          {req.bank_name && <p>Banco: {req.bank_name}</p>}
+          {req.bank_agency && <p>Agência: {req.bank_agency}</p>}
+          {req.bank_account && <p>Conta: {req.bank_account}</p>}
+        </>
+      )}
+      {req.motivo && <p>Motivo: {req.motivo}</p>}
     </div>
   );
 }
