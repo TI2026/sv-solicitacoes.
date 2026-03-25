@@ -32,6 +32,14 @@ import PublicCandidatePage from "@/modules/admissions/pages/PublicCandidatePage"
 import PublicDocumentsPage from "@/modules/admissions/pages/PublicDocumentsPage";
 import PublicSignaturePage from "@/modules/admissions/pages/PublicSignaturePage";
 
+// EPI module
+import EpiCatalogPage from "@/modules/epis/pages/EpiCatalogPage";
+import EpiDeliveryPage from "@/modules/epis/pages/EpiDeliveryPage";
+import EpiReturnPage from "@/modules/epis/pages/EpiReturnPage";
+import EpiHistoryPage from "@/modules/epis/pages/EpiHistoryPage";
+import EpiPendingPage from "@/modules/epis/pages/EpiPendingPage";
+import EpiDismissalReportPage from "@/modules/epis/pages/EpiDismissalReportPage";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 2, staleTime: 30_000 },
@@ -90,6 +98,16 @@ const AppRoutes = () => (
     <Route path="/admissions/new" element={<ProtectedRoute><AdmissionNewPage /></ProtectedRoute>} />
     <Route path="/admissions/:id" element={<ProtectedRoute><AdmissionDetailPage /></ProtectedRoute>} />
     <Route path="/admissions/candidate/:candidateId" element={<ProtectedRoute><CandidateDetailPage /></ProtectedRoute>} />
+
+    {/* EPIs */}
+    <Route path="/epis" element={<ProtectedRoute><EpiCatalogPage /></ProtectedRoute>} />
+    <Route path="/epis/catalog" element={<ProtectedRoute><EpiCatalogPage /></ProtectedRoute>} />
+    <Route path="/epis/deliveries" element={<ProtectedRoute><EpiDeliveryPage /></ProtectedRoute>} />
+    <Route path="/epis/returns" element={<ProtectedRoute><EpiReturnPage /></ProtectedRoute>} />
+    <Route path="/epis/history" element={<ProtectedRoute><EpiHistoryPage /></ProtectedRoute>} />
+    <Route path="/epis/history/:collaboratorId" element={<ProtectedRoute><EpiHistoryPage /></ProtectedRoute>} />
+    <Route path="/epis/pending" element={<ProtectedRoute><EpiPendingPage /></ProtectedRoute>} />
+    <Route path="/epis/dismissal-report" element={<ProtectedRoute><EpiDismissalReportPage /></ProtectedRoute>} />
 
     {/* Redirects */}
     <Route path="/" element={<Navigate to="/dashboard" replace />} />
