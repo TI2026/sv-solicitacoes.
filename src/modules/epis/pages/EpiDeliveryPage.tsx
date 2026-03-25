@@ -11,15 +11,7 @@ import { Loader2, Plus, Package, Search, Eye } from 'lucide-react';
 import { useEpiDeliveries, useCreateDelivery, useCollaborators, useEpiItems } from '../hooks/useEpiQueries';
 import { EPI_DELIVERY_STATUS_LABELS, EPI_REASON_LABELS } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { getStatusVariant } from '@/lib/constants';
 import { StatusBadge } from '@/components/StatusBadge';
-
-function getDeliveryVariant(status: string): 'pending' | 'approved' | 'rejected' | 'info' {
-  if (['devolvido', 'baixado'].includes(status)) return 'approved';
-  if (['perdido'].includes(status)) return 'rejected';
-  if (['pendente_devolucao'].includes(status)) return 'info';
-  return 'pending';
-}
 
 export default function EpiDeliveryPage() {
   const [search, setSearch] = useState('');
