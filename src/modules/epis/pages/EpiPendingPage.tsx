@@ -57,7 +57,7 @@ export default function EpiPendingPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500" /> Pend. Devolução</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Clock className="w-4 h-4 text-muted-foreground" /> Pend. Devolução</CardTitle></CardHeader>
           <CardContent><p className="text-3xl font-bold">{pendingReturn.length}</p></CardContent>
         </Card>
         <Card>
@@ -65,7 +65,7 @@ export default function EpiPendingPage() {
           <CardContent><p className="text-3xl font-bold">{caExpiring.length}</p></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-orange-500" /> Vida Útil Expirada</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-muted-foreground" /> Vida Útil Expirada</CardTitle></CardHeader>
           <CardContent><p className="text-3xl font-bold">{usefulLifeExpired.length}</p></CardContent>
         </Card>
       </div>
