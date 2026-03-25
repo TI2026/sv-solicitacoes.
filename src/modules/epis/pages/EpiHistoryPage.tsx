@@ -97,7 +97,7 @@ export default function EpiHistoryPage() {
                           <span>por {d.delivered_by?.full_name}</span>
                         </div>
                       </div>
-                      <StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} variant={d.current_status === 'devolvido' ? 'approved' : d.current_status === 'perdido' ? 'rejected' : 'pending'} />
+                      <StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} />
                     </div>
                     <div className="mt-2">
                       <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}>

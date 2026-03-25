@@ -77,7 +77,7 @@ export default function EpiReturnPage() {
                       <td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name || '—'}</td>
                       <td className="py-2.5 px-3">{d.epi_item?.name || '—'}{d.size ? ` (${d.size})` : ''}</td>
                       <td className="py-2.5 px-3 hidden md:table-cell">{new Date(d.delivered_at).toLocaleDateString('pt-BR')}</td>
-                      <td className="py-2.5 px-3"><StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} variant="pending" /></td>
+                      <td className="py-2.5 px-3"><StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} /></td>
                       <td className="py-2.5 px-3"><Button variant="outline" size="sm" onClick={() => openReturn(d)}>Devolver</Button></td>
                     </tr>
                   ))}

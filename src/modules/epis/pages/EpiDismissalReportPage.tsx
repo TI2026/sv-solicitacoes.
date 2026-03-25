@@ -171,7 +171,7 @@ export default function EpiDismissalReportPage() {
                         <td className="py-2.5 px-3 hidden md:table-cell">{d.epi_item?.ca_number || '—'}</td>
                         <td className="py-2.5 px-3">{d.quantity}</td>
                         <td className="py-2.5 px-3 hidden md:table-cell">{new Date(d.delivered_at).toLocaleDateString('pt-BR')}</td>
-                        <td className="py-2.5 px-3"><StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} variant={d.current_status === 'devolvido' ? 'approved' : d.current_status === 'perdido' ? 'rejected' : 'pending'} /></td>
+                        <td className="py-2.5 px-3"><StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} /></td>
                       </tr>
                     ))}
                   </tbody>
