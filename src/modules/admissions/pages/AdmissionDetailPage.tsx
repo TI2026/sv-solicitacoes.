@@ -21,7 +21,7 @@ import { WelcomePdfGenerator } from '../components/WelcomePdfGenerator';
 import { ExamAttachmentUpload } from '../components/ExamAttachmentUpload';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ADMISSION_STATUS_LABELS, CANDIDATE_STATUS_LABELS, PRIORITY_LABELS, EXAM_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload, Download, Pencil, Video, ExternalLink, PackageOpen } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload, Download, Pencil, Video, ExternalLink, PackageOpen, HardHat } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,6 +30,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toTimestampTZ, formatDateTimeBR, isDateTimePast } from '@/lib/dateUtils';
 import { minDateToday } from '@/lib/masks';
 import JSZip from 'jszip';
+import { useCreateCollaboratorFromAdmission } from '@/modules/epis/hooks/useAdmissionToCollaborator';
 
 // Document key labels for admin view
 const DOC_KEY_LABELS: Record<string, string> = {
