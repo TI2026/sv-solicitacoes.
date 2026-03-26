@@ -21,7 +21,7 @@ import { WelcomePdfGenerator } from '../components/WelcomePdfGenerator';
 import { ExamAttachmentUpload } from '../components/ExamAttachmentUpload';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ADMISSION_STATUS_LABELS, CANDIDATE_STATUS_LABELS, PRIORITY_LABELS, EXAM_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload, Download, Pencil, Video, ExternalLink, PackageOpen } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Upload, Download, Pencil, Video, ExternalLink, PackageOpen, HardHat } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,6 +30,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toTimestampTZ, formatDateTimeBR, isDateTimePast } from '@/lib/dateUtils';
 import { minDateToday } from '@/lib/masks';
 import JSZip from 'jszip';
+import { useCreateCollaboratorFromAdmission } from '@/modules/epis/hooks/useAdmissionToCollaborator';
 
 // Document key labels for admin view
 const DOC_KEY_LABELS: Record<string, string> = {
@@ -736,6 +737,7 @@ export default function AdmissionDetailPage() {
                 dataPrevistaInicio={req.data_prevista_inicio}
               />
             ))}
+            <CreateCollaboratorFromAdmissionButton admissionId={id!} candidates={approvedCandidates} cargoFuncao={req.cargo_funcao} worksite={req.local_contratacao} />
           </CardContent>
         </Card>
       )}
@@ -1299,5 +1301,32 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
         </div>
       )}
     </div>
+  );
+}
+
+function CreateCollaboratorFromAdmissionButton({ admissionId, candidates, cargoFuncao, worksite }: { admissionId: string; candidates: any[]; cargoFuncao: string; worksite: string }) {
+  const createCollab = useCreateCollaboratorFromAdmission();
+  const [done, setDone] = useState(false);
+
+  const handleCreate = async () => {
+    for (const c of candidates) {
+      await createCollab.mutateAsync({
+        full_name: c.nome,
+        cpf: c.cpf || null,
+        role_name: cargoFuncao,
+        worksite,
+        admission_request_id: admissionId,
+      });
+    }
+    setDone(true);
+  };
+
+  if (done) return <p className="text-xs text-primary flex items-center gap-1"><HardHat className="w-3.5 h-3.5" /> Colaborador(es) criado(s) no módulo de EPIs</p>;
+
+  return (
+    <Button variant="outline" size="sm" className="gap-1.5" onClick={handleCreate} disabled={createCollab.isPending || candidates.length === 0}>
+      {createCollab.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <HardHat className="w-4 h-4" />}
+      Criar Colaborador p/ EPIs
+    </Button>
   );
 }
