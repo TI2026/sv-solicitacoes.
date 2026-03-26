@@ -778,6 +778,59 @@ export type Database = {
         }
         Relationships: []
       }
+      collaborators: {
+        Row: {
+          active: boolean
+          admission_request_id: string | null
+          cpf: string | null
+          created_at: string
+          full_name: string
+          id: string
+          role_name: string
+          sector_id: string | null
+          status: string
+          updated_at: string
+          user_profile_id: string | null
+          worksite: string
+        }
+        Insert: {
+          active?: boolean
+          admission_request_id?: string | null
+          cpf?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          role_name?: string
+          sector_id?: string | null
+          status?: string
+          updated_at?: string
+          user_profile_id?: string | null
+          worksite?: string
+        }
+        Update: {
+          active?: boolean
+          admission_request_id?: string | null
+          cpf?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          role_name?: string
+          sector_id?: string | null
+          status?: string
+          updated_at?: string
+          user_profile_id?: string | null
+          worksite?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaborators_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_reviews: {
         Row: {
           candidate_document_id: string
@@ -866,6 +919,248 @@ export type Database = {
           module?: string
         }
         Relationships: []
+      }
+      epi_deliveries: {
+        Row: {
+          collaborator_id: string
+          created_at: string
+          current_status: string
+          delivered_at: string
+          delivered_by_user_id: string
+          document_url: string | null
+          epi_item_id: string
+          id: string
+          notes: string
+          quantity: number
+          reason: string
+          sector_id: string | null
+          signature_employee_url: string | null
+          signature_responsible_url: string | null
+          size: string | null
+          updated_at: string
+          worksite: string
+        }
+        Insert: {
+          collaborator_id: string
+          created_at?: string
+          current_status?: string
+          delivered_at?: string
+          delivered_by_user_id: string
+          document_url?: string | null
+          epi_item_id: string
+          id?: string
+          notes?: string
+          quantity?: number
+          reason?: string
+          sector_id?: string | null
+          signature_employee_url?: string | null
+          signature_responsible_url?: string | null
+          size?: string | null
+          updated_at?: string
+          worksite?: string
+        }
+        Update: {
+          collaborator_id?: string
+          created_at?: string
+          current_status?: string
+          delivered_at?: string
+          delivered_by_user_id?: string
+          document_url?: string | null
+          epi_item_id?: string
+          id?: string
+          notes?: string
+          quantity?: number
+          reason?: string
+          sector_id?: string | null
+          signature_employee_url?: string | null
+          signature_responsible_url?: string | null
+          size?: string | null
+          updated_at?: string
+          worksite?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epi_deliveries_collaborator_id_fkey"
+            columns: ["collaborator_id"]
+            isOneToOne: false
+            referencedRelation: "collaborators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "epi_deliveries_delivered_by_user_id_fkey"
+            columns: ["delivered_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "epi_deliveries_epi_item_id_fkey"
+            columns: ["epi_item_id"]
+            isOneToOne: false
+            referencedRelation: "epi_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "epi_deliveries_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      epi_items: {
+        Row: {
+          active: boolean
+          ca_number: string
+          ca_valid_until: string | null
+          category: string
+          code: string
+          created_at: string
+          id: string
+          manufacturer: string
+          name: string
+          notes: string
+          size_required: boolean
+          unit: string
+          updated_at: string
+          useful_life_days: number | null
+        }
+        Insert: {
+          active?: boolean
+          ca_number?: string
+          ca_valid_until?: string | null
+          category?: string
+          code?: string
+          created_at?: string
+          id?: string
+          manufacturer?: string
+          name: string
+          notes?: string
+          size_required?: boolean
+          unit?: string
+          updated_at?: string
+          useful_life_days?: number | null
+        }
+        Update: {
+          active?: boolean
+          ca_number?: string
+          ca_valid_until?: string | null
+          category?: string
+          code?: string
+          created_at?: string
+          id?: string
+          manufacturer?: string
+          name?: string
+          notes?: string
+          size_required?: boolean
+          unit?: string
+          updated_at?: string
+          useful_life_days?: number | null
+        }
+        Relationships: []
+      }
+      epi_kit_rules: {
+        Row: {
+          active: boolean
+          created_at: string
+          epi_item_id: string
+          id: string
+          quantity: number
+          required: boolean
+          role_name: string
+          sector_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          epi_item_id: string
+          id?: string
+          quantity?: number
+          required?: boolean
+          role_name?: string
+          sector_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          epi_item_id?: string
+          id?: string
+          quantity?: number
+          required?: boolean
+          role_name?: string
+          sector_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epi_kit_rules_epi_item_id_fkey"
+            columns: ["epi_item_id"]
+            isOneToOne: false
+            referencedRelation: "epi_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "epi_kit_rules_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      epi_movements: {
+        Row: {
+          attachment_url: string | null
+          condition: string
+          created_at: string
+          delivery_id: string
+          id: string
+          moved_at: string
+          moved_by_user_id: string
+          movement_type: string
+          notes: string
+          reason: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          condition?: string
+          created_at?: string
+          delivery_id: string
+          id?: string
+          moved_at?: string
+          moved_by_user_id: string
+          movement_type?: string
+          notes?: string
+          reason?: string
+        }
+        Update: {
+          attachment_url?: string | null
+          condition?: string
+          created_at?: string
+          delivery_id?: string
+          id?: string
+          moved_at?: string
+          moved_by_user_id?: string
+          movement_type?: string
+          notes?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "epi_movements_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "epi_deliveries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "epi_movements_moved_by_user_id_fkey"
+            columns: ["moved_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fuel_attachments: {
         Row: {
