@@ -1303,3 +1303,30 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
     </div>
   );
 }
+
+function CreateCollaboratorFromAdmissionButton({ admissionId, candidates, cargoFuncao, worksite }: { admissionId: string; candidates: any[]; cargoFuncao: string; worksite: string }) {
+  const createCollab = useCreateCollaboratorFromAdmission();
+  const [done, setDone] = useState(false);
+
+  const handleCreate = async () => {
+    for (const c of candidates) {
+      await createCollab.mutateAsync({
+        full_name: c.nome,
+        cpf: c.cpf || null,
+        role_name: cargoFuncao,
+        worksite,
+        admission_request_id: admissionId,
+      });
+    }
+    setDone(true);
+  };
+
+  if (done) return <p className="text-xs text-primary flex items-center gap-1"><HardHat className="w-3.5 h-3.5" /> Colaborador(es) criado(s) no módulo de EPIs</p>;
+
+  return (
+    <Button variant="outline" size="sm" className="gap-1.5" onClick={handleCreate} disabled={createCollab.isPending || candidates.length === 0}>
+      {createCollab.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <HardHat className="w-4 h-4" />}
+      Criar Colaborador p/ EPIs
+    </Button>
+  );
+}
