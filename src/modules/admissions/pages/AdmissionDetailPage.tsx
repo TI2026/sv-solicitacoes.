@@ -737,6 +737,7 @@ export default function AdmissionDetailPage() {
                 dataPrevistaInicio={req.data_prevista_inicio}
               />
             ))}
+            <CreateCollaboratorFromAdmissionButton admissionId={id!} candidates={approvedCandidates} cargoFuncao={req.cargo_funcao} worksite={req.local_contratacao} />
           </CardContent>
         </Card>
       )}
