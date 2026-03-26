@@ -39,6 +39,7 @@ import EpiReturnPage from "@/modules/epis/pages/EpiReturnPage";
 import EpiHistoryPage from "@/modules/epis/pages/EpiHistoryPage";
 import EpiPendingPage from "@/modules/epis/pages/EpiPendingPage";
 import EpiDismissalReportPage from "@/modules/epis/pages/EpiDismissalReportPage";
+import EpiKitRulesPage from "@/modules/epis/pages/EpiKitRulesPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -108,6 +109,7 @@ const AppRoutes = () => (
     <Route path="/epis/history/:collaboratorId" element={<ProtectedRoute><EpiHistoryPage /></ProtectedRoute>} />
     <Route path="/epis/pending" element={<ProtectedRoute><EpiPendingPage /></ProtectedRoute>} />
     <Route path="/epis/dismissal-report" element={<ProtectedRoute><EpiDismissalReportPage /></ProtectedRoute>} />
+    <Route path="/epis/kit-rules" element={<ProtectedRoute><EpiKitRulesPage /></ProtectedRoute>} />
 
     {/* Redirects */}
     <Route path="/" element={<Navigate to="/dashboard" replace />} />
