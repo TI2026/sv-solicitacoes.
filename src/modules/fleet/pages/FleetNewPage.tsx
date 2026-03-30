@@ -105,7 +105,7 @@ export default function FleetNewPage() {
         data_abastecimento: data,
         notes: notes.trim() || null,
         type,
-        status: type === 'diaria' ? 'ativa' : 'rascunho',
+        status: 'rascunho',
       };
 
       if (type === 'abastecimento') {
