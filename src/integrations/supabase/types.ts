@@ -1211,13 +1211,24 @@ export type Database = {
           km: string | null
           motivo: string | null
           notes: string | null
+          oc_notes: string | null
+          oc_number: string | null
+          oc_uploaded_at: string | null
+          oc_uploaded_by: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payment_due_date: string | null
           payment_method: string | null
+          payment_notes: string | null
           person_cpf: string | null
           person_name: string | null
           pix_key: string | null
           pix_key_type: string | null
           placa: string | null
           requester_user_id: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           status: Database["public"]["Enums"]["fuel_status"]
           type: string
           updated_at: string
@@ -1239,13 +1250,24 @@ export type Database = {
           km?: string | null
           motivo?: string | null
           notes?: string | null
+          oc_notes?: string | null
+          oc_number?: string | null
+          oc_uploaded_at?: string | null
+          oc_uploaded_by?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_due_date?: string | null
           payment_method?: string | null
+          payment_notes?: string | null
           person_cpf?: string | null
           person_name?: string | null
           pix_key?: string | null
           pix_key_type?: string | null
           placa?: string | null
           requester_user_id: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: Database["public"]["Enums"]["fuel_status"]
           type?: string
           updated_at?: string
@@ -1267,13 +1289,24 @@ export type Database = {
           km?: string | null
           motivo?: string | null
           notes?: string | null
+          oc_notes?: string | null
+          oc_number?: string | null
+          oc_uploaded_at?: string | null
+          oc_uploaded_by?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_due_date?: string | null
           payment_method?: string | null
+          payment_notes?: string | null
           person_cpf?: string | null
           person_name?: string | null
           pix_key?: string | null
           pix_key_type?: string | null
           placa?: string | null
           requester_user_id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           status?: Database["public"]["Enums"]["fuel_status"]
           type?: string
           updated_at?: string
@@ -2186,6 +2219,10 @@ export type Database = {
         | "encerrado"
         | "concluido"
         | "ativa"
+        | "em_revisao"
+        | "aguardando_oc"
+        | "aguardando_pagamento"
+        | "pago"
       notification_channel: "in_app" | "email"
       review_decision: "approved" | "rejected" | "needs_revision"
     }
@@ -2352,6 +2389,10 @@ export const Constants = {
         "encerrado",
         "concluido",
         "ativa",
+        "em_revisao",
+        "aguardando_oc",
+        "aguardando_pagamento",
+        "pago",
       ],
       notification_channel: ["in_app", "email"],
       review_decision: ["approved", "rejected", "needs_revision"],
