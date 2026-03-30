@@ -392,23 +392,14 @@ export default function FleetNewPage() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            {type === 'diaria' ? (
-              <Button onClick={() => handleSubmit(false)} disabled={submitting || !isValid()} className="gap-2">
-                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                Registrar Diária
-              </Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !isValid()}>
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                  Salvar Rascunho
-                </Button>
-                <Button onClick={() => handleSubmit(true)} disabled={submitting || !isValid()} className="gap-2">
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <Send className="w-4 h-4" /> Enviar
-                </Button>
-              </>
-            )}
+            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !isValid()}>
+              {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Salvar Rascunho
+            </Button>
+            <Button onClick={() => handleSubmit(true)} disabled={submitting || !isValid()} className="gap-2">
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              <Send className="w-4 h-4" /> Enviar
+            </Button>
           </div>
         </CardContent>
       </Card>
