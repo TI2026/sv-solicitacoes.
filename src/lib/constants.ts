@@ -88,9 +88,9 @@ export const PRIORITY_LABELS: Record<string, string> = {
 };
 
 export function getStatusVariant(status: string): 'pending' | 'approved' | 'rejected' | 'info' {
-  if (['concluido', 'aprovado', 'encerrado', 'apto', 'approved', 'registros_concluidos', 'ativa', 'devolvido', 'baixado'].includes(status)) return 'approved';
+  if (['concluido', 'aprovado', 'encerrado', 'apto', 'approved', 'registros_concluidos', 'ativa', 'devolvido', 'baixado', 'pago'].includes(status)) return 'approved';
   if (['rejeitado', 'reprovado', 'cancelado', 'inapto', 'rejected', 'arquivado', 'perdido'].includes(status)) return 'rejected';
-  if (['aguardando_fotos', 'aguardando_documentos', 'submitted', 'pendente_devolucao'].includes(status)) return 'info';
+  if (['aguardando_fotos', 'aguardando_documentos', 'submitted', 'pendente_devolucao', 'aguardando_oc', 'aguardando_pagamento'].includes(status)) return 'info';
   return 'pending';
 }
 
