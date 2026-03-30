@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFuelRequest, useFuelAttachments, useFuelSetStatus } from '../hooks/useFleetQueries';
+import { useApprovalAction } from '../hooks/useApprovalAction';
 import { useApprovalRequestForReference } from '@/hooks/useApprovalFlow';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +15,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
-import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
@@ -27,24 +28,28 @@ export default function FleetDetailPage() {
   const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
   const { data: approvalRequest } = useApprovalRequestForReference(id);
   const statusMutation = useFuelSetStatus();
+  const approvalAction = useApprovalAction();
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
   const [showReasonDialog, setShowReasonDialog] = useState<string | null>(null);
+
+  // OC/Payment metadata fields
+  const [ocNumber, setOcNumber] = useState('');
+  const [ocNotes, setOcNotes] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [showOcDialog, setShowOcDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   const isOwner = req?.requester_user_id === user?.id;
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const reqType = (req as any)?.type || 'abastecimento';
 
   // ===== APPROVAL FLOW ELIGIBILITY =====
-  // When an approval_request exists for this reference, the approval/reject/return
-  // actions are ONLY available to the current step's eligible approver — NOT to
-  // admin/diretoria by default. The old role-based guards are replaced.
   const isCurrentFlowApprover = approvalRequest
     ? approvalRequest.current_approver_user_id === user?.id && !approvalRequest.ended_at
     : false;
 
   const flowAllowsReturn = approvalRequest?.approval_flows?.allow_return_for_adjustment ?? false;
-  const flowReturnMode = approvalRequest?.approval_flows?.return_mode || 'requester';
   const hasActiveFlow = !!approvalRequest && !approvalRequest.ended_at;
 
   // Realtime subscription
@@ -58,7 +63,8 @@ export default function FleetDetailPage() {
     return () => { supabase.removeChannel(channel); };
   }, [id]);
 
-  const handleStatusChange = async (toStatus: string, reason?: string) => {
+  /** Operational status change (NOT approval actions) */
+  const handleStatusChange = async (toStatus: string, reason?: string, metadata?: Record<string, any>) => {
     if (!id || statusMutation.isPending) return;
     const startApproval = toStatus === 'em_aprovacao' && req
       ? { moduleCode: reqType, requesterUserId: req.requester_user_id }
@@ -66,6 +72,59 @@ export default function FleetDetailPage() {
     await statusMutation.mutateAsync({ requestId: id, toStatus, reason, startApproval });
     setShowReasonDialog(null);
     setActionReason('');
+  };
+
+  /** Approval flow action (approve/reject/return) — uses process_approval_action */
+  const handleApprovalAction = async (action: 'approve' | 'reject' | 'return', comments?: string) => {
+    if (!id || !approvalRequest || approvalAction.isPending) return;
+    await approvalAction.mutateAsync({
+      approvalRequestId: approvalRequest.id,
+      action,
+      comments: comments || undefined,
+      fuelRequestId: id,
+      fuelRequestType: reqType,
+    });
+    setShowReasonDialog(null);
+    setActionReason('');
+  };
+
+  /** Handle OC submission */
+  const handleOcSubmit = async () => {
+    if (!id) return;
+    await statusMutation.mutateAsync({
+      requestId: id,
+      toStatus: 'aguardando_pagamento',
+      reason: null,
+    });
+    // Update OC fields directly
+    await supabase.from('fuel_requests').update({
+      oc_number: ocNumber.trim() || null,
+      oc_notes: ocNotes.trim() || null,
+      oc_uploaded_by: user?.id,
+      oc_uploaded_at: new Date().toISOString(),
+    }).eq('id', id);
+    setShowOcDialog(false);
+    setOcNumber('');
+    setOcNotes('');
+    refetch();
+  };
+
+  /** Handle payment confirmation */
+  const handlePaymentConfirm = async () => {
+    if (!id) return;
+    await statusMutation.mutateAsync({
+      requestId: id,
+      toStatus: 'pago',
+      reason: null,
+    });
+    await supabase.from('fuel_requests').update({
+      paid_at: new Date().toISOString(),
+      paid_by: user?.id,
+      payment_notes: paymentNotes.trim() || null,
+    }).eq('id', id);
+    setShowPaymentDialog(false);
+    setPaymentNotes('');
+    refetch();
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal') => {
@@ -126,7 +185,23 @@ export default function FleetDetailPage() {
   const notaFiscal = attachments?.filter((a: any) => a.type === 'nota_fiscal') || [];
   const canUpload = isOwner && ['aguardando_fotos', 'retornado'].includes(req.status);
   const canSendToReview = isOwner && req.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
-  const isPending = statusMutation.isPending;
+  const isPending = statusMutation.isPending || approvalAction.isPending;
+
+  /** Determines which handler to call from the reason dialog */
+  const handleReasonConfirm = () => {
+    if (!showReasonDialog) return;
+    if (hasActiveFlow && isCurrentFlowApprover && req.status === 'em_aprovacao') {
+      // Use approval flow action
+      if (showReasonDialog === 'reprovado') {
+        handleApprovalAction('reject', actionReason);
+      } else if (showReasonDialog === 'retornado') {
+        handleApprovalAction('return', actionReason);
+      }
+    } else {
+      // Use operational status change
+      handleStatusChange(showReasonDialog, actionReason);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
@@ -175,6 +250,20 @@ export default function FleetDetailPage() {
             <DiariaDetails req={req} />
           )}
 
+          {/* OC/Payment info if available */}
+          {(req as any).oc_number && (
+            <div className="text-sm text-muted-foreground border-t border-border pt-2">
+              <p className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> OC: {(req as any).oc_number}</p>
+              {(req as any).oc_notes && <p className="text-xs mt-1">{(req as any).oc_notes}</p>}
+            </div>
+          )}
+          {(req as any).paid_at && (
+            <div className="text-sm text-muted-foreground border-t border-border pt-2">
+              <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> Pago em: {new Date((req as any).paid_at).toLocaleDateString('pt-BR')}</p>
+              {(req as any).payment_notes && <p className="text-xs mt-1">{(req as any).payment_notes}</p>}
+            </div>
+          )}
+
           {req.notes && <p className="text-sm text-muted-foreground border-t border-border pt-2 mt-2">{req.notes}</p>}
         </CardContent>
       </Card>
@@ -198,8 +287,27 @@ export default function FleetDetailPage() {
             </Button>
           )}
 
-          {/* ADMIN: forward to approval — starts approval flow */}
-          {isAdmin && req.status === 'enviado' && (
+          {/* ADMIN: forward to review (diária) */}
+          {isAdmin && reqType === 'diaria' && req.status === 'enviado' && (
+            <Button onClick={() => handleStatusChange('em_revisao')} disabled={isPending} className="gap-2">
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Revisar Diária
+            </Button>
+          )}
+
+          {/* ADMIN: forward from review to approval (diária) */}
+          {isAdmin && reqType === 'diaria' && req.status === 'em_revisao' && (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending} className="gap-2">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Encaminhar para Aprovação
+              </Button>
+              <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2" disabled={isPending}>
+                <RotateCcw className="w-4 h-4" /> Devolver
+              </Button>
+            </div>
+          )}
+
+          {/* ADMIN: forward to approval (abastecimento/reembolso) */}
+          {isAdmin && reqType !== 'diaria' && req.status === 'enviado' && (
             <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Encaminhar para Aprovação
             </Button>
@@ -208,7 +316,7 @@ export default function FleetDetailPage() {
           {/* APPROVAL FLOW: approve/reject/return — ONLY for eligible approver of current step */}
           {req.status === 'em_aprovacao' && hasActiveFlow && isCurrentFlowApprover && (
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleStatusChange('aprovado')} disabled={isPending} className="gap-2">
+              <Button onClick={() => handleApprovalAction('approve')} disabled={isPending} className="gap-2">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Aprovar
               </Button>
               <Button onClick={() => setShowReasonDialog('reprovado')} variant="destructive" className="gap-2" disabled={isPending}>
@@ -274,11 +382,41 @@ export default function FleetDetailPage() {
             </Button>
           )}
 
-          {/* Diária: encerrar */}
-          {isAdmin && reqType === 'diaria' && req.status === 'ativa' && (
-            <Button onClick={() => handleStatusChange('encerrado')} disabled={isPending} className="gap-2" variant="outline">
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} Encerrar Diária
+          {/* ===== DIÁRIA POST-APPROVAL FLOW ===== */}
+
+          {/* DIÁRIA: Aprovado -> Aguardando OC */}
+          {isAdmin && reqType === 'diaria' && req.status === 'aprovado' && (
+            <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2">
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Anexar OC
             </Button>
+          )}
+
+          {/* DIÁRIA: Aguardando OC -> Aguardando Pagamento (already handled by OC dialog) */}
+
+          {/* DIÁRIA: Aguardando Pagamento -> Pago */}
+          {isAdmin && reqType === 'diaria' && req.status === 'aguardando_pagamento' && (
+            <Button onClick={() => setShowPaymentDialog(true)} disabled={isPending} className="gap-2">
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} Confirmar Pagamento
+            </Button>
+          )}
+
+          {/* DIÁRIA: Pago -> Concluído */}
+          {isAdmin && reqType === 'diaria' && req.status === 'pago' && (
+            <Button onClick={() => handleStatusChange('concluido')} disabled={isPending} className="gap-2">
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Concluir
+            </Button>
+          )}
+
+          {/* DIÁRIA legacy: encerrar (from ativa) */}
+          {isAdmin && reqType === 'diaria' && req.status === 'ativa' && (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleStatusChange('em_revisao')} disabled={isPending} className="gap-2">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Encaminhar para Revisão
+              </Button>
+              <Button onClick={() => handleStatusChange('encerrado')} disabled={isPending} className="gap-2" variant="outline">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} Encerrar Diária
+              </Button>
+            </div>
           )}
 
           {!isOwner && !isAdmin && !isCurrentFlowApprover && req.status !== 'em_aprovacao' && (
@@ -365,7 +503,7 @@ export default function FleetDetailPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
             <Button
-              onClick={() => showReasonDialog && handleStatusChange(showReasonDialog, actionReason)}
+              onClick={handleReasonConfirm}
               disabled={
                 !actionReason.trim() ||
                 (showReasonDialog === 'reprovado' && actionReason.trim().length < 10) ||
@@ -376,6 +514,54 @@ export default function FleetDetailPage() {
             >
               {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* OC Dialog */}
+      <Dialog open={showOcDialog} onOpenChange={setShowOcDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Anexar Ordem de Compra</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Número da OC</Label>
+              <Input value={ocNumber} onChange={e => setOcNumber(e.target.value.slice(0, 50))} placeholder="Ex: OC-2026-001" maxLength={50} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Observações</Label>
+              <Textarea value={ocNotes} onChange={e => setOcNotes(e.target.value.slice(0, 300))} placeholder="Detalhes da OC..." rows={2} maxLength={300} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOcDialog(false)}>Cancelar</Button>
+            <Button onClick={handleOcSubmit} disabled={isPending} className="gap-2">
+              {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Confirmar OC
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Pagamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Observações do Pagamento</Label>
+              <Textarea value={paymentNotes} onChange={e => setPaymentNotes(e.target.value.slice(0, 300))} placeholder="Comprovante, referência..." rows={2} maxLength={300} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancelar</Button>
+            <Button onClick={handlePaymentConfirm} disabled={isPending} className="gap-2">
+              {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Confirmar Pagamento
             </Button>
           </DialogFooter>
         </DialogContent>

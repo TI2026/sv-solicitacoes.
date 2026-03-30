@@ -20,11 +20,15 @@ export const ADMISSION_STATUS_LABELS: Record<string, string> = {
 export const FUEL_STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
   enviado: 'Enviado',
+  em_revisao: 'Em Revisão',
   em_aprovacao: 'Em Aprovação',
   retornado: 'Retornado',
   aprovado: 'Aprovado',
   aguardando_fotos: 'Aguardando Fotos',
   em_revisao_admin: 'Em Revisão Admin',
+  aguardando_oc: 'Aguardando OC',
+  aguardando_pagamento: 'Aguardando Pagamento',
+  pago: 'Pago',
   reprovado: 'Reprovado',
   encerrado: 'Encerrado',
   concluido: 'Concluído',
@@ -84,9 +88,9 @@ export const PRIORITY_LABELS: Record<string, string> = {
 };
 
 export function getStatusVariant(status: string): 'pending' | 'approved' | 'rejected' | 'info' {
-  if (['concluido', 'aprovado', 'encerrado', 'apto', 'approved', 'registros_concluidos', 'ativa', 'devolvido', 'baixado'].includes(status)) return 'approved';
+  if (['concluido', 'aprovado', 'encerrado', 'apto', 'approved', 'registros_concluidos', 'ativa', 'devolvido', 'baixado', 'pago'].includes(status)) return 'approved';
   if (['rejeitado', 'reprovado', 'cancelado', 'inapto', 'rejected', 'arquivado', 'perdido'].includes(status)) return 'rejected';
-  if (['aguardando_fotos', 'aguardando_documentos', 'submitted', 'pendente_devolucao'].includes(status)) return 'info';
+  if (['aguardando_fotos', 'aguardando_documentos', 'submitted', 'pendente_devolucao', 'aguardando_oc', 'aguardando_pagamento'].includes(status)) return 'info';
   return 'pending';
 }
 
