@@ -14,6 +14,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { SignaturePad } from '../components/SignaturePad';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { maskCPF } from '@/lib/masks';
 import jsPDF from 'jspdf';
 
 export default function EpiDeliveryPage() {
@@ -31,10 +32,9 @@ export default function EpiDeliveryPage() {
 
   const handleSave = async (generatePdf = false) => {
     if (!form.collaborator_id || !form.epi_item_id) return;
-    const collab = collaborators?.find(c => c.id === form.collaborator_id);
-    const epiItem = epiItems?.find(e => e.id === form.epi_item_id);
+    const collab = collaborators?.find((c: any) => c.id === form.collaborator_id);
+    const epiItem = epiItems?.find((e: any) => e.id === form.epi_item_id);
 
-    // Upload signatures to storage if present
     let sigEmployeeUrl: string | null = null;
     let sigResponsibleUrl: string | null = null;
 
@@ -51,7 +51,7 @@ export default function EpiDeliveryPage() {
       if (!error) sigResponsibleUrl = path;
     }
 
-    const result = await createDelivery.mutateAsync({
+    await createDelivery.mutateAsync({
       collaborator_id: form.collaborator_id,
       epi_item_id: form.epi_item_id,
       quantity: parseInt(form.quantity) || 1,
@@ -80,6 +80,7 @@ export default function EpiDeliveryPage() {
     const margin = 20;
     const green: [number, number, number] = [20, 144, 71];
 
+    // Header bar
     doc.setFillColor(...green);
     doc.rect(0, 0, pageW, 4, 'F');
 
@@ -89,25 +90,42 @@ export default function EpiDeliveryPage() {
     doc.setTextColor(...green);
     doc.text('Comprovante de Entrega de EPI', pageW / 2, y, { align: 'center' });
 
-    y += 14;
+    y += 4;
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.setFont('helvetica', 'normal');
+    doc.text('SV Engenharia', pageW / 2, y + 5, { align: 'center' });
+
+    // Collaborator data section
+    y += 16;
+    doc.setFillColor(245, 245, 245);
+    doc.rect(margin, y - 3, pageW - 2 * margin, 42, 'F');
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Colaborador:', margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(collab.full_name, margin + 30, y);
-    y += 6;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Cargo:', margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(collab.role_name || '—', margin + 30, y);
-    y += 6;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Data:', margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(new Date().toLocaleDateString('pt-BR'), margin + 30, y);
 
-    y += 12;
+    const field = (label: string, value: string, x: number, yPos: number) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, x, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value || '—', x + doc.getTextWidth(label) + 2, yPos);
+    };
+
+    field('Colaborador:', collab.full_name, margin + 3, y + 2);
+    field('CPF:', collab.cpf ? maskCPF(collab.cpf) : '—', margin + 3, y + 8);
+    field('Cargo:', collab.role_name || '—', margin + 3, y + 14);
+    field('Setor:', collab.sector?.name || '—', margin + 3, y + 20);
+    field('Obra/Local:', formData.worksite || collab.worksite || '—', margin + 3, y + 26);
+    field('Data:', new Date().toLocaleDateString('pt-BR'), margin + 3, y + 32);
+
+    if (collab.email) {
+      field('Email:', collab.email, pageW / 2, y + 8);
+    }
+    if (collab.telefone) {
+      field('Telefone:', collab.telefone, pageW / 2, y + 14);
+    }
+
+    // EPI table header
+    y += 48;
     doc.setFillColor(240, 240, 240);
     doc.rect(margin, y, pageW - 2 * margin, 8, 'F');
     doc.setFont('helvetica', 'bold');
@@ -126,8 +144,17 @@ export default function EpiDeliveryPage() {
     doc.text(formData.size || '—', margin + 115, y);
     doc.text(EPI_REASON_LABELS[formData.reason] || formData.reason, margin + 130, y);
 
+    if (formData.notes) {
+      y += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Observações:', margin, y);
+      doc.setFont('helvetica', 'normal');
+      y += 5;
+      doc.text(formData.notes, margin, y, { maxWidth: pageW - 2 * margin });
+    }
+
     // Signatures
-    y += 20;
+    y += 15;
     if (sigEmp) {
       doc.setFont('helvetica', 'bold');
       doc.text('Assinatura do Colaborador:', margin, y);
@@ -143,6 +170,16 @@ export default function EpiDeliveryPage() {
       y += 28;
     }
 
+    // Declaration text
+    y += 5;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.text(
+      'Declaro ter recebido o(s) equipamento(s) de proteção individual acima descrito(s), comprometendo-me a utilizá-lo(s) corretamente durante a jornada de trabalho, conforme orientações recebidas.',
+      margin, y, { maxWidth: pageW - 2 * margin }
+    );
+
     const footerY = doc.internal.pageSize.getHeight() - 15;
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
@@ -152,7 +189,18 @@ export default function EpiDeliveryPage() {
     doc.save(`Comprovante_EPI_${safeName}_${Date.now()}.pdf`);
   };
 
-  const filtered = (deliveries || []).filter(d => {
+  // Generate PDF for an existing delivery row
+  const handleDownloadExisting = (d: any) => {
+    if (!d.collaborator || !d.epi_item) return;
+    generateDeliveryPdf(
+      d.collaborator,
+      d.epi_item,
+      { collaborator_id: d.collaborator_id, epi_item_id: d.epi_item_id, quantity: String(d.quantity), size: d.size || '', sector_id: '', worksite: d.worksite || '', reason: d.reason, notes: d.notes },
+      null, null
+    );
+  };
+
+  const filtered = (deliveries || []).filter((d: any) => {
     if (!search) return true;
     const s = search.toLowerCase();
     return d.collaborator?.full_name?.toLowerCase().includes(s) || d.epi_item?.name?.toLowerCase().includes(s) || d.epi_item?.code?.toLowerCase().includes(s);
@@ -190,10 +238,10 @@ export default function EpiDeliveryPage() {
                   <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Data</th>
                   <th className="py-2 px-3 font-medium text-muted-foreground">Status</th>
                   <th className="py-2 px-3 font-medium text-muted-foreground hidden lg:table-cell">Motivo</th>
-                  <th className="py-2 px-3 w-12"></th>
+                  <th className="py-2 px-3 w-24"></th>
                 </tr></thead>
                 <tbody>
-                  {filtered.map(d => (
+                  {filtered.map((d: any) => (
                     <tr key={d.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                       <td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name || '—'}</td>
                       <td className="py-2.5 px-3">{d.epi_item?.name || '—'}{d.size ? ` (${d.size})` : ''}</td>
@@ -201,7 +249,10 @@ export default function EpiDeliveryPage() {
                       <td className="py-2.5 px-3 hidden md:table-cell">{new Date(d.delivered_at).toLocaleDateString('pt-BR')}</td>
                       <td className="py-2.5 px-3"><StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} /></td>
                       <td className="py-2.5 px-3 hidden lg:table-cell text-muted-foreground">{EPI_REASON_LABELS[d.reason] || d.reason}</td>
-                      <td className="py-2.5 px-3"><Button variant="ghost" size="icon" onClick={() => navigate(`/epis/history/${d.collaborator_id}`)}><Eye className="w-4 h-4" /></Button></td>
+                      <td className="py-2.5 px-3 flex gap-1">
+                        <Button variant="ghost" size="icon" title="Histórico" onClick={() => navigate(`/epis/history/${d.collaborator_id}`)}><Eye className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" title="Baixar Comprovante" onClick={() => handleDownloadExisting(d)}><FileDown className="w-4 h-4" /></Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -220,14 +271,14 @@ export default function EpiDeliveryPage() {
                 <Label className="text-xs">Colaborador *</Label>
                 <Select value={form.collaborator_id} onValueChange={v => setForm(f => ({ ...f, collaborator_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Selecione o colaborador" /></SelectTrigger>
-                  <SelectContent>{(collaborators || []).map(c => <SelectItem key={c.id} value={c.id}>{c.full_name}{c.role_name ? ` — ${c.role_name}` : ''}</SelectItem>)}</SelectContent>
+                  <SelectContent>{(collaborators || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.full_name}{c.role_name ? ` — ${c.role_name}` : ''}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">EPI *</Label>
                 <Select value={form.epi_item_id} onValueChange={v => setForm(f => ({ ...f, epi_item_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Selecione o EPI" /></SelectTrigger>
-                  <SelectContent>{(epiItems || []).map(e => <SelectItem key={e.id} value={e.id}>{e.code} — {e.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{(epiItems || []).map((e: any) => <SelectItem key={e.id} value={e.id}>{e.code} — {e.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

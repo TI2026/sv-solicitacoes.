@@ -784,11 +784,17 @@ export type Database = {
           admission_request_id: string | null
           cpf: string | null
           created_at: string
+          data_nascimento: string | null
+          email: string | null
+          endereco: string | null
           full_name: string
           id: string
+          observacoes: string | null
+          rg: string | null
           role_name: string
           sector_id: string | null
           status: string
+          telefone: string | null
           updated_at: string
           user_profile_id: string | null
           worksite: string
@@ -798,11 +804,17 @@ export type Database = {
           admission_request_id?: string | null
           cpf?: string | null
           created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          endereco?: string | null
           full_name: string
           id?: string
+          observacoes?: string | null
+          rg?: string | null
           role_name?: string
           sector_id?: string | null
           status?: string
+          telefone?: string | null
           updated_at?: string
           user_profile_id?: string | null
           worksite?: string
@@ -812,11 +824,17 @@ export type Database = {
           admission_request_id?: string | null
           cpf?: string | null
           created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          endereco?: string | null
           full_name?: string
           id?: string
+          observacoes?: string | null
+          rg?: string | null
           role_name?: string
           sector_id?: string | null
           status?: string
+          telefone?: string | null
           updated_at?: string
           user_profile_id?: string | null
           worksite?: string
