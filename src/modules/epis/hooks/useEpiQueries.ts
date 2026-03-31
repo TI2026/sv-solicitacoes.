@@ -58,6 +58,7 @@ export function useCollaborators(filters?: { active?: boolean; sector_id?: strin
     queryKey: ['collaborators', filters],
     queryFn: async () => {
       let q = from('collaborators').select('*, sector:sectors(id, name)').order('full_name');
+      // New fields: email, telefone, rg, data_nascimento, endereco, observacoes are included via *
       if (filters?.active !== undefined) q = q.eq('active', filters.active);
       if (filters?.sector_id) q = q.eq('sector_id', filters.sector_id);
       const { data, error } = await q;
