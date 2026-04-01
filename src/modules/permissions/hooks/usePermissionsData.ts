@@ -1,6 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { AppRole } from '@/types';
+
+// Map RBAC role keys to legacy app_role enum values
+const ROLE_KEY_TO_APP_ROLE: Record<string, AppRole> = {
+  master: 'diretoria',
+  diretoria: 'diretoria',
+  administrativo: 'administrativo',
+  rh: 'rh',
+  supervisor: 'administrativo',
+  financeiro: 'administrativo',
+  compras: 'administrativo',
+  colaborador: 'colaborador',
+};
 
 export function useRoles() {
   return useQuery({
@@ -99,7 +112,7 @@ export function useUsersWithRoleAssignments() {
     queryFn: async () => {
       const { data: profiles, error: pErr } = await supabase
         .from('profiles')
-        .select('id, full_name, email, department, avatar_url, created_at')
+        .select('id, full_name, email, department, avatar_url, created_at, sector_id, manager_user_id')
         .order('full_name');
       if (pErr) throw pErr;
 
@@ -122,16 +135,89 @@ export function useAssignUserRole() {
 
   return useMutation({
     mutationFn: async (params: { userId: string; roleId: string; assignedBy: string }) => {
+      // 1. Get the role details to know the key
+      const { data: roleData, error: roleErr } = await supabase
+        .from('roles')
+        .select('id, key, is_master')
+        .eq('id', params.roleId)
+        .single();
+      if (roleErr) throw roleErr;
+
+      // 2. Update user_role_assignments (RBAC table)
       await supabase.from('user_role_assignments').delete().eq('user_id', params.userId);
-      const { error } = await supabase
+      const { error: insertErr } = await supabase
         .from('user_role_assignments')
         .insert({ user_id: params.userId, role_id: params.roleId, assigned_by: params.assignedBy });
-      if (error) throw error;
+      if (insertErr) throw insertErr;
+
+      // 3. Sync legacy user_roles table (used by AuthContext, guards, sidebar)
+      const mappedAppRole = ROLE_KEY_TO_APP_ROLE[roleData.key] || 'colaborador';
+
+      // Delete existing legacy roles
+      await supabase.from('user_roles').delete().eq('user_id', params.userId);
+
+      // Insert mapped legacy role
+      const { error: legacyErr } = await supabase
+        .from('user_roles')
+        .insert({ user_id: params.userId, role: mappedAppRole });
+      if (legacyErr) throw legacyErr;
+
+      // For master/diretoria, also add administrativo for broader access
+      if (roleData.is_master || roleData.key === 'diretoria') {
+        await supabase.from('user_roles')
+          .insert({ user_id: params.userId, role: 'administrativo' as AppRole })
+          .then(() => {}); // ignore if duplicate
+      }
+
+      // 4. Rebuild effective permissions
+      await supabase.rpc('rebuild_user_permissions', { p_user_id: params.userId });
+
+      // 5. Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: params.assignedBy,
+        action: 'role_change',
+        entity_type: 'profiles',
+        entity_id: params.userId,
+        details: {
+          new_role_key: roleData.key,
+          new_role_id: params.roleId,
+          mapped_legacy_role: mappedAppRole,
+          is_master: roleData.is_master,
+        },
+      });
+
+      return { roleKey: roleData.key, isMaster: roleData.is_master };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users_role_assignments'] });
       qc.invalidateQueries({ queryKey: ['user_effective_permissions'] });
+      qc.invalidateQueries({ queryKey: ['all_profiles'] });
+      qc.invalidateQueries({ queryKey: ['eligible_approvers'] });
       toast({ title: 'Cargo atualizado com sucesso' });
+    },
+    onError: (err: any) => {
+      console.error('Role assignment error:', err);
+      toast({ title: 'Erro ao atualizar cargo', description: 'Não foi possível salvar a alteração. Tente novamente.', variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateUserOrgFields() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (params: { userId: string; sectorId: string | null; managerUserId: string | null }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ sector_id: params.sectorId, manager_user_id: params.managerUserId })
+        .eq('id', params.userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users_role_assignments'] });
+      qc.invalidateQueries({ queryKey: ['all_profiles'] });
+      toast({ title: 'Dados organizacionais atualizados' });
     },
     onError: (err: any) => {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -204,7 +290,6 @@ export interface StepDraft {
   approverType: 'usuario_fixo' | 'responsavel_do_setor_do_solicitante' | 'responsavel_do_setor_especifico' | 'gestor_imediato' | 'cargo_perfil';
   fixedUserId: string | null;
   fixedSectorId: string | null;
-  /** For cargo_perfil type: role key to match */
   approverRoleKey: string | null;
 }
 
@@ -241,7 +326,12 @@ export function useSaveApprovalFlow() {
           .eq('id', flowId);
         if (error) throw error;
 
-        await supabase.from('approval_flow_steps').delete().eq('flow_id', flowId);
+        // Delete ALL existing steps for this flow before re-creating
+        const { error: delErr } = await supabase
+          .from('approval_flow_steps')
+          .delete()
+          .eq('flow_id', flowId);
+        if (delErr) throw delErr;
       } else {
         await supabase
           .from('approval_flows')
@@ -267,20 +357,21 @@ export function useSaveApprovalFlow() {
         flowId = data.id;
       }
 
+      // Re-index steps to 1..N to avoid gaps and duplicates
       if (params.steps.length > 0) {
+        const reindexedSteps = params.steps.map((s, idx) => ({
+          flow_id: flowId!,
+          step_order: idx + 1,
+          approver_type: s.approverType === 'cargo_perfil'
+            ? `cargo_perfil:${s.approverRoleKey || ''}`
+            : s.approverType,
+          approver_user_id: s.approverType === 'usuario_fixo' ? s.fixedUserId : null,
+          fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
+        }));
+
         const { error } = await supabase
           .from('approval_flow_steps')
-          .insert(
-            params.steps.map(s => ({
-              flow_id: flowId!,
-              step_order: s.stepOrder,
-              approver_type: s.approverType === 'cargo_perfil'
-                ? `cargo_perfil:${s.approverRoleKey || ''}`
-                : s.approverType,
-              approver_user_id: s.approverType === 'usuario_fixo' ? s.fixedUserId : null,
-              fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
-            }))
-          );
+          .insert(reindexedSteps);
         if (error) throw error;
       }
 
@@ -291,7 +382,11 @@ export function useSaveApprovalFlow() {
       toast({ title: 'Fluxo salvo com sucesso' });
     },
     onError: (err: any) => {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      console.error('Approval flow save error:', err);
+      const msg = err.message?.includes('unique constraint')
+        ? 'Erro de etapas duplicadas. Tente salvar novamente.'
+        : err.message || 'Erro ao salvar fluxo';
+      toast({ title: 'Erro ao salvar fluxo', description: msg, variant: 'destructive' });
     },
   });
 }
@@ -373,36 +468,30 @@ export function useEligibleApprovers() {
   return useQuery({
     queryKey: ['eligible_approvers'],
     queryFn: async () => {
-      // Get all profiles
       const { data: profiles, error: pErr } = await supabase
         .from('profiles')
         .select('id, full_name, email, avatar_url')
         .order('full_name');
       if (pErr) throw pErr;
 
-      // Get user_roles to filter out pure colaborador users
       const { data: userRoles, error: rErr } = await supabase
         .from('user_roles')
         .select('user_id, role');
       if (rErr) throw rErr;
 
-      // Also get role assignments for extra context
       const { data: assignments, error: aErr } = await supabase
         .from('user_role_assignments')
         .select('user_id, roles(key, is_master)');
       if (aErr) throw aErr;
 
-      // Build a set of user IDs that have at least one non-colaborador role
       const eligibleUserIds = new Set<string>();
       
-      // From user_roles (legacy enum roles)
       (userRoles || []).forEach((ur: any) => {
         if (ur.role !== 'colaborador') {
           eligibleUserIds.add(ur.user_id);
         }
       });
 
-      // From user_role_assignments (new RBAC)
       (assignments || []).forEach((a: any) => {
         const roleKey = a.roles?.key;
         if (roleKey && roleKey !== 'colaborador') {
@@ -444,7 +533,6 @@ export function useApproverRoles() {
         .eq('active', true)
         .order('name');
       if (error) throw error;
-      // Exclude colaborador
       return (data || []).filter((r: any) => r.key !== 'colaborador');
     },
   });

@@ -88,43 +88,61 @@ export default function FleetDetailPage() {
     setActionReason('');
   };
 
-  /** Handle OC submission */
+  /** Handle OC submission: aprovado -> aguardando_oc -> aguardando_pagamento (two-step) */
   const handleOcSubmit = async () => {
-    if (!id) return;
-    await statusMutation.mutateAsync({
-      requestId: id,
-      toStatus: 'aguardando_pagamento',
-      reason: null,
-    });
-    // Update OC fields directly
-    await supabase.from('fuel_requests').update({
-      oc_number: ocNumber.trim() || null,
-      oc_notes: ocNotes.trim() || null,
-      oc_uploaded_by: user?.id,
-      oc_uploaded_at: new Date().toISOString(),
-    }).eq('id', id);
-    setShowOcDialog(false);
-    setOcNumber('');
-    setOcNotes('');
-    refetch();
+    if (!id || statusMutation.isPending) return;
+    try {
+      // Step 1: aprovado -> aguardando_oc
+      await statusMutation.mutateAsync({
+        requestId: id,
+        toStatus: 'aguardando_oc',
+        reason: null,
+      });
+      // Step 2: aguardando_oc -> aguardando_pagamento with OC metadata
+      const { data: result, error } = await supabase.rpc('fuel_set_status', {
+        _request_id: id,
+        _to_status: 'aguardando_pagamento' as any,
+        _reason: null,
+        _metadata: {
+          oc_number: ocNumber.trim() || null,
+          oc_notes: ocNotes.trim() || null,
+        },
+      });
+      if (error) throw error;
+      if ((result as any)?.error) throw new Error((result as any).error);
+
+      toast({ title: 'OC registrada com sucesso!' });
+      setShowOcDialog(false);
+      setOcNumber('');
+      setOcNotes('');
+      refetch();
+    } catch (err: any) {
+      toast({ title: 'Erro ao registrar OC', description: err.message, variant: 'destructive' });
+    }
   };
 
   /** Handle payment confirmation */
   const handlePaymentConfirm = async () => {
-    if (!id) return;
-    await statusMutation.mutateAsync({
-      requestId: id,
-      toStatus: 'pago',
-      reason: null,
-    });
-    await supabase.from('fuel_requests').update({
-      paid_at: new Date().toISOString(),
-      paid_by: user?.id,
-      payment_notes: paymentNotes.trim() || null,
-    }).eq('id', id);
-    setShowPaymentDialog(false);
-    setPaymentNotes('');
-    refetch();
+    if (!id || statusMutation.isPending) return;
+    try {
+      const { data: result, error } = await supabase.rpc('fuel_set_status', {
+        _request_id: id,
+        _to_status: 'pago' as any,
+        _reason: null,
+        _metadata: {
+          payment_notes: paymentNotes.trim() || null,
+        },
+      });
+      if (error) throw error;
+      if ((result as any)?.error) throw new Error((result as any).error);
+
+      toast({ title: 'Pagamento confirmado!' });
+      setShowPaymentDialog(false);
+      setPaymentNotes('');
+      refetch();
+    } catch (err: any) {
+      toast({ title: 'Erro ao confirmar pagamento', description: err.message, variant: 'destructive' });
+    }
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal') => {
@@ -191,14 +209,12 @@ export default function FleetDetailPage() {
   const handleReasonConfirm = () => {
     if (!showReasonDialog) return;
     if (hasActiveFlow && isCurrentFlowApprover && req.status === 'em_aprovacao') {
-      // Use approval flow action
       if (showReasonDialog === 'reprovado') {
         handleApprovalAction('reject', actionReason);
       } else if (showReasonDialog === 'retornado') {
         handleApprovalAction('return', actionReason);
       }
     } else {
-      // Use operational status change
       handleStatusChange(showReasonDialog, actionReason);
     }
   };
@@ -243,12 +259,8 @@ export default function FleetDetailPage() {
               {(req as any).motivo && <span>📝 {(req as any).motivo}</span>}
             </div>
           )}
-          {reqType === 'reembolso' && (
-            <ReembolsoDetails req={req} />
-          )}
-          {reqType === 'diaria' && (
-            <DiariaDetails req={req} />
-          )}
+          {reqType === 'reembolso' && <ReembolsoDetails req={req} />}
+          {reqType === 'diaria' && <DiariaDetails req={req} />}
 
           {/* OC/Payment info if available */}
           {(req as any).oc_number && (
@@ -384,14 +396,19 @@ export default function FleetDetailPage() {
 
           {/* ===== DIÁRIA POST-APPROVAL FLOW ===== */}
 
-          {/* DIÁRIA: Aprovado -> Aguardando OC */}
+          {/* DIÁRIA: Aprovado -> Anexar OC (transitions aprovado -> aguardando_oc -> aguardando_pagamento) */}
           {isAdmin && reqType === 'diaria' && req.status === 'aprovado' && (
             <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Anexar OC
             </Button>
           )}
 
-          {/* DIÁRIA: Aguardando OC -> Aguardando Pagamento (already handled by OC dialog) */}
+          {/* DIÁRIA: Aguardando OC -> fill OC and advance */}
+          {isAdmin && reqType === 'diaria' && req.status === 'aguardando_oc' && (
+            <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2">
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Confirmar OC
+            </Button>
+          )}
 
           {/* DIÁRIA: Aguardando Pagamento -> Pago */}
           {isAdmin && reqType === 'diaria' && req.status === 'aguardando_pagamento' && (
@@ -527,7 +544,7 @@ export default function FleetDetailPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">Número da OC</Label>
+              <Label className="text-xs">Número da OC *</Label>
               <Input value={ocNumber} onChange={e => setOcNumber(e.target.value.slice(0, 50))} placeholder="Ex: OC-2026-001" maxLength={50} />
             </div>
             <div className="space-y-1.5">
@@ -537,7 +554,7 @@ export default function FleetDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowOcDialog(false)}>Cancelar</Button>
-            <Button onClick={handleOcSubmit} disabled={isPending} className="gap-2">
+            <Button onClick={handleOcSubmit} disabled={isPending || !ocNumber.trim()} className="gap-2">
               {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Confirmar OC
             </Button>
