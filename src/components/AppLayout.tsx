@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
-import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, Settings, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2 } from 'lucide-react';
+import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -72,7 +72,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }, () => { fetchNotifications(); })
       .subscribe();
 
-    // Fallback: refetch every 60s for robustness
     const interval = setInterval(fetchNotifications, 60_000);
 
     return () => {
@@ -81,7 +80,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, [user, fetchNotifications]);
 
-  // Supabase Realtime Presence tracking
+  // Supabase Realtime Presence tracking with route info
   const presenceChannelRef = useRef<any>(null);
   useEffect(() => {
     if (!user) return;
@@ -97,6 +96,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             full_name: user.full_name || user.email,
             email: user.email,
             avatar_url: user.avatar_url || null,
+            role: primaryRole || 'colaborador',
+            current_route: location.pathname,
             online_at: new Date().toISOString(),
           });
         }
@@ -107,6 +108,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       supabase.removeChannel(presenceChannel);
     };
   }, [user]);
+
+  // Update presence route on navigation
+  useEffect(() => {
+    if (presenceChannelRef.current && user) {
+      presenceChannelRef.current.track({
+        user_id: user.id,
+        full_name: user.full_name || user.email,
+        email: user.email,
+        avatar_url: user.avatar_url || null,
+        role: primaryRole || 'colaborador',
+        current_route: location.pathname,
+        online_at: new Date().toISOString(),
+      });
+    }
+  }, [location.pathname]);
 
   const markAllRead = async () => {
     if (!user) return;

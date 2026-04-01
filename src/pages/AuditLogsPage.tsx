@@ -28,6 +28,7 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   approval_return: { label: 'Devolução', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' },
   archive: { label: 'Arquivamento', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300' },
   download: { label: 'Download', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300' },
+  role_change: { label: 'Alteração de Cargo', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300' },
 };
 
 const ENTITY_LABELS: Record<string, string> = {
