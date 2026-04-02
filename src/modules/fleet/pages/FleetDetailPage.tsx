@@ -72,6 +72,14 @@ export default function FleetDetailPage() {
       ? { moduleCode: reqType, requesterUserId: req.requester_user_id }
       : undefined;
     await statusMutation.mutateAsync({ requestId: id, toStatus, reason, startApproval });
+
+    // Auto-assign reviewer by sector when sending
+    if (toStatus === 'enviado' && req?.requester_user_id) {
+      assignReviewerByRequesterSector(id, req.requester_user_id).then(assignee => {
+        if (assignee) refetch();
+      });
+    }
+
     setShowReasonDialog(null);
     setActionReason('');
   };
