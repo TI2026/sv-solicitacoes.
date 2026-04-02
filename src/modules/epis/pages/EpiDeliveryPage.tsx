@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,19 +9,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Plus, Package, Search, Eye, FileDown } from 'lucide-react';
 import { useEpiDeliveries, useCreateDelivery, useCollaborators, useEpiItems } from '../hooks/useEpiQueries';
 import { EPI_DELIVERY_STATUS_LABELS, EPI_REASON_LABELS } from '../types';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
 import { SignaturePad } from '../components/SignaturePad';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { maskCPF } from '@/lib/masks';
+import { useSectors } from '@/modules/permissions/hooks/usePermissionsData';
 import jsPDF from 'jspdf';
 
 export default function EpiDeliveryPage() {
   const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
   const { data: deliveries, isLoading } = useEpiDeliveries();
   const { data: collaborators } = useCollaborators({ active: true });
   const { data: epiItems } = useEpiItems({ active: true });
+  const { data: sectors } = useSectors();
   const createDelivery = useCreateDelivery();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -29,6 +32,23 @@ export default function EpiDeliveryPage() {
   const [form, setForm] = useState({ collaborator_id: '', epi_item_id: '', quantity: '1', size: '', sector_id: '', worksite: '', reason: 'primeira_entrega', notes: '' });
   const [sigEmployee, setSigEmployee] = useState<string | null>(null);
   const [sigResponsible, setSigResponsible] = useState<string | null>(null);
+
+  // Pre-select collaborator from querystring (from admission flow)
+  useEffect(() => {
+    const collabId = searchParams.get('collaboratorId');
+    if (collabId && collaborators) {
+      const collab = collaborators.find((c: any) => c.id === collabId);
+      if (collab) {
+        setForm(f => ({
+          ...f,
+          collaborator_id: collabId,
+          sector_id: collab.sector_id || '',
+          worksite: collab.worksite || '',
+        }));
+        setDialogOpen(true);
+      }
+    }
+  }, [searchParams, collaborators]);
 
   const handleSave = async (generatePdf = false) => {
     if (!form.collaborator_id || !form.epi_item_id) return;
@@ -269,7 +289,10 @@ export default function EpiDeliveryPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Colaborador *</Label>
-                <Select value={form.collaborator_id} onValueChange={v => setForm(f => ({ ...f, collaborator_id: v }))}>
+                <Select value={form.collaborator_id} onValueChange={v => {
+                  const collab = collaborators?.find((c: any) => c.id === v);
+                  setForm(f => ({ ...f, collaborator_id: v, sector_id: collab?.sector_id || '', worksite: collab?.worksite || f.worksite }));
+                }}>
                   <SelectTrigger><SelectValue placeholder="Selecione o colaborador" /></SelectTrigger>
                   <SelectContent>{(collaborators || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.full_name}{c.role_name ? ` — ${c.role_name}` : ''}</SelectItem>)}</SelectContent>
                 </Select>
@@ -295,7 +318,19 @@ export default function EpiDeliveryPage() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-1.5"><Label className="text-xs">Obra / Local</Label><Input value={form.worksite} onChange={e => setForm(f => ({ ...f, worksite: e.target.value }))} /></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Setor</Label>
+                <Select value={form.sector_id || 'none'} onValueChange={v => setForm(f => ({ ...f, sector_id: v === 'none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {(sectors || []).map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Obra / Local</Label><Input value={form.worksite} onChange={e => setForm(f => ({ ...f, worksite: e.target.value }))} /></div>
+            </div>
             <div className="space-y-1.5"><Label className="text-xs">Observações</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border">

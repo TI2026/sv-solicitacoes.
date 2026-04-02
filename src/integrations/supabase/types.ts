@@ -170,6 +170,7 @@ export type Database = {
           tipo_contrato: string
           updated_at: string
           welcome_local_apresentacao: string | null
+          welcome_pdf_generated_at: string | null
           welcome_responsavel_contato: string | null
           welcome_responsavel_nome: string | null
         }
@@ -192,6 +193,7 @@ export type Database = {
           tipo_contrato?: string
           updated_at?: string
           welcome_local_apresentacao?: string | null
+          welcome_pdf_generated_at?: string | null
           welcome_responsavel_contato?: string | null
           welcome_responsavel_nome?: string | null
         }
@@ -214,6 +216,7 @@ export type Database = {
           tipo_contrato?: string
           updated_at?: string
           welcome_local_apresentacao?: string | null
+          welcome_pdf_generated_at?: string | null
           welcome_responsavel_contato?: string | null
           welcome_responsavel_nome?: string | null
         }
@@ -1214,6 +1217,7 @@ export type Database = {
       }
       fuel_requests: {
         Row: {
+          assigned_to_user_id: string | null
           bank_account: string | null
           bank_agency: string | null
           bank_name: string | null
@@ -1253,6 +1257,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          assigned_to_user_id?: string | null
           bank_account?: string | null
           bank_agency?: string | null
           bank_name?: string | null
@@ -1292,6 +1297,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          assigned_to_user_id?: string | null
           bank_account?: string | null
           bank_agency?: string | null
           bank_name?: string | null
@@ -1331,6 +1337,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "fuel_requests_assigned_to_user_id_fkey"
+            columns: ["assigned_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fuel_requests_requester_user_id_fkey"
             columns: ["requester_user_id"]

@@ -11,13 +11,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/StatusBadge';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
-import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard, CheckCircle2, Circle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { assignReviewerByRequesterSector } from '@/lib/resolveAssignee';
 
 export default function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -70,6 +72,14 @@ export default function FleetDetailPage() {
       ? { moduleCode: reqType, requesterUserId: req.requester_user_id }
       : undefined;
     await statusMutation.mutateAsync({ requestId: id, toStatus, reason, startApproval });
+
+    // Auto-assign reviewer by sector when sending
+    if (toStatus === 'enviado' && req?.requester_user_id) {
+      assignReviewerByRequesterSector(id, req.requester_user_id).then(assignee => {
+        if (assignee) refetch();
+      });
+    }
+
     setShowReasonDialog(null);
     setActionReason('');
   };
@@ -444,6 +454,40 @@ export default function FleetDetailPage() {
 
       {/* Approval Flow Status */}
       {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
+
+      {/* Approval Steps Queue */}
+      {hasActiveFlow && approvalRequest?.approval_request_steps && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Fila de Aprovadores</h3>
+            <div className="space-y-2">
+              {(approvalRequest.approval_request_steps as any[])
+                .sort((a: any, b: any) => a.step_order - b.step_order)
+                .map((step: any) => {
+                  const isApproved = step.status === 'approved';
+                  const isCurrent = step.step_order === approvalRequest.current_step_order && !approvalRequest.ended_at;
+                  const isPendingStep = step.status === 'pending' && !isCurrent;
+                  const isMe = step.approver_user_id === user?.id;
+
+                  return (
+                    <div
+                      key={step.id}
+                      className={`flex items-center gap-3 p-2 rounded-lg ${isCurrent && isMe ? 'border-2 border-primary bg-primary/5' : 'border border-border'}`}
+                    >
+                      {isApproved && <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />}
+                      {isCurrent && <Clock className="w-4 h-4 text-amber-500 shrink-0" />}
+                      {isPendingStep && <Circle className="w-4 h-4 text-muted-foreground shrink-0" />}
+                      <span className="text-sm flex-1">{step.profiles?.full_name || 'Aprovador'}</span>
+                      <Badge variant={isApproved ? 'default' : isCurrent ? 'secondary' : 'outline'} className="text-[10px]">
+                        {isApproved ? 'Aprovado' : isCurrent ? 'Aguardando' : 'Pendente'}
+                      </Badge>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Attachments (abastecimento) */}
       {reqType === 'abastecimento' && (canUpload || (attachments && attachments.length > 0)) && (

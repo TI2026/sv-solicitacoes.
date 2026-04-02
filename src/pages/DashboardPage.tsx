@@ -80,7 +80,7 @@ export default function DashboardPage() {
   // Only master users can see financial values
   const canSeeFinancials = !!isMaster;
 
-  // Track online presence for master users
+  // Track online presence for master users — include role + route
   useEffect(() => {
     if (!isMaster || !user) return;
     const channel = supabase.channel('online-users');
@@ -91,8 +91,9 @@ export default function DashboardPage() {
         full_name: p.full_name,
         email: p.email,
         avatar_url: p.avatar_url,
+        role: p.role || 'colaborador',
+        current_route: p.current_route || '/',
       }));
-      // Deduplicate by user_id
       const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
       setOnlineUsers(unique);
     });
@@ -260,8 +261,8 @@ export default function DashboardPage() {
                 <MetricCard icon={Fuel} label="Solicitações" value={fuelMetrics.total} onClick={() => navigate('/fleet')} />
                 <MetricCard icon={Clock} label="Pendentes Frota" value={fuelMetrics.pendentes}
                   onClick={() => openDrilldown({ title: 'Frota Pendentes', data: fuelMetrics.pendentesData, type: 'fuel', summary: `${fuelMetrics.pendentes} solicitações pendentes` })} />
-                {isRH && <MetricCard icon={Users} label="Admissões Pendentes" value={admMetrics.pendentes}
-                  onClick={() => openDrilldown({ title: 'Admissões Pendentes', data: admMetrics.pendentesData, type: 'admission', summary: `${admMetrics.pendentes} admissões pendentes` })} />}
+                {isRH && <MetricCard icon={Users} label="Admissões em Andamento" value={admMetrics.pendentes}
+                  onClick={() => navigate('/admissions')} />}
                 {isRH && <MetricCard icon={CheckCircle} label="Admissões Concluídas" value={admMetrics.concluidos}
                   onClick={() => openDrilldown({ title: 'Admissões Concluídas', data: admMetrics.concluidosData, type: 'admission', summary: `${admMetrics.concluidos} concluídas` })} />}
               </div>
@@ -274,9 +275,8 @@ export default function DashboardPage() {
                 )}
                 <MetricCard icon={CheckCircle} label="Frota Aprovados" value={fuelMetrics.aprovados}
                   onClick={() => openDrilldown({ title: 'Frota Aprovados', data: fuelMetrics.aprovadosData, type: 'fuel', summary: `${fuelMetrics.aprovados} aprovados/concluídos` })} />
-                {isRH && canSeeFinancials && <MetricCard icon={DollarSign} label="Salário Total Previsto" value={formatCurrency(admMetrics.salarioTotal)}
-                  onClick={() => openDrilldown({ title: 'Salário Total Previsto', data: admMetrics.pendentesData, type: 'admission', summary: `Total previsto: ${formatCurrency(admMetrics.salarioTotal)}` })} />}
-                {isRH && !canSeeFinancials && <MetricCard icon={DollarSign} label="Salário Total Previsto" value="••••••" />}
+                {isAdmin && <MetricCard icon={ShieldAlert} label="CAs Vencendo 30d" value="—"
+                  onClick={() => navigate('/epis/pending')} accent="bg-amber-100" />}
                 {isRH && <MetricCard icon={Users} label="Total Admissões" value={admMetrics.total} onClick={() => navigate('/admissions')} />}
               </div>
             </>
@@ -293,10 +293,12 @@ export default function DashboardPage() {
                   {onlineUsers.map((u: any) => (
                     <div key={u.user_id} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-muted/50 text-xs">
                       <Avatar className="w-5 h-5">
-                        {u.avatar_url ? <AvatarImage src={u.avatar_url} /> : null}
+                        {u.avatar_url ? <AvatarImage src={u.avatar_url} onError={(e: any) => { e.currentTarget.style.display = 'none'; }} /> : null}
                         <AvatarFallback className="text-[8px]">{(u.full_name || '?')[0]}</AvatarFallback>
                       </Avatar>
                       <span className="text-foreground font-medium">{u.full_name || u.email}</span>
+                      {u.role && <span className="text-muted-foreground">({u.role})</span>}
+                      {u.current_route && <span className="text-muted-foreground">{u.current_route}</span>}
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                     </div>
                   ))}

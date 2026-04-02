@@ -359,15 +359,21 @@ export function useSaveApprovalFlow() {
 
       // Re-index steps to 1..N to avoid gaps and duplicates
       if (params.steps.length > 0) {
-        const reindexedSteps = params.steps.map((s, idx) => ({
-          flow_id: flowId!,
-          step_order: idx + 1,
-          approver_type: s.approverType === 'cargo_perfil'
-            ? `cargo_perfil:${s.approverRoleKey || ''}`
-            : s.approverType,
-          approver_user_id: s.approverType === 'usuario_fixo' ? s.fixedUserId : null,
-          fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
-        }));
+        const reindexedSteps = params.steps.map((s, idx) => {
+          // For dynamic types, use createdBy as fallback (approver_user_id is NOT NULL)
+          const isDynamic = ['responsavel_do_setor_do_solicitante', 'gestor_imediato'].includes(s.approverType);
+          return {
+            flow_id: flowId!,
+            step_order: idx + 1,
+            approver_type: s.approverType === 'cargo_perfil'
+              ? `cargo_perfil:${s.approverRoleKey || ''}`
+              : s.approverType,
+            approver_user_id: s.approverType === 'usuario_fixo'
+              ? s.fixedUserId
+              : isDynamic ? (params.createdBy || null) : null,
+            fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
+          };
+        });
 
         const { error } = await supabase
           .from('approval_flow_steps')
