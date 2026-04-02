@@ -293,10 +293,12 @@ export default function DashboardPage() {
                   {onlineUsers.map((u: any) => (
                     <div key={u.user_id} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-muted/50 text-xs">
                       <Avatar className="w-5 h-5">
-                        {u.avatar_url ? <AvatarImage src={u.avatar_url} /> : null}
+                        {u.avatar_url ? <AvatarImage src={u.avatar_url} onError={(e: any) => { e.currentTarget.style.display = 'none'; }} /> : null}
                         <AvatarFallback className="text-[8px]">{(u.full_name || '?')[0]}</AvatarFallback>
                       </Avatar>
                       <span className="text-foreground font-medium">{u.full_name || u.email}</span>
+                      {u.role && <span className="text-muted-foreground">({u.role})</span>}
+                      {u.current_route && <span className="text-muted-foreground">{u.current_route}</span>}
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                     </div>
                   ))}
