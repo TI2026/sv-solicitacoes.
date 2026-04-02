@@ -455,6 +455,40 @@ export default function FleetDetailPage() {
       {/* Approval Flow Status */}
       {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
 
+      {/* Approval Steps Queue */}
+      {hasActiveFlow && approvalRequest?.approval_request_steps && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Fila de Aprovadores</h3>
+            <div className="space-y-2">
+              {(approvalRequest.approval_request_steps as any[])
+                .sort((a: any, b: any) => a.step_order - b.step_order)
+                .map((step: any) => {
+                  const isApproved = step.status === 'approved';
+                  const isCurrent = step.step_order === approvalRequest.current_step_order && !approvalRequest.ended_at;
+                  const isPendingStep = step.status === 'pending' && !isCurrent;
+                  const isMe = step.approver_user_id === user?.id;
+
+                  return (
+                    <div
+                      key={step.id}
+                      className={`flex items-center gap-3 p-2 rounded-lg ${isCurrent && isMe ? 'border-2 border-primary bg-primary/5' : 'border border-border'}`}
+                    >
+                      {isApproved && <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />}
+                      {isCurrent && <Clock className="w-4 h-4 text-amber-500 shrink-0" />}
+                      {isPendingStep && <Circle className="w-4 h-4 text-muted-foreground shrink-0" />}
+                      <span className="text-sm flex-1">{step.profiles?.full_name || 'Aprovador'}</span>
+                      <Badge variant={isApproved ? 'default' : isCurrent ? 'secondary' : 'outline'} className="text-[10px]">
+                        {isApproved ? 'Aprovado' : isCurrent ? 'Aguardando' : 'Pendente'}
+                      </Badge>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Attachments (abastecimento) */}
       {reqType === 'abastecimento' && (canUpload || (attachments && attachments.length > 0)) && (
         <Card>
