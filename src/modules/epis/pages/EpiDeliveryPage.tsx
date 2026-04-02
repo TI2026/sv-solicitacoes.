@@ -289,7 +289,10 @@ export default function EpiDeliveryPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Colaborador *</Label>
-                <Select value={form.collaborator_id} onValueChange={v => setForm(f => ({ ...f, collaborator_id: v }))}>
+                <Select value={form.collaborator_id} onValueChange={v => {
+                  const collab = collaborators?.find((c: any) => c.id === v);
+                  setForm(f => ({ ...f, collaborator_id: v, sector_id: collab?.sector_id || '', worksite: collab?.worksite || f.worksite }));
+                }}>
                   <SelectTrigger><SelectValue placeholder="Selecione o colaborador" /></SelectTrigger>
                   <SelectContent>{(collaborators || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.full_name}{c.role_name ? ` — ${c.role_name}` : ''}</SelectItem>)}</SelectContent>
                 </Select>
