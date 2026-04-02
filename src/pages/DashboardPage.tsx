@@ -261,8 +261,8 @@ export default function DashboardPage() {
                 <MetricCard icon={Fuel} label="Solicitações" value={fuelMetrics.total} onClick={() => navigate('/fleet')} />
                 <MetricCard icon={Clock} label="Pendentes Frota" value={fuelMetrics.pendentes}
                   onClick={() => openDrilldown({ title: 'Frota Pendentes', data: fuelMetrics.pendentesData, type: 'fuel', summary: `${fuelMetrics.pendentes} solicitações pendentes` })} />
-                {isRH && <MetricCard icon={Users} label="Admissões Pendentes" value={admMetrics.pendentes}
-                  onClick={() => openDrilldown({ title: 'Admissões Pendentes', data: admMetrics.pendentesData, type: 'admission', summary: `${admMetrics.pendentes} admissões pendentes` })} />}
+                {isRH && <MetricCard icon={Users} label="Admissões em Andamento" value={admMetrics.pendentes}
+                  onClick={() => navigate('/admissions')} />}
                 {isRH && <MetricCard icon={CheckCircle} label="Admissões Concluídas" value={admMetrics.concluidos}
                   onClick={() => openDrilldown({ title: 'Admissões Concluídas', data: admMetrics.concluidosData, type: 'admission', summary: `${admMetrics.concluidos} concluídas` })} />}
               </div>
@@ -275,9 +275,8 @@ export default function DashboardPage() {
                 )}
                 <MetricCard icon={CheckCircle} label="Frota Aprovados" value={fuelMetrics.aprovados}
                   onClick={() => openDrilldown({ title: 'Frota Aprovados', data: fuelMetrics.aprovadosData, type: 'fuel', summary: `${fuelMetrics.aprovados} aprovados/concluídos` })} />
-                {isRH && canSeeFinancials && <MetricCard icon={DollarSign} label="Salário Total Previsto" value={formatCurrency(admMetrics.salarioTotal)}
-                  onClick={() => openDrilldown({ title: 'Salário Total Previsto', data: admMetrics.pendentesData, type: 'admission', summary: `Total previsto: ${formatCurrency(admMetrics.salarioTotal)}` })} />}
-                {isRH && !canSeeFinancials && <MetricCard icon={DollarSign} label="Salário Total Previsto" value="••••••" />}
+                {isAdmin && <MetricCard icon={ShieldAlert} label="CAs Vencendo 30d" value="—"
+                  onClick={() => navigate('/epis/pending')} accent="bg-amber-100" />}
                 {isRH && <MetricCard icon={Users} label="Total Admissões" value={admMetrics.total} onClick={() => navigate('/admissions')} />}
               </div>
             </>
