@@ -80,7 +80,7 @@ export default function DashboardPage() {
   // Only master users can see financial values
   const canSeeFinancials = !!isMaster;
 
-  // Track online presence for master users
+  // Track online presence for master users — include role + route
   useEffect(() => {
     if (!isMaster || !user) return;
     const channel = supabase.channel('online-users');
@@ -91,8 +91,9 @@ export default function DashboardPage() {
         full_name: p.full_name,
         email: p.email,
         avatar_url: p.avatar_url,
+        role: p.role || 'colaborador',
+        current_route: p.current_route || '/',
       }));
-      // Deduplicate by user_id
       const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
       setOnlineUsers(unique);
     });
