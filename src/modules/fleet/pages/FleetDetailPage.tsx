@@ -19,6 +19,7 @@ import { useDynamicCategories } from '@/hooks/useDynamicCategories';
 import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard, CheckCircle2, Circle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { assignReviewerByRequesterSector } from '@/lib/resolveAssignee';
 
 export default function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
