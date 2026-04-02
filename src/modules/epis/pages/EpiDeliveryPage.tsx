@@ -318,7 +318,19 @@ export default function EpiDeliveryPage() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-1.5"><Label className="text-xs">Obra / Local</Label><Input value={form.worksite} onChange={e => setForm(f => ({ ...f, worksite: e.target.value }))} /></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Setor</Label>
+                <Select value={form.sector_id || 'none'} onValueChange={v => setForm(f => ({ ...f, sector_id: v === 'none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {(sectors || []).map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Obra / Local</Label><Input value={form.worksite} onChange={e => setForm(f => ({ ...f, worksite: e.target.value }))} /></div>
+            </div>
             <div className="space-y-1.5"><Label className="text-xs">Observações</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border">

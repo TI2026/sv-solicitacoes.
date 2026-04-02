@@ -244,10 +244,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <Avatar className="w-8 h-8">
                 {user.avatar_url ? (
-                  <AvatarImage src={user.avatar_url} alt={user.full_name || 'Avatar'} />
+                  <AvatarImage src={user.avatar_url} alt={user.full_name || 'Avatar'} onError={(e: any) => { e.currentTarget.style.display = 'none'; }} />
                 ) : null}
                 <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm font-semibold">
-                  {user.full_name?.charAt(0) || '?'}
+                  {user.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
