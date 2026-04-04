@@ -129,9 +129,9 @@ export default function DashboardPage() {
 
   const approvalMetrics = useMemo(() => {
     const d = approvalData || [];
-    const myPending = d.filter(a => a.current_approver_user_id === user?.id);
-    const myRequests = d.filter(a => a.requester_user_id === user?.id);
-    const totalActive = d.length;
+    const myPending = d.filter((a: any) => a.current_approver_user_id === user?.id && !a.ended_at);
+    const myRequests = d.filter((a: any) => a.requester_user_id === user?.id && !a.ended_at);
+    const totalActive = d.filter((a: any) => !a.ended_at && !!a.current_approver_user_id).length;
     const byModule: Record<string, number> = {};
     d.forEach((a: any) => {
       const name = a.approval_modules?.name || 'Outro';
@@ -332,15 +332,15 @@ export default function DashboardPage() {
               </div>
 
               {/* Approval metrics */}
-              {(approvalMetrics.myPending.length > 0 || approvalMetrics.myRequests.length > 0) && (
+              {(approvalMetrics.myPending.length > 0 || approvalMetrics.myRequests.length > 0 || approvalMetrics.totalActive > 0) && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <MetricCard icon={ClipboardCheck} label="Minhas Aprovações Pendentes" value={approvalMetrics.myPending.length}
                     onClick={() => navigate('/permissoes')} accent="bg-primary/20" />
                   <MetricCard icon={Clock} label="Minhas Solicitações em Aprovação" value={approvalMetrics.myRequests.length}
                     onClick={() => navigate('/permissoes')} />
-                  {isAdmin && <MetricCard icon={ListChecks} label="Aprovações Ativas (total)" value={approvalMetrics.totalActive}
-                    onClick={() => navigate('/permissoes')} />}
-                  {isAdmin && Object.keys(approvalMetrics.byModule).length > 0 && (
+                  <MetricCard icon={ListChecks} label="Aprovações no meu escopo" value={approvalMetrics.totalActive}
+                    onClick={() => navigate('/permissoes')} />
+                  {Object.keys(approvalMetrics.byModule).length > 0 && (
                     <Card className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate('/permissoes')}>
                       <CardContent className="p-4">
                         <p className="text-xs text-muted-foreground mb-1">Por Módulo</p>

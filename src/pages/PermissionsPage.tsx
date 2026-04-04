@@ -19,13 +19,14 @@ function ApprovalInProgressTab() {
   const { data: requests, isLoading } = useAllApprovalRequests();
   const [moduleFilter, setModuleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
+  const isReallyActive = (r: any) => !r.ended_at && !!r.current_approver_user_id && String(r.status || '').startsWith('awaiting_step_');
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
   const filtered = (requests || []).filter((r: any) => {
     if (moduleFilter !== 'all' && r.approval_modules?.code !== moduleFilter) return false;
-    if (statusFilter === 'active' && r.ended_at) return false;
-    if (statusFilter === 'ended' && !r.ended_at) return false;
+    if (statusFilter === 'active' && !isReallyActive(r)) return false;
+    if (statusFilter === 'ended' && isReallyActive(r)) return false;
     return true;
   });
 
@@ -37,7 +38,7 @@ function ApprovalInProgressTab() {
         <CardContent className="p-3">
           <p className="text-xs text-muted-foreground flex items-start gap-1">
             <Info className="w-3 h-3 mt-0.5 shrink-0" />
-            Visão geral de todos os fluxos de aprovação. As ações de aprovar/reprovar/devolver são exclusivas do aprovador elegível da etapa atual em "Minhas Aprovações".
+            Visão das aprovações dentro do seu escopo. As ações de aprovar/reprovar/devolver seguem exclusivas do aprovador elegível em "Minhas Aprovações".
           </p>
         </CardContent>
       </Card>
@@ -67,7 +68,7 @@ function ApprovalInProgressTab() {
       ) : (
         <div className="space-y-2">
           {filtered.map((a: any) => {
-            const isActive = !a.ended_at;
+            const isActive = isReallyActive(a);
             const totalSteps = a.approval_request_steps?.length || 0;
             const approvedSteps = a.approval_request_steps?.filter((s: any) => s.status === 'approved').length || 0;
             const currentStep = a.approval_request_steps?.find((s: any) => s.step_order === a.current_step_order);
@@ -134,7 +135,7 @@ function ApprovalInProgressTab() {
 
 export default function PermissionsPage() {
   const { hasAnyRole } = useAuth();
-  const isAdmin = hasAnyRole(['diretoria']);
+  const canManageSettings = hasAnyRole(['diretoria']);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -145,42 +146,40 @@ export default function PermissionsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue={isAdmin ? 'roles' : 'my-approvals'} className="space-y-4">
-        <TabsList className="grid w-full" style={{ gridTemplateColumns: isAdmin ? 'repeat(5, 1fr)' : '1fr' }}>
-          {isAdmin && (
+      <Tabs defaultValue={canManageSettings ? 'roles' : 'my-approvals'} className="space-y-4">
+        <TabsList className="grid w-full" style={{ gridTemplateColumns: canManageSettings ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
+          {canManageSettings && (
             <TabsTrigger value="roles" className="gap-2">
               <Shield className="w-4 h-4" />
               <span className="hidden sm:inline">Perfis</span>
             </TabsTrigger>
           )}
-          {isAdmin && (
+          {canManageSettings && (
             <TabsTrigger value="users" className="gap-2">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Usuários</span>
             </TabsTrigger>
           )}
-          {isAdmin && (
+          {canManageSettings && (
             <TabsTrigger value="chains" className="gap-2">
               <GitBranch className="w-4 h-4" />
               <span className="hidden sm:inline">Aprovadores</span>
             </TabsTrigger>
           )}
-          {isAdmin && (
-            <TabsTrigger value="in-progress" className="gap-2">
-              <ListChecks className="w-4 h-4" />
-              <span className="hidden sm:inline">Em Andamento</span>
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="in-progress" className="gap-2">
+            <ListChecks className="w-4 h-4" />
+            <span className="hidden sm:inline">Em Andamento</span>
+          </TabsTrigger>
           <TabsTrigger value="my-approvals" className="gap-2">
             <ClipboardCheck className="w-4 h-4" />
             <span className="hidden sm:inline">Minhas Aprovações</span>
           </TabsTrigger>
         </TabsList>
 
-        {isAdmin && <TabsContent value="roles"><RolesPermissionsTab /></TabsContent>}
-        {isAdmin && <TabsContent value="users"><UsersManagementTab /></TabsContent>}
-        {isAdmin && <TabsContent value="chains"><ApprovalChainsTab /></TabsContent>}
-        {isAdmin && <TabsContent value="in-progress"><ApprovalInProgressTab /></TabsContent>}
+        {canManageSettings && <TabsContent value="roles"><RolesPermissionsTab /></TabsContent>}
+        {canManageSettings && <TabsContent value="users"><UsersManagementTab /></TabsContent>}
+        {canManageSettings && <TabsContent value="chains"><ApprovalChainsTab /></TabsContent>}
+        <TabsContent value="in-progress"><ApprovalInProgressTab /></TabsContent>
         <TabsContent value="my-approvals"><MyApprovalsTab /></TabsContent>
       </Tabs>
     </div>
