@@ -15,6 +15,7 @@ export interface AdmissionListItem {
   salario_previsto: number | null;
   total_candidatos: number;
   requester_user_id: string;
+  welcome_pdf_generated_at: string | null;
 }
 
 /**
