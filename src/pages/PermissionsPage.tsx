@@ -5,15 +5,16 @@ import RolesPermissionsTab from '@/modules/permissions/components/RolesPermissio
 import UsersManagementTab from '@/modules/permissions/components/UsersManagementTab';
 import ApprovalChainsTab from '@/modules/permissions/components/ApprovalChainsTab';
 import MyApprovalsTab from '@/modules/permissions/components/MyApprovalsTab';
-import { Shield, Users, GitBranch, ClipboardCheck, ListChecks, Clock, User, Info } from 'lucide-react';
+import { Shield, Users, GitBranch, ClipboardCheck, ListChecks, Clock, User, Info, Send } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
-import { useAllApprovalRequests } from '@/modules/permissions/hooks/usePermissionsData';
+import { useAllApprovalRequests, usePendingFuelRequests } from '@/modules/permissions/hooks/usePermissionsData';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getApproverTypeLabel } from '@/lib/approvalLabels';
+import { REQUEST_TYPE_LABELS } from '@/lib/constants';
 
 function getApprovalLastActivityDate(approval: any) {
   const timestamps = [
