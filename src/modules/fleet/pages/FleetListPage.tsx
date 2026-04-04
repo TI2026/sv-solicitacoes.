@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useFuelRequestsPending, useFuelRequestsRejected, useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
+import { useFuelRequestsPending, useFuelRequestsRejected, useFuelRequestsCompleted, useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
