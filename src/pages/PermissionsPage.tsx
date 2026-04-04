@@ -15,6 +15,18 @@ import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getApproverTypeLabel } from '@/lib/approvalLabels';
 
+function getApprovalLastActivityDate(approval: any) {
+  const timestamps = [
+    approval.created_at,
+    ...(approval.approval_request_steps?.map((step: any) => step.action_at ?? null) || []),
+  ]
+    .filter(Boolean)
+    .map((value) => new Date(value).getTime())
+    .filter((value) => !Number.isNaN(value));
+
+  return new Date(timestamps.length ? Math.max(...timestamps) : Date.now());
+}
+
 function ApprovalInProgressTab() {
   const { data: requests, isLoading } = useAllApprovalRequests();
   const [moduleFilter, setModuleFilter] = useState('all');
@@ -23,12 +35,12 @@ function ApprovalInProgressTab() {
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
-  const filtered = (requests || []).filter((r: any) => {
+  const filtered = [...((requests || []).filter((r: any) => {
     if (moduleFilter !== 'all' && r.approval_modules?.code !== moduleFilter) return false;
     if (statusFilter === 'active' && !isReallyActive(r)) return false;
     if (statusFilter === 'ended' && isReallyActive(r)) return false;
     return true;
-  });
+  }))].sort((a: any, b: any) => getApprovalLastActivityDate(b).getTime() - getApprovalLastActivityDate(a).getTime());
 
   const moduleOptions = [...new Set((requests || []).map((r: any) => r.approval_modules?.code).filter(Boolean))];
 
@@ -72,6 +84,7 @@ function ApprovalInProgressTab() {
             const totalSteps = a.approval_request_steps?.length || 0;
             const approvedSteps = a.approval_request_steps?.filter((s: any) => s.status === 'approved').length || 0;
             const currentStep = a.approval_request_steps?.find((s: any) => s.step_order === a.current_step_order);
+            const lastActivityAt = getApprovalLastActivityDate(a);
             return (
               <Card key={a.id} className={isActive ? '' : 'opacity-60'}>
                 <CardContent className="p-4">
@@ -92,7 +105,7 @@ function ApprovalInProgressTab() {
                     <span>{a.profiles?.full_name || 'Solicitante'}</span>
                     <span>·</span>
                     <Clock className="w-3 h-3" />
-                    <span>{formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}</span>
+                    <span>{formatDistanceToNow(lastActivityAt, { addSuffix: true, locale: ptBR })}</span>
                     {isActive && currentStep && (
                       <>
                         <span>·</span>
@@ -105,8 +118,8 @@ function ApprovalInProgressTab() {
                   </div>
                   {isActive && (
                     <div className="flex items-center gap-1 mt-2 flex-wrap">
-                      {a.approval_request_steps
-                        ?.sort((x: any, y: any) => x.step_order - y.step_order)
+                        {[...(a.approval_request_steps || [])]
+                          .sort((x: any, y: any) => x.step_order - y.step_order)
                         .map((step: any) => (
                           <Badge
                             key={step.id}

@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useFuelRequestsPending, useFuelRequestsRejected, useFuelRequestsCompleted, useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
+import { useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,39 @@ import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+
+const REJECTED_STATUSES = new Set(['reprovado']);
+const COMPLETED_STATUSES = new Set(['aprovado', 'concluido', 'encerrado']);
+const DIARIA_APPROVED_STATUSES = new Set(['aprovado']);
+const DIARIA_COMPLETED_STATUSES = new Set(['concluido', 'encerrado']);
+
+function groupRequests(requests: any[] = []) {
+  const rejected = requests.filter((request) => REJECTED_STATUSES.has(request.status));
+  const completed = requests.filter((request) => COMPLETED_STATUSES.has(request.status));
+  const pending = requests.filter(
+    (request) => !REJECTED_STATUSES.has(request.status) && !COMPLETED_STATUSES.has(request.status),
+  );
+
+  return { pending, rejected, completed };
+}
+
+function groupDiariaRequests(requests: any[] = []) {
+  const rejected = requests.filter((request) => REJECTED_STATUSES.has(request.status));
+  const approved = requests.filter((request) => DIARIA_APPROVED_STATUSES.has(request.status));
+  const completed = requests.filter((request) => DIARIA_COMPLETED_STATUSES.has(request.status));
+  const pending = requests.filter(
+    (request) =>
+      !REJECTED_STATUSES.has(request.status) &&
+      !DIARIA_APPROVED_STATUSES.has(request.status) &&
+      !DIARIA_COMPLETED_STATUSES.has(request.status),
+  );
+
+  return { pending, rejected, approved, completed };
+}
 
 function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -100,7 +129,7 @@ export default function FleetListPage() {
   const canSeeDiaria = hasAnyRole(['diretoria', 'administrativo']);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('abastecimento');
-  const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'concluidos'>('pendentes');
+  const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'aprovadas' | 'concluidos'>('pendentes');
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const softDelete = useSoftDeleteRequest();
 
@@ -109,24 +138,17 @@ export default function FleetListPage() {
     setActiveTab('abastecimento');
   }
 
-  // Pending queries
-  const { data: abastPending, isLoading: abastPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'abastecimento');
-  const { data: reembolsoPending, isLoading: reembolsoPendingLoading } = useFuelRequestsPending(user?.id, isAdmin, 'reembolso');
-  // Diaria: only load if user can see it
+  const { data: abastData, isLoading: abastLoading } = useFuelRequests(user?.id, isAdmin, 'abastecimento');
+  const { data: reembolsoData, isLoading: reembolsoLoading } = useFuelRequests(user?.id, isAdmin, 'reembolso');
   const { data: diariaData, isLoading: diariaLoading } = useFuelRequests(canSeeDiaria ? user?.id : undefined, canSeeDiaria ? isAdmin : false, canSeeDiaria ? 'diaria' : undefined);
-
-  // Rejected queries
-  const { data: abastRejected, isLoading: abastRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'abastecimento');
-  const { data: reembolsoRejected, isLoading: reembolsoRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'reembolso');
-
-  // Completed queries
-  const { data: abastCompleted, isLoading: abastCompletedLoading } = useFuelRequestsCompleted(user?.id, isAdmin, 'abastecimento');
-  const { data: reembolsoCompleted, isLoading: reembolsoCompletedLoading } = useFuelRequestsCompleted(user?.id, isAdmin, 'reembolso');
+  const abastGroups = useMemo(() => groupRequests(abastData), [abastData]);
+  const reembolsoGroups = useMemo(() => groupRequests(reembolsoData), [reembolsoData]);
+  const diariaGroups = useMemo(() => groupDiariaRequests(diariaData), [diariaData]);
 
   useRealtimeSubscription({
     channelName: 'fleet-list-realtime',
     enabled: !!user,
-    tables: [{ table: 'fuel_requests', queryKeys: [['fuel_requests'], ['fuel_requests_pending'], ['fuel_requests_rejected'], ['fuel_requests_completed'], ['fuel_metrics']] }],
+    tables: [{ table: 'fuel_requests', queryKeys: [['fuel_requests'], ['fuel_metrics']] }],
   });
 
   const canCreateDiaria = canSeeDiaria;
@@ -182,22 +204,22 @@ export default function FleetListPage() {
           {/* Sub-filter: Pendentes / Negados / Concluídos */}
           <div className="flex gap-2 flex-wrap">
             <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
-              Pendentes {abastPending?.length ? `(${abastPending.length})` : ''}
+              Pendentes {abastGroups.pending.length ? `(${abastGroups.pending.length})` : ''}
             </Button>
             <Button variant={subFilter === 'negados' ? 'destructive' : 'outline'} size="sm" onClick={() => setSubFilter('negados')}>
-              <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negados {abastRejected?.length ? `(${abastRejected.length})` : ''}
+              <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negadas {abastGroups.rejected.length ? `(${abastGroups.rejected.length})` : ''}
             </Button>
             <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
-              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídos {abastCompleted?.length ? `(${abastCompleted.length})` : ''}
+              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídas {abastGroups.completed.length ? `(${abastGroups.completed.length})` : ''}
             </Button>
           </div>
 
           {subFilter === 'pendentes' ? (
-            <RequestList requests={abastPending} isAdmin={isAdmin} isLoading={abastPendingLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
+            <RequestList requests={abastGroups.pending} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
           ) : subFilter === 'negados' ? (
-            <RequestList requests={abastRejected} isAdmin={isAdmin} isLoading={abastRejectedLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            <RequestList requests={abastGroups.rejected} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
           ) : (
-            <RequestList requests={abastCompleted} isAdmin={isAdmin} isLoading={abastCompletedLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação concluída" />
+            <RequestList requests={abastGroups.completed} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
@@ -212,22 +234,22 @@ export default function FleetListPage() {
 
           <div className="flex gap-2 flex-wrap">
             <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
-              Pendentes {reembolsoPending?.length ? `(${reembolsoPending.length})` : ''}
+              Pendentes {reembolsoGroups.pending.length ? `(${reembolsoGroups.pending.length})` : ''}
             </Button>
             <Button variant={subFilter === 'negados' ? 'destructive' : 'outline'} size="sm" onClick={() => setSubFilter('negados')}>
-              <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negados {reembolsoRejected?.length ? `(${reembolsoRejected.length})` : ''}
+              <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negadas {reembolsoGroups.rejected.length ? `(${reembolsoGroups.rejected.length})` : ''}
             </Button>
             <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
-              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídos {reembolsoCompleted?.length ? `(${reembolsoCompleted.length})` : ''}
+              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídas {reembolsoGroups.completed.length ? `(${reembolsoGroups.completed.length})` : ''}
             </Button>
           </div>
 
           {subFilter === 'pendentes' ? (
-            <RequestList requests={reembolsoPending} isAdmin={isAdmin} isLoading={reembolsoPendingLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
+            <RequestList requests={reembolsoGroups.pending} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
           ) : subFilter === 'negados' ? (
-            <RequestList requests={reembolsoRejected} isAdmin={isAdmin} isLoading={reembolsoRejectedLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            <RequestList requests={reembolsoGroups.rejected} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
           ) : (
-            <RequestList requests={reembolsoCompleted} isAdmin={isAdmin} isLoading={reembolsoCompletedLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação concluída" />
+            <RequestList requests={reembolsoGroups.completed} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
@@ -239,7 +261,31 @@ export default function FleetListPage() {
               <p>• A diária pode ser editada ou encerrada</p>
               <p>• Custos são somados por período no dashboard</p>
             </InfoCard>
-            <RequestList requests={diariaData} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária registrada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+
+            <div className="flex gap-2 flex-wrap">
+              <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
+                Pendentes {diariaGroups.pending.length ? `(${diariaGroups.pending.length})` : ''}
+              </Button>
+              <Button variant={subFilter === 'negados' ? 'destructive' : 'outline'} size="sm" onClick={() => setSubFilter('negados')}>
+                <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negadas {diariaGroups.rejected.length ? `(${diariaGroups.rejected.length})` : ''}
+              </Button>
+              <Button variant={subFilter === 'aprovadas' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('aprovadas')}>
+                <CheckCircle className="w-3.5 h-3.5 mr-1" /> Aprovadas {diariaGroups.approved.length ? `(${diariaGroups.approved.length})` : ''}
+              </Button>
+              <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
+                <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídas {diariaGroups.completed.length ? `(${diariaGroups.completed.length})` : ''}
+              </Button>
+            </div>
+
+            {subFilter === 'pendentes' ? (
+              <RequestList requests={diariaGroups.pending} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária pendente" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            ) : subFilter === 'negados' ? (
+              <RequestList requests={diariaGroups.rejected} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            ) : subFilter === 'aprovadas' ? (
+              <RequestList requests={diariaGroups.approved} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária aprovada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            ) : (
+              <RequestList requests={diariaGroups.completed} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária concluída" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            )}
           </TabsContent>
         )}
       </Tabs>

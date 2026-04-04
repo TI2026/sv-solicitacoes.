@@ -19,6 +19,18 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   pending_approval: { label: 'Pendente', variant: 'outline' },
 };
 
+function getApprovalLastActivityDate(approval: any) {
+  const timestamps = [
+    approval.created_at,
+    ...(approval.approval_request_steps?.map((step: any) => step.action_at ?? null) || []),
+  ]
+    .filter(Boolean)
+    .map((value) => new Date(value).getTime())
+    .filter((value) => !Number.isNaN(value));
+
+  return new Date(timestamps.length ? Math.max(...timestamps) : Date.now());
+}
+
 function getStatusBadge(status: string) {
   if (status.startsWith('awaiting_step_')) {
     return { label: `Etapa ${status.replace('awaiting_step_', '')}`, variant: 'outline' as const };
@@ -32,16 +44,19 @@ export default function MyApprovalsTab() {
   const processAction = useProcessApproval();
   const [actionDialog, setActionDialog] = useState<{ id: string; type: 'reject' | 'return' } | null>(null);
   const [actionReason, setActionReason] = useState('');
+  const sortedApprovals = [...(approvals || [])].sort(
+    (a: any, b: any) => getApprovalLastActivityDate(b).getTime() - getApprovalLastActivityDate(a).getTime(),
+  );
 
   // Only show as "my pending" if I am the CURRENT approver of the CURRENT step
-  const myPending = approvals?.filter((a: any) =>
+  const myPending = sortedApprovals.filter((a: any) =>
     a.current_approver_user_id === user?.id && !a.ended_at
-  ) || [];
+  );
 
   // Everything else: history or others' items
-  const otherApprovals = approvals?.filter((a: any) =>
+  const otherApprovals = sortedApprovals.filter((a: any) =>
     !(a.current_approver_user_id === user?.id && !a.ended_at)
-  ) || [];
+  );
 
   // Only items where I participated (as requester or step approver)
   const myHistory = otherApprovals.filter((a: any) => {
@@ -121,12 +136,12 @@ export default function MyApprovalsTab() {
                           <span>Solicitante: {a.profiles?.full_name || 'Desconhecido'}</span>
                           <span>·</span>
                           <Clock className="w-3 h-3" />
-                          <span>{formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}</span>
+                          <span>{formatDistanceToNow(getApprovalLastActivityDate(a), { addSuffix: true, locale: ptBR })}</span>
                         </div>
                         {/* Steps timeline */}
                         <div className="flex items-center gap-1 mt-2 flex-wrap">
-                          {a.approval_request_steps
-                            ?.sort((x: any, y: any) => x.step_order - y.step_order)
+                          {[...(a.approval_request_steps || [])]
+                            .sort((x: any, y: any) => x.step_order - y.step_order)
                             .map((step: any) => (
                               <Badge
                                 key={step.id}
@@ -192,7 +207,7 @@ export default function MyApprovalsTab() {
                         <Badge variant="outline" className="text-[10px]">Etapa {a.current_step_order}</Badge>
                       )}
                       <span className="text-xs text-muted-foreground ml-auto">
-                        {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}
+                        {formatDistanceToNow(getApprovalLastActivityDate(a), { addSuffix: true, locale: ptBR })}
                       </span>
                     </div>
                   </CardContent>
