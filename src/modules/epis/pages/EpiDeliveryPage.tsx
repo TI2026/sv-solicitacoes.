@@ -53,8 +53,22 @@ export default function EpiDeliveryPage() {
 
   const handleSave = async (generatePdf = false) => {
     if (!form.collaborator_id || !form.epi_item_id) return;
-    const collab = collaborators?.find((c: any) => c.id === form.collaborator_id);
+    let collab = collaborators?.find((c: any) => c.id === form.collaborator_id);
     const epiItem = epiItems?.find((e: any) => e.id === form.epi_item_id);
+
+    // Auto-create collaborator from profile if needed
+    let realCollaboratorId = form.collaborator_id;
+    if (collab?._isProfileOnly) {
+      const newCollab = await createCollaborator.mutateAsync({
+        full_name: collab.full_name,
+        email: collab.email || '',
+        user_profile_id: collab._profileId,
+        sector_id: form.sector_id || collab.sector_id || null,
+        worksite: form.worksite || '',
+      });
+      realCollaboratorId = newCollab.id;
+      collab = { ...collab, ...newCollab };
+    }
 
     let sigEmployeeUrl: string | null = null;
     let sigResponsibleUrl: string | null = null;
