@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Loader2, Plus, Trash2, GitBranch, CheckCircle2, XCircle, Info, Users, Building2, UserCheck, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApprovalModules, useApprovalFlows, useSaveApprovalFlow, useEligibleApprovers, useSectors, useApproverRoles, StepDraft } from '../hooks/usePermissionsData';
+import { supabase } from '@/integrations/supabase/client';
 
 const APPROVER_TYPE_LABELS: Record<string, string> = {
   usuario_fixo: 'Pessoa (usuário fixo)',
@@ -59,6 +60,7 @@ export default function ApprovalChainsTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editModuleId, setEditModuleId] = useState('');
   const [editFlowId, setEditFlowId] = useState<string | undefined>();
+  const [editFlowInUse, setEditFlowInUse] = useState(false);
   const [flowName, setFlowName] = useState('');
   const [approvalType, setApprovalType] = useState('sequential');
   const [requireReason, setRequireReason] = useState(true);
@@ -70,6 +72,7 @@ export default function ApprovalChainsTab() {
   const openNewFlow = (moduleId: string) => {
     setEditModuleId(moduleId);
     setEditFlowId(undefined);
+    setEditFlowInUse(false);
     setFlowName('');
     setApprovalType('sequential');
     setRequireReason(true);
@@ -80,7 +83,7 @@ export default function ApprovalChainsTab() {
     setDialogOpen(true);
   };
 
-  const openEditFlow = (flow: any) => {
+  const openEditFlow = async (flow: any) => {
     setEditModuleId(flow.module_id);
     setEditFlowId(flow.id);
     setFlowName(flow.name);
@@ -103,6 +106,12 @@ export default function ApprovalChainsTab() {
           };
         })
     );
+    // Check if flow has been used
+    const { count } = await supabase
+      .from('approval_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('flow_id', flow.id);
+    setEditFlowInUse((count || 0) > 0);
     setDialogOpen(true);
   };
 
@@ -284,6 +293,15 @@ export default function ApprovalChainsTab() {
           <DialogHeader>
             <DialogTitle>{editFlowId ? 'Editar' : 'Criar'} Fluxo de Aprovação</DialogTitle>
           </DialogHeader>
+
+          {editFlowInUse && (
+              <div className="rounded-lg border border-blue-300 bg-blue-50 p-3 flex gap-2 items-start">
+                <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-800">
+                  Este fluxo já foi usado em solicitações. Ao salvar, uma nova versão será criada automaticamente para preservar o histórico das aprovações anteriores.
+                </p>
+              </div>
+            )}
 
           <div className="space-y-4">
             {/* Flow config */}

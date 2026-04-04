@@ -309,30 +309,69 @@ export function useSaveApprovalFlow() {
       notifyNext: boolean;
       createdBy: string;
       steps: StepDraft[];
-    }) => {
+    }): Promise<{ flowId: string; versioned: boolean }> => {
       let flowId = params.id;
+      let versioned = false;
 
       if (flowId) {
-        const { error } = await supabase
-          .from('approval_flows')
-          .update({
-            name: params.name,
-            approval_type: params.approvalType,
-            require_rejection_reason: params.requireRejectionReason,
-            allow_return_for_adjustment: params.allowReturn,
-            return_mode: params.returnMode,
-            notify_next_approver: params.notifyNext,
-          })
-          .eq('id', flowId);
-        if (error) throw error;
-
-        // Delete ALL existing steps for this flow before re-creating
-        const { error: delErr } = await supabase
-          .from('approval_flow_steps')
-          .delete()
+        // Check if this flow has ever been used by approval_requests
+        const { count, error: countErr } = await supabase
+          .from('approval_requests')
+          .select('id', { count: 'exact', head: true })
           .eq('flow_id', flowId);
-        if (delErr) throw delErr;
+        if (countErr) throw countErr;
+
+        const flowInUse = (count || 0) > 0;
+
+        if (flowInUse) {
+          // VERSIONING: deactivate old flow, create new one
+          await supabase
+            .from('approval_flows')
+            .update({ active: false })
+            .eq('id', flowId);
+
+          const { data: newFlow, error: createErr } = await supabase
+            .from('approval_flows')
+            .insert({
+              module_id: params.moduleId,
+              name: params.name,
+              approval_type: params.approvalType,
+              require_rejection_reason: params.requireRejectionReason,
+              allow_return_for_adjustment: params.allowReturn,
+              return_mode: params.returnMode,
+              notify_next_approver: params.notifyNext,
+              created_by: params.createdBy,
+              active: true,
+            })
+            .select()
+            .single();
+          if (createErr) throw createErr;
+          flowId = newFlow.id;
+          versioned = true;
+        } else {
+          // Safe to edit in-place: no references exist
+          const { error } = await supabase
+            .from('approval_flows')
+            .update({
+              name: params.name,
+              approval_type: params.approvalType,
+              require_rejection_reason: params.requireRejectionReason,
+              allow_return_for_adjustment: params.allowReturn,
+              return_mode: params.returnMode,
+              notify_next_approver: params.notifyNext,
+            })
+            .eq('id', flowId);
+          if (error) throw error;
+
+          // Safe to delete steps — no approval_request_steps reference them
+          const { error: delErr } = await supabase
+            .from('approval_flow_steps')
+            .delete()
+            .eq('flow_id', flowId);
+          if (delErr) throw delErr;
+        }
       } else {
+        // New flow: deactivate other active flows for the same module
         await supabase
           .from('approval_flows')
           .update({ active: false })
@@ -357,10 +396,9 @@ export function useSaveApprovalFlow() {
         flowId = data.id;
       }
 
-      // Re-index steps to 1..N to avoid gaps and duplicates
+      // Insert steps for the (possibly new) flow
       if (params.steps.length > 0) {
         const reindexedSteps = params.steps.map((s, idx) => {
-          // For dynamic types, use createdBy as fallback (approver_user_id is NOT NULL)
           const isDynamic = ['responsavel_do_setor_do_solicitante', 'gestor_imediato'].includes(s.approverType);
           return {
             flow_id: flowId!,
@@ -381,15 +419,21 @@ export function useSaveApprovalFlow() {
         if (error) throw error;
       }
 
-      return flowId;
+      return { flowId: flowId!, versioned };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ['approval_flows'] });
-      toast({ title: 'Fluxo salvo com sucesso' });
+      if (result.versioned) {
+        toast({ title: 'Nova versão do fluxo criada', description: 'O fluxo anterior foi preservado para histórico. Novas solicitações usarão esta versão.' });
+      } else {
+        toast({ title: 'Fluxo salvo com sucesso' });
+      }
     },
     onError: (err: any) => {
       console.error('Approval flow save error:', err);
-      const msg = err.message?.includes('unique constraint')
+      const msg = err.message?.includes('foreign key')
+        ? 'Este fluxo já foi usado em aprovações. Tente salvar novamente — o sistema criará uma nova versão automaticamente.'
+        : err.message?.includes('unique constraint')
         ? 'Erro de etapas duplicadas. Tente salvar novamente.'
         : err.message || 'Erro ao salvar fluxo';
       toast({ title: 'Erro ao salvar fluxo', description: msg, variant: 'destructive' });
