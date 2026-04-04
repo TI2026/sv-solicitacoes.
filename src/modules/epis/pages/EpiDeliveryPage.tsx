@@ -22,7 +22,7 @@ export default function EpiDeliveryPage() {
   const [search, setSearch] = useState('');
   const [searchParams] = useSearchParams();
   const { data: deliveries, isLoading } = useEpiDeliveries();
-  const { data: collaborators } = useCollaborators({ active: true });
+  const { data: collaborators } = useCollaboratorsWithProfiles({ active: true });
   const { data: epiItems } = useEpiItems({ active: true });
   const { data: sectors } = useSectors();
   const createDelivery = useCreateDelivery();
