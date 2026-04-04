@@ -452,7 +452,7 @@ export function useMyApprovals(userId?: string) {
           approval_modules(code, name),
           approval_flows(name, allow_return_for_adjustment, return_mode, approval_type),
           profiles!approval_requests_requester_user_id_fkey(full_name, email),
-          approval_request_steps(*, profiles(full_name))
+          approval_request_steps(*, profiles!approval_request_steps_approver_user_id_fkey(full_name))
         `)
         .order('created_at', { ascending: false });
       if (error) throw error;
