@@ -210,19 +210,24 @@ export default function FleetListPage() {
             <p>• Limite: 5 solicitações por dia</p>
           </InfoCard>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
               Pendentes {reembolsoPending?.length ? `(${reembolsoPending.length})` : ''}
             </Button>
             <Button variant={subFilter === 'negados' ? 'destructive' : 'outline'} size="sm" onClick={() => setSubFilter('negados')}>
               <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negados {reembolsoRejected?.length ? `(${reembolsoRejected.length})` : ''}
             </Button>
+            <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
+              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídos {reembolsoCompleted?.length ? `(${reembolsoCompleted.length})` : ''}
+            </Button>
           </div>
 
           {subFilter === 'pendentes' ? (
             <RequestList requests={reembolsoPending} isAdmin={isAdmin} isLoading={reembolsoPendingLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
-          ) : (
+          ) : subFilter === 'negados' ? (
             <RequestList requests={reembolsoRejected} isAdmin={isAdmin} isLoading={reembolsoRejectedLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+          ) : (
+            <RequestList requests={reembolsoCompleted} isAdmin={isAdmin} isLoading={reembolsoCompletedLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
