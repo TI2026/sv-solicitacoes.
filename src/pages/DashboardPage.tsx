@@ -296,7 +296,7 @@ export default function DashboardPage() {
                 )}
                 <MetricCard icon={CheckCircle} label="Frota Aprovados" value={fuelMetrics.aprovados}
                   onClick={() => openDrilldown({ title: 'Frota Aprovados', data: fuelMetrics.aprovadosData, type: 'fuel', summary: `${fuelMetrics.aprovados} aprovados/concluídos` })} />
-                {isAdmin && <MetricCard icon={ShieldAlert} label="CAs Vencendo 30d" value="—"
+                {isAdmin && <MetricCard icon={ShieldAlert} label="CAs Vencendo 30d" value={caExpiringCount ?? '—'}
                   onClick={() => navigate('/epis/pending')} accent="bg-amber-100" />}
                 {isRH && <MetricCard icon={Users} label="Total Admissões" value={admMetrics.total} onClick={() => navigate('/admissions')} />}
               </div>
