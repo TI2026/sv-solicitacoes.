@@ -262,7 +262,7 @@ export function useApprovalFlows() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_flows')
-        .select('*, approval_modules(code, name), approval_flow_steps(*, profiles(full_name, email), sectors:fixed_sector_id(id, name))')
+        .select('*, approval_modules(code, name), approval_flow_steps(*, profiles!approval_flow_steps_approver_user_id_fkey(full_name, email), sectors:fixed_sector_id(id, name))')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
