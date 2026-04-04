@@ -5,6 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Download, Loader2, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import jsPDF from 'jspdf';
 import { formatDateBR } from '@/lib/dateUtils';
 import logoSv from '@/assets/logo-sv.png';
