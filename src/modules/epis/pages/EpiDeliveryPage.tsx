@@ -87,7 +87,7 @@ export default function EpiDeliveryPage() {
     }
 
     await createDelivery.mutateAsync({
-      collaborator_id: form.collaborator_id,
+      collaborator_id: realCollaboratorId,
       epi_item_id: form.epi_item_id,
       quantity: parseInt(form.quantity) || 1,
       size: form.size || null,
