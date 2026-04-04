@@ -44,9 +44,11 @@ export default function MyApprovalsTab() {
   const processAction = useProcessApproval();
   const [actionDialog, setActionDialog] = useState<{ id: string; type: 'reject' | 'return' } | null>(null);
   const [actionReason, setActionReason] = useState('');
-  const sortedApprovals = [...(approvals || [])].sort(
-    (a: any, b: any) => getApprovalLastActivityDate(b).getTime() - getApprovalLastActivityDate(a).getTime(),
-  );
+  const sortedApprovals = [...(approvals || [])]
+    .filter((a: any) => a.status !== 'cancelled')
+    .sort(
+      (a: any, b: any) => getApprovalLastActivityDate(b).getTime() - getApprovalLastActivityDate(a).getTime(),
+    );
 
   // Only show as "my pending" if I am the CURRENT approver of the CURRENT step
   const myPending = sortedApprovals.filter((a: any) =>
