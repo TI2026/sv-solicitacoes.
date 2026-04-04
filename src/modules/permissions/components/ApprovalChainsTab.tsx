@@ -294,6 +294,15 @@ export default function ApprovalChainsTab() {
             <DialogTitle>{editFlowId ? 'Editar' : 'Criar'} Fluxo de Aprovação</DialogTitle>
           </DialogHeader>
 
+          {editFlowInUse && (
+              <div className="rounded-lg border border-blue-300 bg-blue-50 p-3 flex gap-2 items-start">
+                <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-800">
+                  Este fluxo já foi usado em solicitações. Ao salvar, uma nova versão será criada automaticamente para preservar o histórico das aprovações anteriores.
+                </p>
+              </div>
+            )}
+
           <div className="space-y-4">
             {/* Flow config */}
             <div>
