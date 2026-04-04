@@ -579,22 +579,23 @@ function FlowControlPanel({ fuelData, admData, navigate, isRH, canSeeFinancials 
   fuelData: any[]; admData: any[]; navigate: (p: string) => void; isRH: boolean; canSeeFinancials: boolean;
 }) {
   const [tab, setTab] = useState(isRH ? 'admissions' : 'fuel');
+  const [showFinalized, setShowFinalized] = useState(false);
 
   const fuelByStatus = useMemo(() => {
     const groups: Record<string, any[]> = {};
     for (const f of fuelData) {
-      if (['concluido', 'encerrado', 'reprovado'].includes(f.status)) continue;
+      if (!showFinalized && ['concluido', 'encerrado', 'reprovado'].includes(f.status)) continue;
       const key = f.status;
       if (!groups[key]) groups[key] = [];
       groups[key].push(f);
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [fuelData]);
+  }, [fuelData, showFinalized]);
 
   const admByStatus = useMemo(() => {
     const groups: Record<string, any[]> = {};
     for (const a of admData) {
-      if (['concluido', 'cancelado'].includes(a.status)) continue;
+      if (!showFinalized && ['concluido', 'cancelado'].includes(a.status)) continue;
       const key = a.status;
       if (!groups[key]) groups[key] = [];
       groups[key].push(a);
