@@ -401,7 +401,7 @@ export default function DashboardPage() {
                   <Fuel className="w-4 h-4" /> Abastecimentos Concluídos
                 </h3>
                 {(() => {
-                  const completed = (fuelData || []).filter((f: any) => ['concluido', 'encerrado'].includes(f.status) && f.type === 'abastecimento');
+                  const completed = (fuelData || []).filter((f: any) => ['aprovado', 'concluido', 'encerrado'].includes(f.status) && f.type === 'abastecimento');
                   if (completed.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum</p>;
                   return (
                     <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -430,7 +430,7 @@ export default function DashboardPage() {
                   <Receipt className="w-4 h-4" /> Reembolsos Concluídos
                 </h3>
                 {(() => {
-                  const completed = (fuelData || []).filter((f: any) => ['concluido', 'encerrado'].includes(f.status) && f.type === 'reembolso');
+                  const completed = (fuelData || []).filter((f: any) => ['aprovado', 'concluido', 'encerrado'].includes(f.status) && f.type === 'reembolso');
                   if (completed.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhum</p>;
                   return (
                     <div className="space-y-2 max-h-80 overflow-y-auto">
