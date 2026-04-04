@@ -71,6 +71,7 @@ export default function ApprovalChainsTab() {
   const openNewFlow = (moduleId: string) => {
     setEditModuleId(moduleId);
     setEditFlowId(undefined);
+    setEditFlowInUse(false);
     setFlowName('');
     setApprovalType('sequential');
     setRequireReason(true);
