@@ -14,24 +14,27 @@ export function ApprovalStatusBlock({ approvalRequest }: ApprovalStatusBlockProp
 
   const ar = approvalRequest;
   const steps = (ar.approval_request_steps || []).sort((a: any, b: any) => a.step_order - b.step_order);
-  const isActive = !ar.ended_at;
-  const isFinal = ar.status === 'approved' || ar.status === 'rejected';
+  const status = String(ar.status || '');
+  const isAwaitingApprover = !ar.ended_at && !!ar.current_approver_user_id && status.startsWith('awaiting_step_');
+  const isFinal = status === 'approved' || status === 'rejected';
+  const statusLabel = status === 'approved' ? 'Aprovado'
+    : status === 'rejected' ? 'Recusado'
+    : status === 'returned_for_adjustment' ? 'Devolvido para ajuste'
+    : status === 'returned_to_requester' ? 'Devolvido ao solicitante'
+    : status.startsWith('awaiting_step_') ? `Etapa ${ar.current_step_order}`
+    : status;
 
   return (
-    <Card className={`border-l-4 ${isFinal ? (ar.status === 'approved' ? 'border-l-green-500' : 'border-l-destructive') : 'border-l-primary'}`}>
+    <Card className={`border-l-4 ${status === 'rejected' ? 'border-l-destructive' : status === 'approved' ? 'border-l-green-500' : 'border-l-primary'}`}>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <GitBranch className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">Fluxo de Aprovação</h3>
           <Badge
-            variant={ar.status === 'approved' ? 'default' : ar.status === 'rejected' ? 'destructive' : ar.status === 'returned_for_adjustment' ? 'secondary' : 'outline'}
+            variant={status === 'approved' ? 'default' : status === 'rejected' ? 'destructive' : (status === 'returned_for_adjustment' || status === 'returned_to_requester') ? 'secondary' : 'outline'}
             className="text-xs"
           >
-            {ar.status === 'approved' ? 'Aprovado' :
-             ar.status === 'rejected' ? 'Recusado' :
-             ar.status === 'returned_for_adjustment' ? 'Devolvido para ajuste' :
-             ar.status.startsWith('awaiting_step_') ? `Etapa ${ar.current_step_order}` :
-             ar.status}
+            {statusLabel}
           </Badge>
           {ar.approval_modules?.name && (
             <Badge variant="secondary" className="text-[10px]">{ar.approval_modules.name}</Badge>
@@ -56,7 +59,7 @@ export function ApprovalStatusBlock({ approvalRequest }: ApprovalStatusBlockProp
         {/* Steps timeline */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {steps.map((step: any, idx: number) => {
-            const isCurrentStep = isActive && step.step_order === ar.current_step_order;
+            const isCurrentStep = isAwaitingApprover && step.step_order === ar.current_step_order;
             return (
               <div key={step.id} className="flex items-center gap-1">
                 {idx > 0 && <span className="text-muted-foreground text-xs">→</span>}
@@ -81,7 +84,7 @@ export function ApprovalStatusBlock({ approvalRequest }: ApprovalStatusBlockProp
         </div>
 
         {/* Current approver info */}
-        {isActive && ar.current_step_order && (
+        {isAwaitingApprover && ar.current_step_order && (
           <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
             Aguardando aprovação de <strong>
               {steps.find((s: any) => s.step_order === ar.current_step_order)?.profiles?.full_name || 'aprovador'}
@@ -91,6 +94,12 @@ export function ApprovalStatusBlock({ approvalRequest }: ApprovalStatusBlockProp
                 ({getApproverTypeLabel(steps.find((s: any) => s.step_order === ar.current_step_order)?.approver_rule)})
               </span>
             )}
+          </div>
+        )}
+
+        {status === 'returned_to_requester' && (
+          <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
+            Esta solicitação foi devolvida ao solicitante e não está aguardando aprovação neste momento.
           </div>
         )}
 
