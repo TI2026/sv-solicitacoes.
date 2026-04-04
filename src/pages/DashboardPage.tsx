@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ADMISSION_STATUS_LABELS, FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
-import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase, ShieldAlert, Wifi } from 'lucide-react';
+import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase, ShieldAlert, Wifi, ClipboardCheck } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 // Check if user has master role via user_role_assignments
 function useIsMaster() {
@@ -107,8 +108,37 @@ export default function DashboardPage() {
     tables: [
       { table: 'fuel_requests', queryKeys: [['fuel_metrics'], ['fuel_all']] },
       { table: 'admission_requests', queryKeys: [['admission_metrics'], ['adm_all']] },
+      { table: 'approval_requests', queryKeys: [['dashboard_approvals']] },
     ],
   });
+
+  // Approval requests for current user
+  const { data: approvalData } = useQuery({
+    queryKey: ['dashboard_approvals', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('approval_requests')
+        .select('id, status, current_approver_user_id, requester_user_id, ended_at, current_step_order, approval_modules(code, name)')
+        .is('ended_at', null)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const approvalMetrics = useMemo(() => {
+    const d = approvalData || [];
+    const myPending = d.filter(a => a.current_approver_user_id === user?.id);
+    const myRequests = d.filter(a => a.requester_user_id === user?.id);
+    const totalActive = d.length;
+    const byModule: Record<string, number> = {};
+    d.forEach((a: any) => {
+      const name = a.approval_modules?.name || 'Outro';
+      byModule[name] = (byModule[name] || 0) + 1;
+    });
+    return { myPending, myRequests, totalActive, byModule };
+  }, [approvalData, user?.id]);
 
   const { data: fuelData, isLoading: fuelLoading } = useQuery({
     queryKey: ['fuel_all'],
@@ -300,6 +330,30 @@ export default function DashboardPage() {
                   onClick={() => navigate('/epis/pending')} accent="bg-amber-100" />}
                 {isRH && <MetricCard icon={Users} label="Total Admissões" value={admMetrics.total} onClick={() => navigate('/admissions')} />}
               </div>
+
+              {/* Approval metrics */}
+              {(approvalMetrics.myPending.length > 0 || approvalMetrics.myRequests.length > 0) && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <MetricCard icon={ClipboardCheck} label="Minhas Aprovações Pendentes" value={approvalMetrics.myPending.length}
+                    onClick={() => navigate('/permissoes')} accent="bg-primary/20" />
+                  <MetricCard icon={Clock} label="Minhas Solicitações em Aprovação" value={approvalMetrics.myRequests.length}
+                    onClick={() => navigate('/permissoes')} />
+                  {isAdmin && <MetricCard icon={ListChecks} label="Aprovações Ativas (total)" value={approvalMetrics.totalActive}
+                    onClick={() => navigate('/permissoes')} />}
+                  {isAdmin && Object.keys(approvalMetrics.byModule).length > 0 && (
+                    <Card className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate('/permissoes')}>
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground mb-1">Por Módulo</p>
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(approvalMetrics.byModule).map(([mod, count]) => (
+                            <Badge key={mod} variant="secondary" className="text-[10px]">{mod}: {count}</Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
             </>
           )}
 

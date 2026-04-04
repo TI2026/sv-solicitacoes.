@@ -2213,6 +2213,10 @@ export type Database = {
         }
         Returns: Json
       }
+      user_participates_in_approval: {
+        Args: { p_approval_request_id: string; p_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       admission_status:

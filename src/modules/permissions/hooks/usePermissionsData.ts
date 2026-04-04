@@ -399,16 +399,16 @@ export function useSaveApprovalFlow() {
       // Insert steps for the (possibly new) flow
       if (params.steps.length > 0) {
         const reindexedSteps = params.steps.map((s, idx) => {
-          const isDynamic = ['responsavel_do_setor_do_solicitante', 'gestor_imediato'].includes(s.approverType);
+          // For dynamic types, approver_user_id is NULL in the flow template.
+          // The real approver is resolved at request time by start_approval_flow RPC.
+          const resolvedUserId = s.approverType === 'usuario_fixo' ? s.fixedUserId : null;
           return {
             flow_id: flowId!,
             step_order: idx + 1,
             approver_type: s.approverType === 'cargo_perfil'
               ? `cargo_perfil:${s.approverRoleKey || ''}`
               : s.approverType,
-            approver_user_id: s.approverType === 'usuario_fixo'
-              ? s.fixedUserId
-              : isDynamic ? (params.createdBy || null) : null,
+            approver_user_id: resolvedUserId,
             fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
           };
         });

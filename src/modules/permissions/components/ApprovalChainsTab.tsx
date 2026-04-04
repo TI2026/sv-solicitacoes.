@@ -354,10 +354,10 @@ export default function ApprovalChainsTab() {
 
             {/* Dynamic types warning banner */}
             {hasDynamicSteps && (
-              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 flex gap-2 items-start">
-                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-800">
-                  ⚠ Tipos dinâmicos (Gestor Imediato, Responsável do Setor do Solicitante) dependem de resolução completa no backend. Até lá, o sistema usa fallback temporário no criador do fluxo para evitar falha silenciosa.
+              <div className="rounded-lg border border-blue-300 bg-blue-50 p-3 flex gap-2 items-start">
+                <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-800">
+                  Tipos dinâmicos (Gestor Imediato, Responsável do Setor do Solicitante) serão resolvidos automaticamente no momento da abertura de cada solicitação. Certifique-se de que os setores e gestores estejam configurados corretamente.
                 </p>
               </div>
             )}
