@@ -125,5 +125,8 @@ export const EPI_CATEGORIES = [
   'Proteção dos Pés',
   'Proteção contra Quedas',
   'Proteção do Corpo',
+  'UNIFORME',
+  'EPI',
+  'APOIO OPERACIONAL',
   'Outros',
 ];
