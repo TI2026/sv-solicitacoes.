@@ -53,7 +53,7 @@ export function useFuelRequestsRejected(userId?: string, isAdmin?: boolean, type
     queryFn: async () => {
       const res: any = await supabase
         .from('fuel_requests')
-        .select('*, profiles(full_name, email)')
+        .select('*, profiles(full_name, email), assignee:profiles!fuel_requests_assigned_to_user_id_fkey(full_name)')
         .is('deleted_at', null)
         .in('status', REJECTED_STATUSES)
         .order('created_at', { ascending: false });
