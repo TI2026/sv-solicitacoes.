@@ -108,8 +108,37 @@ export default function DashboardPage() {
     tables: [
       { table: 'fuel_requests', queryKeys: [['fuel_metrics'], ['fuel_all']] },
       { table: 'admission_requests', queryKeys: [['admission_metrics'], ['adm_all']] },
+      { table: 'approval_requests', queryKeys: [['dashboard_approvals']] },
     ],
   });
+
+  // Approval requests for current user
+  const { data: approvalData } = useQuery({
+    queryKey: ['dashboard_approvals', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('approval_requests')
+        .select('id, status, current_approver_user_id, requester_user_id, ended_at, current_step_order, approval_modules(code, name)')
+        .is('ended_at', null)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const approvalMetrics = useMemo(() => {
+    const d = approvalData || [];
+    const myPending = d.filter(a => a.current_approver_user_id === user?.id);
+    const myRequests = d.filter(a => a.requester_user_id === user?.id);
+    const totalActive = d.length;
+    const byModule: Record<string, number> = {};
+    d.forEach((a: any) => {
+      const name = a.approval_modules?.name || 'Outro';
+      byModule[name] = (byModule[name] || 0) + 1;
+    });
+    return { myPending, myRequests, totalActive, byModule };
+  }, [approvalData, user?.id]);
 
   const { data: fuelData, isLoading: fuelLoading } = useQuery({
     queryKey: ['fuel_all'],
