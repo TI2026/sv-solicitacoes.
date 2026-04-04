@@ -73,7 +73,7 @@ export function useFuelRequestsCompleted(userId?: string, isAdmin?: boolean, typ
     queryFn: async () => {
       const res: any = await supabase
         .from('fuel_requests')
-        .select('*, profiles(full_name, email)')
+        .select('*, profiles!fuel_requests_requester_user_id_fkey(full_name, email)')
         .is('deleted_at', null)
         .in('status', FINAL_STATUSES)
         .order('created_at', { ascending: false });
