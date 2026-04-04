@@ -68,7 +68,7 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
+71:                   <span className="flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
                     {new Date(req.data_abastecimento).toLocaleDateString('pt-BR')}
                   </span>
@@ -76,6 +76,9 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
                   {req.categoria && <span>{req.categoria}</span>}
                   {req.person_name && <span>{req.person_name}</span>}
                   {isAdmin && req.profiles && <span>{req.profiles.full_name}</span>}
+                  {isAdmin && (req as any).assignee?.full_name && ['enviado', 'em_revisao'].includes(req.status) && (
+                    <span className="text-primary font-medium">📋 {(req as any).assignee.full_name}</span>
+                  )}
                 </div>
               </Link>
               {canDelete && (
