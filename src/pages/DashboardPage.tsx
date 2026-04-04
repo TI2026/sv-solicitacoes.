@@ -129,11 +129,32 @@ export default function DashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('admission_requests')
-        .select('id, status, cargo_funcao, centro_custo, salario_previsto, created_at');
+        .select('id, status, cargo_funcao, centro_custo, salario_previsto, created_at, welcome_pdf_generated_at');
       if (error) throw error;
       return data || [];
     },
     enabled: !!user && isRH,
+  });
+
+  // CA expiring in 30 days metric
+  const { data: caExpiringCount } = useQuery({
+    queryKey: ['epi_ca_expiring_soon'],
+    queryFn: async () => {
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      const { data, error } = await supabase
+        .from('epi_deliveries')
+        .select('id, epi_items!inner(ca_valid_until)')
+        .eq('current_status', 'em_uso')
+        .lte('epi_items.ca_valid_until', thirtyDaysFromNow.toISOString().split('T')[0])
+        .gte('epi_items.ca_valid_until', new Date().toISOString().split('T')[0]);
+      if (error) {
+        console.info('[Dashboard] CA expiring query error:', error.message);
+        return 0;
+      }
+      return data?.length || 0;
+    },
+    enabled: !!user && isAdmin,
   });
 
   const fuelMetrics = useMemo(() => {
