@@ -37,6 +37,7 @@ function ApprovalInProgressTab() {
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
   const filtered = [...((requests || []).filter((r: any) => {
+    if (!isNotCancelled(r)) return false;
     if (moduleFilter !== 'all' && r.approval_modules?.code !== moduleFilter) return false;
     if (statusFilter === 'active' && !isReallyActive(r)) return false;
     if (statusFilter === 'ended' && isReallyActive(r)) return false;
