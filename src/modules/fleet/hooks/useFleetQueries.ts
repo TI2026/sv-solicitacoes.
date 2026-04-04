@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 
 type FuelStatus = Database['public']['Enums']['fuel_status'];
-const FINAL_STATUSES: FuelStatus[] = ['concluido', 'encerrado'];
+const FINAL_STATUSES: FuelStatus[] = ['aprovado', 'concluido', 'encerrado'];
 const REJECTED_STATUSES: FuelStatus[] = ['reprovado'];
 
 export function useFuelRequests(userId?: string, isAdmin?: boolean, type?: string) {
