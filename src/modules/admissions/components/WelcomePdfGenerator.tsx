@@ -47,6 +47,7 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [form, setForm] = useState({
     local: defaultLocal || '',
     responsavel: defaultResponsavel || '',
