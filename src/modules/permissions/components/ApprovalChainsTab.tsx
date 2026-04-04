@@ -59,6 +59,7 @@ export default function ApprovalChainsTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editModuleId, setEditModuleId] = useState('');
   const [editFlowId, setEditFlowId] = useState<string | undefined>();
+  const [editFlowInUse, setEditFlowInUse] = useState(false);
   const [flowName, setFlowName] = useState('');
   const [approvalType, setApprovalType] = useState('sequential');
   const [requireReason, setRequireReason] = useState(true);
