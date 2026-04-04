@@ -128,7 +128,7 @@ export default function DashboardPage() {
   });
 
   const approvalMetrics = useMemo(() => {
-    const d = approvalData || [];
+    const d = (approvalData || []).filter((a: any) => a.status !== 'cancelled');
     const active = d.filter((a: any) => !a.ended_at);
     const ended = d.filter((a: any) => !!a.ended_at);
     const myPending = active.filter((a: any) => a.current_approver_user_id === user?.id);
