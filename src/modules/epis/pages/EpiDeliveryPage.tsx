@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Plus, Package, Search, Eye, FileDown } from 'lucide-react';
-import { useEpiDeliveries, useCreateDelivery, useCollaborators, useEpiItems } from '../hooks/useEpiQueries';
+import { useEpiDeliveries, useCreateDelivery, useCollaboratorsWithProfiles, useCreateCollaborator, useEpiItems } from '../hooks/useEpiQueries';
 import { EPI_DELIVERY_STATUS_LABELS, EPI_REASON_LABELS } from '../types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';

@@ -68,6 +68,51 @@ export function useCollaborators(filters?: { active?: boolean; sector_id?: strin
   });
 }
 
+/**
+ * Returns a merged list: existing collaborators + profiles that don't have a collaborator record yet.
+ * Profile-only entries have _isProfileOnly = true and use the profile id as a temporary key.
+ */
+export function useCollaboratorsWithProfiles(filters?: { active?: boolean }) {
+  const { data: collaborators, ...collabRest } = useCollaborators(filters);
+
+  return useQuery({
+    queryKey: ['collaborators-with-profiles', filters, collaborators?.length],
+    queryFn: async () => {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, sector_id')
+        .order('full_name');
+      if (error) throw error;
+
+      // Build set of profile IDs already linked to a collaborator
+      const linkedProfileIds = new Set(
+        (collaborators || [])
+          .map((c: any) => c.user_profile_id)
+          .filter(Boolean)
+      );
+
+      // Profiles that are NOT yet collaborators
+      const profileOnly = (profiles || [])
+        .filter((p: any) => !linkedProfileIds.has(p.id))
+        .map((p: any) => ({
+          id: `profile_${p.id}`,
+          _profileId: p.id,
+          _isProfileOnly: true,
+          full_name: p.full_name || p.email,
+          email: p.email,
+          sector_id: p.sector_id || null,
+          worksite: '',
+          role_name: '',
+          active: true,
+          status: 'ativo',
+        }));
+
+      return [...(collaborators || []), ...profileOnly] as any[];
+    },
+    enabled: !!collaborators,
+  });
+}
+
 export function useCreateCollaborator() {
   const qc = useQueryClient();
   const { toast } = useToast();
