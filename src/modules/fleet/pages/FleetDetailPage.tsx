@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFuelRequest, useFuelAttachments, useFuelSetStatus } from '../hooks/useFleetQueries';
 import { useApprovalAction } from '../hooks/useApprovalAction';
-import { useApprovalRequestForReference } from '@/hooks/useApprovalFlow';
+import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +29,8 @@ export default function FleetDetailPage() {
   const { data: req, isLoading, refetch } = useFuelRequest(id!);
   const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
   const { data: approvalRequest } = useApprovalRequestForReference(id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const previousCycles = (allApprovalCycles || []).slice(1);
   const statusMutation = useFuelSetStatus();
   const approvalAction = useApprovalAction();
   const [uploading, setUploading] = useState(false);
@@ -456,7 +458,7 @@ export default function FleetDetailPage() {
       </Card>
 
       {/* Approval Flow Status */}
-      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
+      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
 
       {/* Approval Steps Queue */}
       {hasActiveFlow && approvalRequest?.approval_request_steps && (

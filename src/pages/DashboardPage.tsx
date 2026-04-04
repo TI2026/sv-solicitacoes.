@@ -112,15 +112,15 @@ export default function DashboardPage() {
     ],
   });
 
-  // Approval requests for current user
+  // Approval requests for current user (active + recently ended)
   const { data: approvalData } = useQuery({
     queryKey: ['dashboard_approvals', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
-        .select('id, status, current_approver_user_id, requester_user_id, ended_at, current_step_order, approval_modules(code, name)')
-        .is('ended_at', null)
-        .order('created_at', { ascending: false });
+        .select('id, status, current_approver_user_id, requester_user_id, ended_at, current_step_order, created_at, approval_modules(code, name)')
+        .order('created_at', { ascending: false })
+        .limit(100);
       if (error) throw error;
       return data || [];
     },
@@ -129,15 +129,20 @@ export default function DashboardPage() {
 
   const approvalMetrics = useMemo(() => {
     const d = approvalData || [];
-    const myPending = d.filter((a: any) => a.current_approver_user_id === user?.id && !a.ended_at);
-    const myRequests = d.filter((a: any) => a.requester_user_id === user?.id && !a.ended_at);
-    const totalActive = d.filter((a: any) => !a.ended_at && !!a.current_approver_user_id).length;
+    const active = d.filter((a: any) => !a.ended_at);
+    const ended = d.filter((a: any) => !!a.ended_at);
+    const myPending = active.filter((a: any) => a.current_approver_user_id === user?.id);
+    const myRequests = active.filter((a: any) => a.requester_user_id === user?.id);
+    const totalActive = active.filter((a: any) => !!a.current_approver_user_id).length;
+    const recentEnded = ended.slice(0, 10);
+    const endedApproved = ended.filter((a: any) => a.status === 'approved').length;
+    const endedRejected = ended.filter((a: any) => a.status === 'rejected').length;
     const byModule: Record<string, number> = {};
-    d.forEach((a: any) => {
+    active.forEach((a: any) => {
       const name = a.approval_modules?.name || 'Outro';
       byModule[name] = (byModule[name] || 0) + 1;
     });
-    return { myPending, myRequests, totalActive, byModule };
+    return { myPending, myRequests, totalActive, byModule, recentEnded, endedApproved, endedRejected };
   }, [approvalData, user?.id]);
 
   const { data: fuelData, isLoading: fuelLoading } = useQuery({
@@ -332,18 +337,22 @@ export default function DashboardPage() {
               </div>
 
               {/* Approval metrics */}
-              {(approvalMetrics.myPending.length > 0 || approvalMetrics.myRequests.length > 0 || approvalMetrics.totalActive > 0) && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <MetricCard icon={ClipboardCheck} label="Minhas Aprovações Pendentes" value={approvalMetrics.myPending.length}
-                    onClick={() => navigate('/permissoes')} accent="bg-primary/20" />
-                  <MetricCard icon={Clock} label="Minhas Solicitações em Aprovação" value={approvalMetrics.myRequests.length}
-                    onClick={() => navigate('/permissoes')} />
-                  <MetricCard icon={ListChecks} label="Aprovações no meu escopo" value={approvalMetrics.totalActive}
-                    onClick={() => navigate('/permissoes')} />
+              {(approvalMetrics.myPending.length > 0 || approvalMetrics.myRequests.length > 0 || approvalMetrics.totalActive > 0 || approvalMetrics.recentEnded.length > 0) && (
+                <>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <MetricCard icon={ClipboardCheck} label="Minhas Aprovações Pendentes" value={approvalMetrics.myPending.length}
+                      onClick={() => navigate('/permissoes')} accent="bg-primary/20" />
+                    <MetricCard icon={Clock} label="Minhas Solicitações em Aprovação" value={approvalMetrics.myRequests.length}
+                      onClick={() => navigate('/permissoes')} />
+                    <MetricCard icon={ListChecks} label="Aprovações Ativas" value={approvalMetrics.totalActive}
+                      onClick={() => navigate('/permissoes')} />
+                    <MetricCard icon={CheckCircle} label="Encerradas (aprovadas/rejeitadas)" value={`${approvalMetrics.endedApproved}/${approvalMetrics.endedRejected}`}
+                      onClick={() => navigate('/permissoes')} />
+                  </div>
                   {Object.keys(approvalMetrics.byModule).length > 0 && (
                     <Card className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate('/permissoes')}>
                       <CardContent className="p-4">
-                        <p className="text-xs text-muted-foreground mb-1">Por Módulo</p>
+                        <p className="text-xs text-muted-foreground mb-1">Aprovações Ativas por Módulo</p>
                         <div className="flex flex-wrap gap-1">
                           {Object.entries(approvalMetrics.byModule).map(([mod, count]) => (
                             <Badge key={mod} variant="secondary" className="text-[10px]">{mod}: {count}</Badge>
@@ -352,7 +361,7 @@ export default function DashboardPage() {
                       </CardContent>
                     </Card>
                   )}
-                </div>
+                </>
               )}
             </>
           )}
@@ -570,36 +579,42 @@ function FlowControlPanel({ fuelData, admData, navigate, isRH, canSeeFinancials 
   fuelData: any[]; admData: any[]; navigate: (p: string) => void; isRH: boolean; canSeeFinancials: boolean;
 }) {
   const [tab, setTab] = useState(isRH ? 'admissions' : 'fuel');
+  const [showFinalized, setShowFinalized] = useState(false);
 
   const fuelByStatus = useMemo(() => {
     const groups: Record<string, any[]> = {};
     for (const f of fuelData) {
-      if (['concluido', 'encerrado', 'reprovado'].includes(f.status)) continue;
+      if (!showFinalized && ['concluido', 'encerrado', 'reprovado'].includes(f.status)) continue;
       const key = f.status;
       if (!groups[key]) groups[key] = [];
       groups[key].push(f);
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [fuelData]);
+  }, [fuelData, showFinalized]);
 
   const admByStatus = useMemo(() => {
     const groups: Record<string, any[]> = {};
     for (const a of admData) {
-      if (['concluido', 'cancelado'].includes(a.status)) continue;
+      if (!showFinalized && ['concluido', 'cancelado'].includes(a.status)) continue;
       const key = a.status;
       if (!groups[key]) groups[key] = [];
       groups[key].push(a);
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [admData]);
+  }, [admData, showFinalized]);
 
   const formatCurrency = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-        <ListChecks className="w-5 h-5" /> Controle de Fluxos
-      </h2>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <ListChecks className="w-5 h-5" /> Controle de Fluxos
+        </h2>
+        <Button variant={showFinalized ? 'default' : 'outline'} size="sm" onClick={() => setShowFinalized(!showFinalized)}>
+          {showFinalized ? 'Ocultar Finalizados' : 'Mostrar Finalizados'}
+        </Button>
+      </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full sm:w-auto">

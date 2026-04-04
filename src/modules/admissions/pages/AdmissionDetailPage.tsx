@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useUpdateCandidate, useMedicalExam, useGeneratePublicLink, useAdmissionPublicLinks, useAdmissionFiles } from '../hooks/useAdmissionQueries';
-import { useApprovalRequestForReference } from '@/hooks/useApprovalFlow';
+import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { maskCPF, maskPhone, isValidCPF } from '@/lib/masks';
 import { Switch } from '@/components/ui/switch';
@@ -65,6 +65,8 @@ export default function AdmissionDetailPage() {
   const qc = useQueryClient();
   const { data: req, isLoading } = useAdmissionRequest(id!);
   const { data: approvalRequest } = useApprovalRequestForReference(id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const previousCycles = (allApprovalCycles || []).slice(1);
   const { data: candidates } = useCandidates(id!);
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
@@ -807,7 +809,7 @@ export default function AdmissionDetailPage() {
       )}
 
       {/* Approval Flow Status */}
-      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
+      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
 
       {/* Timeline */}
       <Card>

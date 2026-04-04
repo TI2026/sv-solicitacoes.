@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useFuelRequestsPending, useFuelRequestsRejected, useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
+import { useFuelRequestsPending, useFuelRequestsRejected, useFuelRequestsCompleted, useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -100,7 +100,7 @@ export default function FleetListPage() {
   const canSeeDiaria = hasAnyRole(['diretoria', 'administrativo']);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('abastecimento');
-  const [subFilter, setSubFilter] = useState<'pendentes' | 'negados'>('pendentes');
+  const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'concluidos'>('pendentes');
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const softDelete = useSoftDeleteRequest();
 
@@ -118,6 +118,10 @@ export default function FleetListPage() {
   // Rejected queries
   const { data: abastRejected, isLoading: abastRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'abastecimento');
   const { data: reembolsoRejected, isLoading: reembolsoRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'reembolso');
+
+  // Completed queries
+  const { data: abastCompleted, isLoading: abastCompletedLoading } = useFuelRequestsCompleted(user?.id, isAdmin, 'abastecimento');
+  const { data: reembolsoCompleted, isLoading: reembolsoCompletedLoading } = useFuelRequestsCompleted(user?.id, isAdmin, 'reembolso');
 
   useRealtimeSubscription({
     channelName: 'fleet-list-realtime',
@@ -175,20 +179,25 @@ export default function FleetListPage() {
             <p>• Limite: 5 solicitações por dia</p>
           </InfoCard>
 
-          {/* Sub-filter: Pendentes / Negados */}
-          <div className="flex gap-2">
+          {/* Sub-filter: Pendentes / Negados / Concluídos */}
+          <div className="flex gap-2 flex-wrap">
             <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
               Pendentes {abastPending?.length ? `(${abastPending.length})` : ''}
             </Button>
             <Button variant={subFilter === 'negados' ? 'destructive' : 'outline'} size="sm" onClick={() => setSubFilter('negados')}>
               <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negados {abastRejected?.length ? `(${abastRejected.length})` : ''}
             </Button>
+            <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
+              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídos {abastCompleted?.length ? `(${abastCompleted.length})` : ''}
+            </Button>
           </div>
 
           {subFilter === 'pendentes' ? (
             <RequestList requests={abastPending} isAdmin={isAdmin} isLoading={abastPendingLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
-          ) : (
+          ) : subFilter === 'negados' ? (
             <RequestList requests={abastRejected} isAdmin={isAdmin} isLoading={abastRejectedLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+          ) : (
+            <RequestList requests={abastCompleted} isAdmin={isAdmin} isLoading={abastCompletedLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
@@ -201,19 +210,24 @@ export default function FleetListPage() {
             <p>• Limite: 5 solicitações por dia</p>
           </InfoCard>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
               Pendentes {reembolsoPending?.length ? `(${reembolsoPending.length})` : ''}
             </Button>
             <Button variant={subFilter === 'negados' ? 'destructive' : 'outline'} size="sm" onClick={() => setSubFilter('negados')}>
               <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negados {reembolsoRejected?.length ? `(${reembolsoRejected.length})` : ''}
             </Button>
+            <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
+              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídos {reembolsoCompleted?.length ? `(${reembolsoCompleted.length})` : ''}
+            </Button>
           </div>
 
           {subFilter === 'pendentes' ? (
             <RequestList requests={reembolsoPending} isAdmin={isAdmin} isLoading={reembolsoPendingLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
-          ) : (
+          ) : subFilter === 'negados' ? (
             <RequestList requests={reembolsoRejected} isAdmin={isAdmin} isLoading={reembolsoRejectedLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+          ) : (
+            <RequestList requests={reembolsoCompleted} isAdmin={isAdmin} isLoading={reembolsoCompletedLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
