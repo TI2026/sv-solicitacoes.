@@ -29,6 +29,8 @@ export default function FleetDetailPage() {
   const { data: req, isLoading, refetch } = useFuelRequest(id!);
   const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
   const { data: approvalRequest } = useApprovalRequestForReference(id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const previousCycles = (allApprovalCycles || []).slice(1);
   const statusMutation = useFuelSetStatus();
   const approvalAction = useApprovalAction();
   const [uploading, setUploading] = useState(false);
