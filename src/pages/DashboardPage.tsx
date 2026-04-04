@@ -601,7 +601,7 @@ function FlowControlPanel({ fuelData, admData, navigate, isRH, canSeeFinancials 
       groups[key].push(a);
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [admData]);
+  }, [admData, showFinalized]);
 
   const formatCurrency = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
