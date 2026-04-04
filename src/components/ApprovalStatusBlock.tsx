@@ -34,9 +34,26 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export function ApprovalStatusBlock({ approvalRequest, previousCycles }: ApprovalStatusBlockProps) {
+  const ar = approvalRequest;
+
+  // Fetch approval_history for this request
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  useEffect(() => {
+    if (!ar?.id) return;
+    supabase
+      .from('approval_history')
+      .select('*, profiles:action_by(full_name)')
+      .eq('approval_request_id', ar.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setHistory((data as any[]) || []);
+      });
+  }, [ar?.id, ar?.status]);
+
   if (!approvalRequest) return null;
 
-  const ar = approvalRequest;
   const steps = (ar.approval_request_steps || []).sort((a: any, b: any) => a.step_order - b.step_order);
   const status = String(ar.status || '');
   const isAwaitingApprover = !ar.ended_at && !!ar.current_approver_user_id && (status.startsWith('awaiting_step_') || status === 'pending_approval');
@@ -46,22 +63,6 @@ export function ApprovalStatusBlock({ approvalRequest, previousCycles }: Approva
     : status === 'returned_to_requester' ? 'Devolvido ao solicitante'
     : status.startsWith('awaiting_step_') ? `Etapa ${ar.current_step_order}`
     : status;
-
-  // Fetch approval_history for this request
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [historyOpen, setHistoryOpen] = useState(false);
-
-  useEffect(() => {
-    if (!ar.id) return;
-    supabase
-      .from('approval_history')
-      .select('*, profiles:action_by(full_name)')
-      .eq('approval_request_id', ar.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setHistory((data as any[]) || []);
-      });
-  }, [ar.id, ar.status]);
 
   return (
     <div className="space-y-2">
