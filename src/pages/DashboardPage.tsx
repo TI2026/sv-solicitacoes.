@@ -112,15 +112,15 @@ export default function DashboardPage() {
     ],
   });
 
-  // Approval requests for current user
+  // Approval requests for current user (active + recently ended)
   const { data: approvalData } = useQuery({
     queryKey: ['dashboard_approvals', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
-        .select('id, status, current_approver_user_id, requester_user_id, ended_at, current_step_order, approval_modules(code, name)')
-        .is('ended_at', null)
-        .order('created_at', { ascending: false });
+        .select('id, status, current_approver_user_id, requester_user_id, ended_at, current_step_order, created_at, approval_modules(code, name)')
+        .order('created_at', { ascending: false })
+        .limit(100);
       if (error) throw error;
       return data || [];
     },
