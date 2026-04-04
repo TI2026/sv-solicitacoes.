@@ -82,7 +82,7 @@ export default function ApprovalChainsTab() {
     setDialogOpen(true);
   };
 
-  const openEditFlow = (flow: any) => {
+  const openEditFlow = async (flow: any) => {
     setEditModuleId(flow.module_id);
     setEditFlowId(flow.id);
     setFlowName(flow.name);
@@ -105,6 +105,12 @@ export default function ApprovalChainsTab() {
           };
         })
     );
+    // Check if flow has been used
+    const { count } = await supabase
+      .from('approval_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('flow_id', flow.id);
+    setEditFlowInUse((count || 0) > 0);
     setDialogOpen(true);
   };
 
