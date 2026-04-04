@@ -150,7 +150,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fuel_requests')
-        .select('id, valor, status, created_at, data_abastecimento, type, daily_value, person_name, placa, categoria, profiles(full_name)')
+        .select('id, valor, status, created_at, data_abastecimento, type, daily_value, person_name, placa, categoria, profiles!fuel_requests_requester_user_id_fkey(full_name)')
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
