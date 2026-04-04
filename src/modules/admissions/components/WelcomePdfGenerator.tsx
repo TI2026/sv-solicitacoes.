@@ -223,6 +223,16 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
       // Save with candidate name in filename
       const safeName = candidateName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
       doc.save(`Apresentacao_${safeName}.pdf`);
+
+      // Persist welcome_pdf_generated_at
+      await supabase
+        .from('admission_requests')
+        .update({ welcome_pdf_generated_at: new Date().toISOString() } as any)
+        .eq('id', admissionId);
+      qc.invalidateQueries({ queryKey: ['admission_request', admissionId] });
+      qc.invalidateQueries({ queryKey: ['admission_list_items'] });
+      qc.invalidateQueries({ queryKey: ['adm_all'] });
+
       toast({ title: 'PDF gerado com sucesso!' });
       setOpen(false);
     } catch (err: any) {

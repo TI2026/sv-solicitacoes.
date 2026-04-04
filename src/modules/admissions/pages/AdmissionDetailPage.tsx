@@ -1335,3 +1335,34 @@ function CreateCollaboratorFromAdmissionButton({ admissionId, candidates, cargoF
     </Button>
   );
 }
+
+function StartEpiDeliveryButton({ admissionId }: { admissionId: string }) {
+  const navigate = useNavigate();
+  const [collabId, setCollabId] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from('collaborators')
+      .select('id')
+      .eq('admission_request_id', admissionId)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) setCollabId(data[0].id);
+        setChecked(true);
+      });
+  }, [admissionId]);
+
+  if (!checked || !collabId) return null;
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => navigate(`/epis/deliveries?collaboratorId=${collabId}`)}
+    >
+      <PackageOpen className="w-4 h-4" /> Iniciar Entrega de EPIs
+    </Button>
+  );
+}
