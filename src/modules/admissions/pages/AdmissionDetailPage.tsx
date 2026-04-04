@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useUpdateCandidate, useMedicalExam, useGeneratePublicLink, useAdmissionPublicLinks, useAdmissionFiles } from '../hooks/useAdmissionQueries';
-import { useApprovalRequestForReference } from '@/hooks/useApprovalFlow';
+import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { maskCPF, maskPhone, isValidCPF } from '@/lib/masks';
 import { Switch } from '@/components/ui/switch';

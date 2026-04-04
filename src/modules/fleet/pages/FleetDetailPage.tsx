@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFuelRequest, useFuelAttachments, useFuelSetStatus } from '../hooks/useFleetQueries';
 import { useApprovalAction } from '../hooks/useApprovalAction';
-import { useApprovalRequestForReference } from '@/hooks/useApprovalFlow';
+import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
