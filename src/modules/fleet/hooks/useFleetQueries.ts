@@ -124,7 +124,7 @@ export function useFuelReviews(requestId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fuel_reviews')
-        .select('*, profiles(full_name)')
+        .select('*, profiles!fuel_reviews_reviewer_user_id_fkey(full_name)')
         .eq('fuel_request_id', requestId)
         .order('created_at', { ascending: false });
       if (error) throw error;
