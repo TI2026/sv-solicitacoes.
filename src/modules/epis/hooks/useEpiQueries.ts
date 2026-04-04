@@ -217,14 +217,14 @@ export function useEpiMovements(deliveryId?: string) {
 }
 
 // ===================== KIT RULES =====================
-export function useEpiKitRules(sectorId?: string) {
+export function useEpiKitRules(sectorId?: string, includeInactive = false) {
   return useQuery({
-    queryKey: ['epi-kit-rules', sectorId],
+    queryKey: ['epi-kit-rules', sectorId, includeInactive],
     queryFn: async () => {
       let q = from('epi_kit_rules')
         .select('*, epi_item:epi_items(id, code, name, category), sector:sectors(id, name)')
-        .eq('active', true)
         .order('created_at');
+      if (!includeInactive) q = q.eq('active', true);
       if (sectorId) q = q.eq('sector_id', sectorId);
       const { data, error } = await q;
       if (error) throw error;
