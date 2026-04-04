@@ -337,18 +337,22 @@ export default function DashboardPage() {
               </div>
 
               {/* Approval metrics */}
-              {(approvalMetrics.myPending.length > 0 || approvalMetrics.myRequests.length > 0 || approvalMetrics.totalActive > 0) && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <MetricCard icon={ClipboardCheck} label="Minhas Aprovações Pendentes" value={approvalMetrics.myPending.length}
-                    onClick={() => navigate('/permissoes')} accent="bg-primary/20" />
-                  <MetricCard icon={Clock} label="Minhas Solicitações em Aprovação" value={approvalMetrics.myRequests.length}
-                    onClick={() => navigate('/permissoes')} />
-                  <MetricCard icon={ListChecks} label="Aprovações no meu escopo" value={approvalMetrics.totalActive}
-                    onClick={() => navigate('/permissoes')} />
+              {(approvalMetrics.myPending.length > 0 || approvalMetrics.myRequests.length > 0 || approvalMetrics.totalActive > 0 || approvalMetrics.recentEnded.length > 0) && (
+                <>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <MetricCard icon={ClipboardCheck} label="Minhas Aprovações Pendentes" value={approvalMetrics.myPending.length}
+                      onClick={() => navigate('/permissoes')} accent="bg-primary/20" />
+                    <MetricCard icon={Clock} label="Minhas Solicitações em Aprovação" value={approvalMetrics.myRequests.length}
+                      onClick={() => navigate('/permissoes')} />
+                    <MetricCard icon={ListChecks} label="Aprovações Ativas" value={approvalMetrics.totalActive}
+                      onClick={() => navigate('/permissoes')} />
+                    <MetricCard icon={CheckCircle} label="Encerradas (aprovadas/rejeitadas)" value={`${approvalMetrics.endedApproved}/${approvalMetrics.endedRejected}`}
+                      onClick={() => navigate('/permissoes')} />
+                  </div>
                   {Object.keys(approvalMetrics.byModule).length > 0 && (
                     <Card className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate('/permissoes')}>
                       <CardContent className="p-4">
-                        <p className="text-xs text-muted-foreground mb-1">Por Módulo</p>
+                        <p className="text-xs text-muted-foreground mb-1">Aprovações Ativas por Módulo</p>
                         <div className="flex flex-wrap gap-1">
                           {Object.entries(approvalMetrics.byModule).map(([mod, count]) => (
                             <Badge key={mod} variant="secondary" className="text-[10px]">{mod}: {count}</Badge>
@@ -357,7 +361,7 @@ export default function DashboardPage() {
                       </CardContent>
                     </Card>
                   )}
-                </div>
+                </>
               )}
             </>
           )}
