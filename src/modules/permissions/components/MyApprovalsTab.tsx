@@ -4,12 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, Clock, CheckCircle2, XCircle, RotateCcw, ClipboardCheck, User, Info } from 'lucide-react';
+import { Loader2, Clock, CheckCircle2, XCircle, RotateCcw, ClipboardCheck, User, Info, Send } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useMyApprovals, useProcessApproval } from '../hooks/usePermissionsData';
+import { useMyApprovals, useProcessApproval, usePendingFuelRequests } from '../hooks/usePermissionsData';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getApproverTypeLabel } from '@/lib/approvalLabels';
+import { REQUEST_TYPE_LABELS } from '@/lib/constants';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   approved: { label: 'Aprovado', variant: 'default' },
