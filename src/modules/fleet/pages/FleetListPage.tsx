@@ -179,20 +179,25 @@ export default function FleetListPage() {
             <p>• Limite: 5 solicitações por dia</p>
           </InfoCard>
 
-          {/* Sub-filter: Pendentes / Negados */}
-          <div className="flex gap-2">
+          {/* Sub-filter: Pendentes / Negados / Concluídos */}
+          <div className="flex gap-2 flex-wrap">
             <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
               Pendentes {abastPending?.length ? `(${abastPending.length})` : ''}
             </Button>
             <Button variant={subFilter === 'negados' ? 'destructive' : 'outline'} size="sm" onClick={() => setSubFilter('negados')}>
               <AlertTriangle className="w-3.5 h-3.5 mr-1" /> Negados {abastRejected?.length ? `(${abastRejected.length})` : ''}
             </Button>
+            <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
+              <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídos {abastCompleted?.length ? `(${abastCompleted.length})` : ''}
+            </Button>
           </div>
 
           {subFilter === 'pendentes' ? (
             <RequestList requests={abastPending} isAdmin={isAdmin} isLoading={abastPendingLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
-          ) : (
+          ) : subFilter === 'negados' ? (
             <RequestList requests={abastRejected} isAdmin={isAdmin} isLoading={abastRejectedLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+          ) : (
+            <RequestList requests={abastCompleted} isAdmin={isAdmin} isLoading={abastCompletedLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
