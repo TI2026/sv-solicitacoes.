@@ -458,7 +458,7 @@ export default function FleetDetailPage() {
       </Card>
 
       {/* Approval Flow Status */}
-      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
+      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
 
       {/* Approval Steps Queue */}
       {hasActiveFlow && approvalRequest?.approval_request_steps && (
