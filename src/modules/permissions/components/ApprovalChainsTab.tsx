@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Loader2, Plus, Trash2, GitBranch, CheckCircle2, XCircle, Info, Users, Building2, UserCheck, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApprovalModules, useApprovalFlows, useSaveApprovalFlow, useEligibleApprovers, useSectors, useApproverRoles, StepDraft } from '../hooks/usePermissionsData';
+import { supabase } from '@/integrations/supabase/client';
 
 const APPROVER_TYPE_LABELS: Record<string, string> = {
   usuario_fixo: 'Pessoa (usuário fixo)',
