@@ -5,6 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Download, Loader2, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import jsPDF from 'jspdf';
 import { formatDateBR } from '@/lib/dateUtils';
 import logoSv from '@/assets/logo-sv.png';
@@ -45,6 +47,7 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
   const [open, setOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [form, setForm] = useState({
     local: defaultLocal || '',
     responsavel: defaultResponsavel || '',
@@ -220,6 +223,16 @@ export function WelcomePdfGenerator({ candidateName, cargoFuncao, admissionId, d
       // Save with candidate name in filename
       const safeName = candidateName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
       doc.save(`Apresentacao_${safeName}.pdf`);
+
+      // Persist welcome_pdf_generated_at
+      await supabase
+        .from('admission_requests')
+        .update({ welcome_pdf_generated_at: new Date().toISOString() } as any)
+        .eq('id', admissionId);
+      qc.invalidateQueries({ queryKey: ['admission_request', admissionId] });
+      qc.invalidateQueries({ queryKey: ['admission_list_items'] });
+      qc.invalidateQueries({ queryKey: ['adm_all'] });
+
       toast({ title: 'PDF gerado com sucesso!' });
       setOpen(false);
     } catch (err: any) {

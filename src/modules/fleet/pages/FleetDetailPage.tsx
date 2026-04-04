@@ -259,6 +259,9 @@ export default function FleetDetailPage() {
             <div className="flex items-center gap-2 text-muted-foreground col-span-2">
               <User className="w-4 h-4" />
               <span>{(req as any).profiles?.full_name || 'Usuário'}</span>
+              {(req as any).assignee?.full_name && (
+                <Badge variant="secondary" className="text-[10px] ml-2">📋 Atribuído: {(req as any).assignee.full_name}</Badge>
+              )}
             </div>
           </div>
 

@@ -15,6 +15,7 @@ export interface AdmissionListItem {
   salario_previsto: number | null;
   total_candidatos: number;
   requester_user_id: string;
+  welcome_pdf_generated_at: string | null;
 }
 
 /**
@@ -39,5 +40,6 @@ export function mapAdmissionListItem(raw: any): AdmissionListItem {
     salario_previsto: raw.salario_previsto ? Number(raw.salario_previsto) : null,
     total_candidatos: raw.total_candidatos ?? 0,
     requester_user_id: raw.requester_user_id,
+    welcome_pdf_generated_at: raw.welcome_pdf_generated_at || null,
   };
 }

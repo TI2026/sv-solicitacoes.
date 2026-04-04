@@ -73,6 +73,11 @@ export function AdmissionProcessCard({ item, canEdit, canAdvance, canDelete, nex
                 )}>
                   {PRIORITY_LABELS[item.prioridade] || item.prioridade}
                 </span>
+                {item.status === 'concluido' && (
+                  (item as any).welcome_pdf_generated_at
+                    ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium status-approved">Carta enviada</span>
+                    : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium status-pending">Carta pendente</span>
+                )}
               </div>
 
               {/* Line 4: Metadata */}

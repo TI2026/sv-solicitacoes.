@@ -714,10 +714,12 @@ export default function AdmissionDetailPage() {
       {/* ===== ETAPA 6: Concluído ===== */}
       {(status === 'concluido' || status === 'registros_concluidos') && (
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-4 text-center space-y-3">
-            <CheckCircle className="w-8 h-8 mx-auto text-primary mb-2" />
-            <p className="text-sm font-semibold text-foreground">Admissão Concluída — Admitido</p>
-            <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+          <CardContent className="p-4 space-y-4">
+            <div className="text-center">
+              <CheckCircle className="w-8 h-8 mx-auto text-primary mb-2" />
+              <p className="text-sm font-semibold text-foreground">Admissão Concluída — Admitido</p>
+            </div>
+            <div className="text-xs text-muted-foreground space-y-0.5">
               <p>Cargo: {req.cargo_funcao}</p>
               <p>Local: {req.local_contratacao}</p>
               {req.data_prevista_inicio && <p>Início previsto: {new Date(req.data_prevista_inicio).toLocaleDateString('pt-BR')}</p>}
@@ -725,19 +727,22 @@ export default function AdmissionDetailPage() {
                 <p>Contratado(s): {approvedCandidates.map((c: any) => c.nome).join(', ')}</p>
               )}
             </div>
-            {/* Welcome PDF Generator */}
-            {approvedCandidates.map((c: any) => (
-              <WelcomePdfGenerator
-                key={c.id}
-                candidateName={c.nome}
-                cargoFuncao={req.cargo_funcao}
-                admissionId={id!}
-                defaultLocal={req.local_contratacao}
-                defaultResponsavel={req.gestor_responsavel}
-                dataPrevistaInicio={req.data_prevista_inicio}
-              />
-            ))}
-            <CreateCollaboratorFromAdmissionButton admissionId={id!} candidates={approvedCandidates} cargoFuncao={req.cargo_funcao} worksite={req.local_contratacao} />
+            {/* Welcome PDF Generator + EPI buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              {approvedCandidates.map((c: any) => (
+                <WelcomePdfGenerator
+                  key={c.id}
+                  candidateName={c.nome}
+                  cargoFuncao={req.cargo_funcao}
+                  admissionId={id!}
+                  defaultLocal={req.local_contratacao}
+                  defaultResponsavel={req.gestor_responsavel}
+                  dataPrevistaInicio={req.data_prevista_inicio}
+                />
+              ))}
+              <CreateCollaboratorFromAdmissionButton admissionId={id!} candidates={approvedCandidates} cargoFuncao={req.cargo_funcao} worksite={req.local_contratacao} />
+              <StartEpiDeliveryButton admissionId={id!} />
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1327,6 +1332,37 @@ function CreateCollaboratorFromAdmissionButton({ admissionId, candidates, cargoF
     <Button variant="outline" size="sm" className="gap-1.5" onClick={handleCreate} disabled={createCollab.isPending || candidates.length === 0}>
       {createCollab.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <HardHat className="w-4 h-4" />}
       Criar Colaborador p/ EPIs
+    </Button>
+  );
+}
+
+function StartEpiDeliveryButton({ admissionId }: { admissionId: string }) {
+  const navigate = useNavigate();
+  const [collabId, setCollabId] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from('collaborators')
+      .select('id')
+      .eq('admission_request_id', admissionId)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) setCollabId(data[0].id);
+        setChecked(true);
+      });
+  }, [admissionId]);
+
+  if (!checked || !collabId) return null;
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-1.5"
+      onClick={() => navigate(`/epis/deliveries?collaboratorId=${collabId}`)}
+    >
+      <PackageOpen className="w-4 h-4" /> Iniciar Entrega de EPIs
     </Button>
   );
 }
