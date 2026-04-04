@@ -92,7 +92,7 @@ export function useFuelRequest(id: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('fuel_requests')
-        .select('*, profiles(full_name, email)')
+        .select('*, profiles(full_name, email), assignee:profiles!fuel_requests_assigned_to_user_id_fkey(full_name)')
         .eq('id', id)
         .single();
       if (error) throw error;
