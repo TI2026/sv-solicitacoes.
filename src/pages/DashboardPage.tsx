@@ -129,15 +129,20 @@ export default function DashboardPage() {
 
   const approvalMetrics = useMemo(() => {
     const d = approvalData || [];
-    const myPending = d.filter((a: any) => a.current_approver_user_id === user?.id && !a.ended_at);
-    const myRequests = d.filter((a: any) => a.requester_user_id === user?.id && !a.ended_at);
-    const totalActive = d.filter((a: any) => !a.ended_at && !!a.current_approver_user_id).length;
+    const active = d.filter((a: any) => !a.ended_at);
+    const ended = d.filter((a: any) => !!a.ended_at);
+    const myPending = active.filter((a: any) => a.current_approver_user_id === user?.id);
+    const myRequests = active.filter((a: any) => a.requester_user_id === user?.id);
+    const totalActive = active.filter((a: any) => !!a.current_approver_user_id).length;
+    const recentEnded = ended.slice(0, 10);
+    const endedApproved = ended.filter((a: any) => a.status === 'approved').length;
+    const endedRejected = ended.filter((a: any) => a.status === 'rejected').length;
     const byModule: Record<string, number> = {};
-    d.forEach((a: any) => {
+    active.forEach((a: any) => {
       const name = a.approval_modules?.name || 'Outro';
       byModule[name] = (byModule[name] || 0) + 1;
     });
-    return { myPending, myRequests, totalActive, byModule };
+    return { myPending, myRequests, totalActive, byModule, recentEnded, endedApproved, endedRejected };
   }, [approvalData, user?.id]);
 
   const { data: fuelData, isLoading: fuelLoading } = useQuery({
