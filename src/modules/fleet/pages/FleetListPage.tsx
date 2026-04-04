@@ -119,6 +119,10 @@ export default function FleetListPage() {
   const { data: abastRejected, isLoading: abastRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'abastecimento');
   const { data: reembolsoRejected, isLoading: reembolsoRejectedLoading } = useFuelRequestsRejected(user?.id, isAdmin, 'reembolso');
 
+  // Completed queries
+  const { data: abastCompleted, isLoading: abastCompletedLoading } = useFuelRequestsCompleted(user?.id, isAdmin, 'abastecimento');
+  const { data: reembolsoCompleted, isLoading: reembolsoCompletedLoading } = useFuelRequestsCompleted(user?.id, isAdmin, 'reembolso');
+
   useRealtimeSubscription({
     channelName: 'fleet-list-realtime',
     enabled: !!user,
