@@ -26,6 +26,7 @@ export default function EpiDeliveryPage() {
   const { data: epiItems } = useEpiItems({ active: true });
   const { data: sectors } = useSectors();
   const createDelivery = useCreateDelivery();
+  const createCollaborator = useCreateCollaborator();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
