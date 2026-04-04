@@ -809,7 +809,7 @@ export default function AdmissionDetailPage() {
       )}
 
       {/* Approval Flow Status */}
-      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} />}
+      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
 
       {/* Timeline */}
       <Card>
