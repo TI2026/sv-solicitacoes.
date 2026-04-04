@@ -42,6 +42,7 @@ function getStatusBadge(status: string) {
 export default function MyApprovalsTab() {
   const { user } = useAuth();
   const { data: approvals, isLoading } = useMyApprovals(user?.id);
+  const { data: pendingFuel, isLoading: loadingFuel } = usePendingFuelRequests();
   const processAction = useProcessApproval();
   const [actionDialog, setActionDialog] = useState<{ id: string; type: 'reject' | 'return' } | null>(null);
   const [actionReason, setActionReason] = useState('');
