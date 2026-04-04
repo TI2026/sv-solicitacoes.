@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Plus, Package, Search, Eye, FileDown } from 'lucide-react';
-import { useEpiDeliveries, useCreateDelivery, useCollaborators, useEpiItems } from '../hooks/useEpiQueries';
+import { useEpiDeliveries, useCreateDelivery, useCollaboratorsWithProfiles, useCreateCollaborator, useEpiItems } from '../hooks/useEpiQueries';
 import { EPI_DELIVERY_STATUS_LABELS, EPI_REASON_LABELS } from '../types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -22,10 +22,11 @@ export default function EpiDeliveryPage() {
   const [search, setSearch] = useState('');
   const [searchParams] = useSearchParams();
   const { data: deliveries, isLoading } = useEpiDeliveries();
-  const { data: collaborators } = useCollaborators({ active: true });
+  const { data: collaborators } = useCollaboratorsWithProfiles({ active: true });
   const { data: epiItems } = useEpiItems({ active: true });
   const { data: sectors } = useSectors();
   const createDelivery = useCreateDelivery();
+  const createCollaborator = useCreateCollaborator();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -52,8 +53,22 @@ export default function EpiDeliveryPage() {
 
   const handleSave = async (generatePdf = false) => {
     if (!form.collaborator_id || !form.epi_item_id) return;
-    const collab = collaborators?.find((c: any) => c.id === form.collaborator_id);
+    let collab = collaborators?.find((c: any) => c.id === form.collaborator_id);
     const epiItem = epiItems?.find((e: any) => e.id === form.epi_item_id);
+
+    // Auto-create collaborator from profile if needed
+    let realCollaboratorId = form.collaborator_id;
+    if (collab?._isProfileOnly) {
+      const newCollab = await createCollaborator.mutateAsync({
+        full_name: collab.full_name,
+        email: collab.email || '',
+        user_profile_id: collab._profileId,
+        sector_id: form.sector_id || collab.sector_id || null,
+        worksite: form.worksite || '',
+      });
+      realCollaboratorId = newCollab.id;
+      collab = { ...collab, ...newCollab };
+    }
 
     let sigEmployeeUrl: string | null = null;
     let sigResponsibleUrl: string | null = null;
@@ -72,7 +87,7 @@ export default function EpiDeliveryPage() {
     }
 
     await createDelivery.mutateAsync({
-      collaborator_id: form.collaborator_id,
+      collaborator_id: realCollaboratorId,
       epi_item_id: form.epi_item_id,
       quantity: parseInt(form.quantity) || 1,
       size: form.size || null,
