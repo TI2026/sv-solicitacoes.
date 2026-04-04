@@ -607,9 +607,14 @@ function FlowControlPanel({ fuelData, admData, navigate, isRH, canSeeFinancials 
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-        <ListChecks className="w-5 h-5" /> Controle de Fluxos
-      </h2>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <ListChecks className="w-5 h-5" /> Controle de Fluxos
+        </h2>
+        <Button variant={showFinalized ? 'default' : 'outline'} size="sm" onClick={() => setShowFinalized(!showFinalized)}>
+          {showFinalized ? 'Ocultar Finalizados' : 'Mostrar Finalizados'}
+        </Button>
+      </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full sm:w-auto">
