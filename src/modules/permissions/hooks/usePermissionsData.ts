@@ -587,3 +587,20 @@ export function useApproverRoles() {
     },
   });
 }
+
+/** Fuel requests awaiting admin forwarding (status = enviado) — not yet in approval flow */
+export function usePendingFuelRequests() {
+  return useQuery({
+    queryKey: ['fuel_requests_awaiting_forwarding'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('fuel_requests')
+        .select('id, type, status, created_at, updated_at, valor, placa, motivo, daily_category, person_name, requester_user_id, profiles!fuel_requests_requester_user_id_fkey(full_name, email)')
+        .is('deleted_at', null)
+        .eq('status', 'enviado')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}

@@ -4,12 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, Clock, CheckCircle2, XCircle, RotateCcw, ClipboardCheck, User, Info } from 'lucide-react';
+import { Loader2, Clock, CheckCircle2, XCircle, RotateCcw, ClipboardCheck, User, Info, Send } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useMyApprovals, useProcessApproval } from '../hooks/usePermissionsData';
+import { useMyApprovals, useProcessApproval, usePendingFuelRequests } from '../hooks/usePermissionsData';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getApproverTypeLabel } from '@/lib/approvalLabels';
+import { REQUEST_TYPE_LABELS } from '@/lib/constants';
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   approved: { label: 'Aprovado', variant: 'default' },
@@ -41,6 +42,7 @@ function getStatusBadge(status: string) {
 export default function MyApprovalsTab() {
   const { user } = useAuth();
   const { data: approvals, isLoading } = useMyApprovals(user?.id);
+  const { data: pendingFuel, isLoading: loadingFuel } = usePendingFuelRequests();
   const processAction = useProcessApproval();
   const [actionDialog, setActionDialog] = useState<{ id: string; type: 'reject' | 'return' } | null>(null);
   const [actionReason, setActionReason] = useState('');
@@ -186,6 +188,38 @@ export default function MyApprovalsTab() {
           </div>
         )}
       </div>
+
+      {/* Pending fuel requests (mine) */}
+      {(() => {
+        const myPendingFuel = (pendingFuel || []).filter((r: any) => r.requester_user_id === user?.id);
+        if (myPendingFuel.length === 0) return null;
+        return (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Send className="w-4 h-4" />
+              Aguardando encaminhamento ({myPendingFuel.length})
+            </h3>
+            <div className="space-y-2">
+              {myPendingFuel.map((r: any) => (
+                <Card key={r.id} className="border-l-4 border-l-amber-400">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="secondary" className="text-[10px]">{REQUEST_TYPE_LABELS[r.type] || r.type}</Badge>
+                      <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700">Enviado — Aguardando encaminhamento</Badge>
+                      {r.valor && (
+                        <span className="text-[10px] font-medium">R$ {Number(r.valor).toFixed(2)}</span>
+                      )}
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* History */}
       {myHistory.length > 0 && (

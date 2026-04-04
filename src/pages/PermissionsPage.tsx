@@ -5,15 +5,16 @@ import RolesPermissionsTab from '@/modules/permissions/components/RolesPermissio
 import UsersManagementTab from '@/modules/permissions/components/UsersManagementTab';
 import ApprovalChainsTab from '@/modules/permissions/components/ApprovalChainsTab';
 import MyApprovalsTab from '@/modules/permissions/components/MyApprovalsTab';
-import { Shield, Users, GitBranch, ClipboardCheck, ListChecks, Clock, User, Info } from 'lucide-react';
+import { Shield, Users, GitBranch, ClipboardCheck, ListChecks, Clock, User, Info, Send } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
-import { useAllApprovalRequests } from '@/modules/permissions/hooks/usePermissionsData';
+import { useAllApprovalRequests, usePendingFuelRequests } from '@/modules/permissions/hooks/usePermissionsData';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getApproverTypeLabel } from '@/lib/approvalLabels';
+import { REQUEST_TYPE_LABELS } from '@/lib/constants';
 
 function getApprovalLastActivityDate(approval: any) {
   const timestamps = [
@@ -27,14 +28,48 @@ function getApprovalLastActivityDate(approval: any) {
   return new Date(timestamps.length ? Math.max(...timestamps) : Date.now());
 }
 
+function PendingFuelRequestsSection({ requests }: { requests: any[] }) {
+  if (requests.length === 0) return null;
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+        <Send className="w-4 h-4" />
+        Aguardando encaminhamento ({requests.length})
+      </h3>
+      <div className="space-y-2">
+        {requests.map((r: any) => (
+          <Card key={r.id} className="border-l-4 border-l-amber-400">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="text-[10px]">{REQUEST_TYPE_LABELS[r.type] || r.type}</Badge>
+                <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700">Enviado</Badge>
+                <span className="text-[10px] text-muted-foreground">
+                  {r.profiles?.full_name || 'Solicitante'}
+                </span>
+                {r.valor && (
+                  <span className="text-[10px] font-medium">R$ {Number(r.valor).toFixed(2)}</span>
+                )}
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ApprovalInProgressTab() {
   const { data: requests, isLoading } = useAllApprovalRequests();
+  const { data: pendingFuel, isLoading: loadingFuel } = usePendingFuelRequests();
   const [moduleFilter, setModuleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const isReallyActive = (r: any) => !r.ended_at && !!r.current_approver_user_id && String(r.status || '').startsWith('awaiting_step_');
   const isNotCancelled = (r: any) => r.status !== 'cancelled';
 
-  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  if (isLoading && loadingFuel) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
   const filtered = [...((requests || []).filter((r: any) => {
     if (!isNotCancelled(r)) return false;
@@ -56,6 +91,9 @@ function ApprovalInProgressTab() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Pending fuel requests awaiting admin forwarding */}
+      <PendingFuelRequestsSection requests={pendingFuel || []} />
 
       <div className="flex gap-3 flex-wrap">
         <Select value={moduleFilter} onValueChange={setModuleFilter}>
