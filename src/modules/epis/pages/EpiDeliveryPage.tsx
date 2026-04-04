@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Plus, Package, Search, Eye, FileDown } from 'lucide-react';
-import { useEpiDeliveries, useCreateDelivery, useCollaboratorsWithProfiles, useCreateCollaborator, useEpiItems } from '../hooks/useEpiQueries';
+import { Loader2, Plus, Package, Search, Eye, FileDown, Trash2, Wand2 } from 'lucide-react';
+import { useEpiDeliveries, useCreateDelivery, useCollaboratorsWithProfiles, useCreateCollaborator, useEpiItems, useEpiKitRules } from '../hooks/useEpiQueries';
 import { EPI_DELIVERY_STATUS_LABELS, EPI_REASON_LABELS } from '../types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -17,6 +17,27 @@ import { useAuth } from '@/contexts/AuthContext';
 import { maskCPF } from '@/lib/masks';
 import { useSectors } from '@/modules/permissions/hooks/usePermissionsData';
 import jsPDF from 'jspdf';
+import { useToast } from '@/hooks/use-toast';
+
+interface DeliveryLineItem {
+  id: string; // local key
+  epi_item_id: string;
+  quantity: string;
+  size: string;
+  reason: string;
+  notes: string;
+  fromKit: boolean; // whether this came from kit suggestion
+}
+
+const newLine = (epiItemId = '', qty = '1', fromKit = false): DeliveryLineItem => ({
+  id: crypto.randomUUID(),
+  epi_item_id: epiItemId,
+  quantity: qty,
+  size: '',
+  reason: 'primeira_entrega',
+  notes: '',
+  fromKit,
+});
 
 export default function EpiDeliveryPage() {
   const [search, setSearch] = useState('');
@@ -25,97 +46,189 @@ export default function EpiDeliveryPage() {
   const { data: collaborators } = useCollaboratorsWithProfiles({ active: true });
   const { data: epiItems } = useEpiItems({ active: true });
   const { data: sectors } = useSectors();
+  const { data: allKitRules } = useEpiKitRules();
   const createDelivery = useCreateDelivery();
   const createCollaborator = useCreateCollaborator();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ collaborator_id: '', epi_item_id: '', quantity: '1', size: '', sector_id: '', worksite: '', reason: 'primeira_entrega', notes: '' });
+  const [saving, setSaving] = useState(false);
+
+  // Header fields
+  const [collaboratorId, setCollaboratorId] = useState('');
+  const [sectorId, setSectorId] = useState('');
+  const [worksite, setWorksite] = useState('');
+  const [generalNotes, setGeneralNotes] = useState('');
+
+  // Multi-item lines
+  const [lines, setLines] = useState<DeliveryLineItem[]>([newLine()]);
+
   const [sigEmployee, setSigEmployee] = useState<string | null>(null);
   const [sigResponsible, setSigResponsible] = useState<string | null>(null);
 
-  // Pre-select collaborator from querystring (from admission flow)
+  const resetForm = useCallback(() => {
+    setCollaboratorId('');
+    setSectorId('');
+    setWorksite('');
+    setGeneralNotes('');
+    setLines([newLine()]);
+    setSigEmployee(null);
+    setSigResponsible(null);
+  }, []);
+
+  // Pre-select collaborator from querystring
   useEffect(() => {
     const collabId = searchParams.get('collaboratorId');
     if (collabId && collaborators) {
       const collab = collaborators.find((c: any) => c.id === collabId);
       if (collab) {
-        setForm(f => ({
-          ...f,
-          collaborator_id: collabId,
-          sector_id: collab.sector_id || '',
-          worksite: collab.worksite || '',
-        }));
+        setCollaboratorId(collabId);
+        setSectorId(collab.sector_id || '');
+        setWorksite(collab.worksite || '');
         setDialogOpen(true);
       }
     }
   }, [searchParams, collaborators]);
 
-  const handleSave = async (generatePdf = false) => {
-    if (!form.collaborator_id || !form.epi_item_id) return;
-    let collab = collaborators?.find((c: any) => c.id === form.collaborator_id);
-    const epiItem = epiItems?.find((e: any) => e.id === form.epi_item_id);
+  // When collaborator changes, auto-load kit rules
+  const handleCollaboratorChange = useCallback((id: string) => {
+    setCollaboratorId(id);
+    const collab = collaborators?.find((c: any) => c.id === id);
+    if (collab) {
+      setSectorId(collab.sector_id || '');
+      setWorksite(collab.worksite || '');
+    }
+    // Don't auto-load kit here; user clicks "Carregar Kit" button
+  }, [collaborators]);
 
-    // Auto-create collaborator from profile if needed
-    let realCollaboratorId = form.collaborator_id;
-    if (collab?._isProfileOnly) {
-      const newCollab = await createCollaborator.mutateAsync({
-        full_name: collab.full_name,
-        email: collab.email || '',
-        user_profile_id: collab._profileId,
-        sector_id: form.sector_id || collab.sector_id || null,
-        worksite: form.worksite || '',
-      });
-      realCollaboratorId = newCollab.id;
-      collab = { ...collab, ...newCollab };
+  const loadKitForCollaborator = useCallback(() => {
+    const collab = collaborators?.find((c: any) => c.id === collaboratorId);
+    if (!collab || !allKitRules?.length) {
+      toast({ title: 'Nenhuma regra de kit encontrada', description: 'Configure regras de kit por setor/cargo primeiro.', variant: 'destructive' });
+      return;
     }
 
-    let sigEmployeeUrl: string | null = null;
-    let sigResponsibleUrl: string | null = null;
+    const sId = sectorId || collab.sector_id;
+    const roleName = collab.role_name || '';
 
-    if (sigEmployee) {
-      const blob = await (await fetch(sigEmployee)).blob();
-      const path = `signatures/${Date.now()}_employee.png`;
-      const { error } = await supabase.storage.from('epis').upload(path, blob, { contentType: 'image/png' });
-      if (!error) sigEmployeeUrl = path;
-    }
-    if (sigResponsible) {
-      const blob = await (await fetch(sigResponsible)).blob();
-      const path = `signatures/${Date.now()}_responsible.png`;
-      const { error } = await supabase.storage.from('epis').upload(path, blob, { contentType: 'image/png' });
-      if (!error) sigResponsibleUrl = path;
-    }
-
-    await createDelivery.mutateAsync({
-      collaborator_id: realCollaboratorId,
-      epi_item_id: form.epi_item_id,
-      quantity: parseInt(form.quantity) || 1,
-      size: form.size || null,
-      sector_id: collab?.sector_id || null,
-      worksite: form.worksite || collab?.worksite || '',
-      reason: form.reason,
-      notes: form.notes,
-      signature_employee_url: sigEmployeeUrl,
-      signature_responsible_url: sigResponsibleUrl,
+    // Match rules: same sector or no sector (global), and same role or no role (global)
+    const matchingRules = allKitRules.filter((r: any) => {
+      const sectorMatch = !r.sector_id || r.sector_id === sId;
+      const roleMatch = !r.role_name || r.role_name === roleName;
+      return sectorMatch && (roleMatch || !roleName);
     });
 
-    if (generatePdf && collab && epiItem) {
-      generateDeliveryPdf(collab, epiItem, form, sigEmployee, sigResponsible);
+    if (matchingRules.length === 0) {
+      toast({ title: 'Nenhuma regra de kit encontrada', description: `Sem regras para o setor/cargo deste colaborador.`, variant: 'destructive' });
+      return;
     }
 
-    setDialogOpen(false);
-    setForm({ collaborator_id: '', epi_item_id: '', quantity: '1', size: '', sector_id: '', worksite: '', reason: 'primeira_entrega', notes: '' });
-    setSigEmployee(null);
-    setSigResponsible(null);
+    // Remove existing non-manual empty lines, keep manual ones
+    const manualLines = lines.filter(l => !l.fromKit && l.epi_item_id);
+
+    const kitLines: DeliveryLineItem[] = matchingRules.map((r: any) =>
+      newLine(r.epi_item_id, String(r.quantity || 1), true)
+    );
+
+    // Avoid duplicates with manual lines
+    const manualItemIds = new Set(manualLines.map(l => l.epi_item_id));
+    const uniqueKitLines = kitLines.filter(l => !manualItemIds.has(l.epi_item_id));
+
+    const combined = [...uniqueKitLines, ...manualLines];
+    setLines(combined.length > 0 ? combined : [newLine()]);
+    toast({ title: `${uniqueKitLines.length} item(ns) do kit carregados` });
+  }, [collaboratorId, collaborators, allKitRules, sectorId, lines, toast]);
+
+  const updateLine = (id: string, field: keyof DeliveryLineItem, value: string) => {
+    setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: value, fromKit: field === 'epi_item_id' ? false : l.fromKit } : l));
   };
 
-  const generateDeliveryPdf = (collab: any, epiItem: any, formData: typeof form, sigEmp: string | null, sigResp: string | null) => {
+  const removeLine = (id: string) => {
+    setLines(prev => {
+      const next = prev.filter(l => l.id !== id);
+      return next.length > 0 ? next : [newLine()];
+    });
+  };
+
+  const addLine = () => setLines(prev => [...prev, newLine()]);
+
+  const validLines = lines.filter(l => l.epi_item_id);
+
+  const handleSave = async (generatePdf = false) => {
+    if (!collaboratorId || validLines.length === 0) return;
+    setSaving(true);
+
+    try {
+      let collab = collaborators?.find((c: any) => c.id === collaboratorId);
+
+      // Auto-create collaborator from profile if needed
+      let realCollaboratorId = collaboratorId;
+      if (collab?._isProfileOnly) {
+        const newCollab = await createCollaborator.mutateAsync({
+          full_name: collab.full_name,
+          email: collab.email || '',
+          user_profile_id: collab._profileId,
+          sector_id: sectorId || collab.sector_id || null,
+          worksite: worksite || '',
+        });
+        realCollaboratorId = newCollab.id;
+        collab = { ...collab, ...newCollab };
+      }
+
+      // Upload signatures once
+      let sigEmployeeUrl: string | null = null;
+      let sigResponsibleUrl: string | null = null;
+
+      if (sigEmployee) {
+        const blob = await (await fetch(sigEmployee)).blob();
+        const path = `signatures/${Date.now()}_employee.png`;
+        const { error } = await supabase.storage.from('epis').upload(path, blob, { contentType: 'image/png' });
+        if (!error) sigEmployeeUrl = path;
+      }
+      if (sigResponsible) {
+        const blob = await (await fetch(sigResponsible)).blob();
+        const path = `signatures/${Date.now()}_responsible.png`;
+        const { error } = await supabase.storage.from('epis').upload(path, blob, { contentType: 'image/png' });
+        if (!error) sigResponsibleUrl = path;
+      }
+
+      // Create one delivery per line
+      for (const line of validLines) {
+        await createDelivery.mutateAsync({
+          collaborator_id: realCollaboratorId,
+          epi_item_id: line.epi_item_id,
+          quantity: parseInt(line.quantity) || 1,
+          size: line.size || null,
+          sector_id: collab?.sector_id || sectorId || null,
+          worksite: worksite || collab?.worksite || '',
+          reason: line.reason,
+          notes: line.notes || generalNotes,
+          signature_employee_url: sigEmployeeUrl,
+          signature_responsible_url: sigResponsibleUrl,
+        });
+      }
+
+      if (generatePdf && collab) {
+        generateDeliveryPdf(collab, validLines);
+      }
+
+      toast({ title: `${validLines.length} entrega(s) registrada(s) com sucesso` });
+      setDialogOpen(false);
+      resetForm();
+    } catch (err: any) {
+      toast({ title: 'Erro ao registrar entregas', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const generateDeliveryPdf = (collab: any, pdfLines: DeliveryLineItem[]) => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
     const margin = 20;
     const green: [number, number, number] = [20, 144, 71];
 
-    // Header bar
     doc.setFillColor(...green);
     doc.rect(0, 0, pageW, 4, 'F');
 
@@ -131,7 +244,6 @@ export default function EpiDeliveryPage() {
     doc.setFont('helvetica', 'normal');
     doc.text('SV Engenharia', pageW / 2, y + 5, { align: 'center' });
 
-    // Collaborator data section
     y += 16;
     doc.setFillColor(245, 245, 245);
     doc.rect(margin, y - 3, pageW - 2 * margin, 42, 'F');
@@ -148,18 +260,15 @@ export default function EpiDeliveryPage() {
     field('Colaborador:', collab.full_name, margin + 3, y + 2);
     field('CPF:', collab.cpf ? maskCPF(collab.cpf) : '—', margin + 3, y + 8);
     field('Cargo:', collab.role_name || '—', margin + 3, y + 14);
-    field('Setor:', collab.sector?.name || '—', margin + 3, y + 20);
-    field('Obra/Local:', formData.worksite || collab.worksite || '—', margin + 3, y + 26);
+    const sectorObj = sectors?.find((s: any) => s.id === (sectorId || collab.sector_id));
+    field('Setor:', sectorObj?.name || '—', margin + 3, y + 20);
+    field('Obra/Local:', worksite || collab.worksite || '—', margin + 3, y + 26);
     field('Data:', new Date().toLocaleDateString('pt-BR'), margin + 3, y + 32);
 
-    if (collab.email) {
-      field('Email:', collab.email, pageW / 2, y + 8);
-    }
-    if (collab.telefone) {
-      field('Telefone:', collab.telefone, pageW / 2, y + 14);
-    }
+    if (collab.email) field('Email:', collab.email, pageW / 2, y + 8);
+    if (collab.telefone) field('Telefone:', collab.telefone, pageW / 2, y + 14);
 
-    // EPI table header
+    // EPI table
     y += 48;
     doc.setFillColor(240, 240, 240);
     doc.rect(margin, y, pageW - 2 * margin, 8, 'F');
@@ -173,39 +282,44 @@ export default function EpiDeliveryPage() {
     y += 10;
 
     doc.setFont('helvetica', 'normal');
-    doc.text(epiItem.name, margin + 2, y, { maxWidth: 65 });
-    doc.text(epiItem.ca_number || '—', margin + 70, y);
-    doc.text(formData.quantity, margin + 100, y);
-    doc.text(formData.size || '—', margin + 115, y);
-    doc.text(EPI_REASON_LABELS[formData.reason] || formData.reason, margin + 130, y);
+    for (const line of pdfLines) {
+      const epiItem = epiItems?.find((e: any) => e.id === line.epi_item_id);
+      if (!epiItem) continue;
+      doc.text(epiItem.name, margin + 2, y, { maxWidth: 65 });
+      doc.text(epiItem.ca_number || '—', margin + 70, y);
+      doc.text(line.quantity, margin + 100, y);
+      doc.text(line.size || '—', margin + 115, y);
+      doc.text(EPI_REASON_LABELS[line.reason] || line.reason, margin + 130, y);
+      y += 7;
+      if (y > 260) { doc.addPage(); y = 20; }
+    }
 
-    if (formData.notes) {
-      y += 10;
+    if (generalNotes) {
+      y += 5;
       doc.setFont('helvetica', 'bold');
       doc.text('Observações:', margin, y);
       doc.setFont('helvetica', 'normal');
       y += 5;
-      doc.text(formData.notes, margin, y, { maxWidth: pageW - 2 * margin });
+      doc.text(generalNotes, margin, y, { maxWidth: pageW - 2 * margin });
+      y += 8;
     }
 
-    // Signatures
-    y += 15;
-    if (sigEmp) {
+    y += 10;
+    if (sigEmployee) {
       doc.setFont('helvetica', 'bold');
       doc.text('Assinatura do Colaborador:', margin, y);
       y += 3;
-      try { doc.addImage(sigEmp, 'PNG', margin, y, 60, 24); } catch {}
+      try { doc.addImage(sigEmployee, 'PNG', margin, y, 60, 24); } catch {}
       y += 28;
     }
-    if (sigResp) {
+    if (sigResponsible) {
       doc.setFont('helvetica', 'bold');
       doc.text('Assinatura do Responsável:', margin, y);
       y += 3;
-      try { doc.addImage(sigResp, 'PNG', margin, y, 60, 24); } catch {}
+      try { doc.addImage(sigResponsible, 'PNG', margin, y, 60, 24); } catch {}
       y += 28;
     }
 
-    // Declaration text
     y += 5;
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
@@ -224,15 +338,17 @@ export default function EpiDeliveryPage() {
     doc.save(`Comprovante_EPI_${safeName}_${Date.now()}.pdf`);
   };
 
-  // Generate PDF for an existing delivery row
+  // PDF for existing delivery
   const handleDownloadExisting = (d: any) => {
     if (!d.collaborator || !d.epi_item) return;
-    generateDeliveryPdf(
-      d.collaborator,
-      d.epi_item,
-      { collaborator_id: d.collaborator_id, epi_item_id: d.epi_item_id, quantity: String(d.quantity), size: d.size || '', sector_id: '', worksite: d.worksite || '', reason: d.reason, notes: d.notes },
-      null, null
-    );
+    const line: DeliveryLineItem = {
+      id: d.id, epi_item_id: d.epi_item_id, quantity: String(d.quantity),
+      size: d.size || '', reason: d.reason, notes: d.notes, fromKit: false,
+    };
+    setGeneralNotes(d.notes || '');
+    setSectorId(d.sector_id || '');
+    setWorksite(d.worksite || '');
+    generateDeliveryPdf(d.collaborator, [line]);
   };
 
   const filtered = (deliveries || []).filter((d: any) => {
@@ -241,6 +357,8 @@ export default function EpiDeliveryPage() {
     return d.collaborator?.full_name?.toLowerCase().includes(s) || d.epi_item?.name?.toLowerCase().includes(s) || d.epi_item?.code?.toLowerCase().includes(s);
   });
 
+  const selectedCollab = collaborators?.find((c: any) => c.id === collaboratorId);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -248,7 +366,7 @@ export default function EpiDeliveryPage() {
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Package className="w-6 h-6 text-primary" /> Entregas de EPI</h1>
           <p className="text-sm text-muted-foreground">Registre e acompanhe entregas de equipamentos</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> Nova Entrega</Button>
+        <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> Nova Entrega</Button>
       </div>
 
       <Card>
@@ -297,46 +415,22 @@ export default function EpiDeliveryPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={dialogOpen} onOpenChange={v => { if (!v) resetForm(); setDialogOpen(v); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nova Entrega de EPI</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+            {/* Header: collaborator + sector */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1.5 md:col-span-1">
                 <Label className="text-xs">Colaborador *</Label>
-                <Select value={form.collaborator_id} onValueChange={v => {
-                  const collab = collaborators?.find((c: any) => c.id === v);
-                  setForm(f => ({ ...f, collaborator_id: v, sector_id: collab?.sector_id || '', worksite: collab?.worksite || f.worksite }));
-                }}>
+                <Select value={collaboratorId} onValueChange={handleCollaboratorChange}>
                   <SelectTrigger><SelectValue placeholder="Selecione o colaborador" /></SelectTrigger>
                   <SelectContent>{(collaborators || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.full_name}{c.role_name ? ` — ${c.role_name}` : ''}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">EPI *</Label>
-                <Select value={form.epi_item_id} onValueChange={v => setForm(f => ({ ...f, epi_item_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o EPI" /></SelectTrigger>
-                  <SelectContent>{(epiItems || []).map((e: any) => <SelectItem key={e.id} value={e.id}>{e.code} — {e.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Tamanho</Label><Input value={form.size} onChange={e => setForm(f => ({ ...f, size: e.target.value }))} placeholder="P, M, G, 38..." /></div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Motivo</Label>
-                <Select value={form.reason} onValueChange={v => setForm(f => ({ ...f, reason: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(EPI_REASON_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
                 <Label className="text-xs">Setor</Label>
-                <Select value={form.sector_id || 'none'} onValueChange={v => setForm(f => ({ ...f, sector_id: v === 'none' ? '' : v }))}>
+                <Select value={sectorId || 'none'} onValueChange={v => setSectorId(v === 'none' ? '' : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhum</SelectItem>
@@ -344,23 +438,104 @@ export default function EpiDeliveryPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5"><Label className="text-xs">Obra / Local</Label><Input value={form.worksite} onChange={e => setForm(f => ({ ...f, worksite: e.target.value }))} /></div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Obra / Local</Label>
+                <Input value={worksite} onChange={e => setWorksite(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-1.5"><Label className="text-xs">Observações</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
 
+            {/* Kit loader button */}
+            {collaboratorId && (
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={loadKitForCollaborator} className="gap-1.5">
+                  <Wand2 className="w-4 h-4" /> Carregar Kit do Setor/Cargo
+                </Button>
+                {selectedCollab && (
+                  <span className="text-xs text-muted-foreground">
+                    {selectedCollab.role_name ? `Cargo: ${selectedCollab.role_name}` : 'Sem cargo definido'}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Item lines */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Itens da Entrega</Label>
+                <span className="text-xs text-muted-foreground">{validLines.length} item(ns)</span>
+              </div>
+
+              <div className="border border-border rounded-lg divide-y divide-border">
+                {lines.map((line, idx) => {
+                  const selectedItem = epiItems?.find((e: any) => e.id === line.epi_item_id);
+                  return (
+                    <div key={line.id} className="p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground w-6">{idx + 1}.</span>
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_80px_80px_120px] gap-2 items-end">
+                          <div className="space-y-1">
+                            <Label className="text-xs">EPI *</Label>
+                            <Select value={line.epi_item_id} onValueChange={v => updateLine(line.id, 'epi_item_id', v)}>
+                              <SelectTrigger className="h-9"><SelectValue placeholder="Selecione o EPI" /></SelectTrigger>
+                              <SelectContent>{(epiItems || []).map((e: any) => <SelectItem key={e.id} value={e.id}>{e.code} — {e.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Qtd</Label>
+                            <Input type="number" min="1" className="h-9" value={line.quantity} onChange={e => updateLine(line.id, 'quantity', e.target.value)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Tamanho</Label>
+                            <Input className="h-9" value={line.size} onChange={e => updateLine(line.id, 'size', e.target.value)} placeholder={selectedItem?.size_required ? 'Obrig.' : 'Opc.'} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Motivo</Label>
+                            <Select value={line.reason} onValueChange={v => updateLine(line.id, 'reason', v)}>
+                              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(EPI_REASON_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive shrink-0" onClick={() => removeLine(line.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {line.fromKit && (
+                        <span className="ml-8 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">Do Kit</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Button type="button" variant="outline" size="sm" onClick={addLine} className="gap-1.5 w-full">
+                <Plus className="w-4 h-4" /> Adicionar Item
+              </Button>
+            </div>
+
+            {/* General notes */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Observações Gerais</Label>
+              <Textarea value={generalNotes} onChange={e => setGeneralNotes(e.target.value)} rows={2} />
+            </div>
+
+            {/* Signatures */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border">
               <SignaturePad label="Assinatura do Colaborador" onSave={setSigEmployee} />
               <SignaturePad label="Assinatura do Responsável" onSave={setSigResponsible} />
             </div>
           </div>
+
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button variant="secondary" onClick={() => handleSave(false)} disabled={createDelivery.isPending || !form.collaborator_id || !form.epi_item_id}>
-              {createDelivery.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
-              Salvar
+            <Button variant="outline" onClick={() => { resetForm(); setDialogOpen(false); }}>Cancelar</Button>
+            <Button variant="secondary" onClick={() => handleSave(false)} disabled={saving || !collaboratorId || validLines.length === 0}>
+              {saving && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+              Salvar ({validLines.length})
             </Button>
-            <Button onClick={() => handleSave(true)} disabled={createDelivery.isPending || !form.collaborator_id || !form.epi_item_id} className="gap-1.5">
-              {createDelivery.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+            <Button onClick={() => handleSave(true)} disabled={saving || !collaboratorId || validLines.length === 0} className="gap-1.5">
+              {saving && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
               <FileDown className="w-4 h-4" /> Salvar e Gerar Comprovante
             </Button>
           </DialogFooter>
