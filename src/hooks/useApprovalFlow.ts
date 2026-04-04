@@ -37,10 +37,10 @@ export function useStartApprovalFlow() {
   });
 }
 
-/** Fetch approval_request for a specific reference_id */
-export function useApprovalRequestForReference(referenceId?: string) {
+/** Fetch ALL approval_requests for a specific reference_id (all cycles) */
+export function useApprovalRequestsForReference(referenceId?: string) {
   return useQuery({
-    queryKey: ['approval_request_for', referenceId],
+    queryKey: ['approval_requests_for', referenceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
@@ -55,12 +55,16 @@ export function useApprovalRequestForReference(referenceId?: string) {
           )
         `)
         .eq('reference_id', referenceId!)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!referenceId,
   });
+}
+
+/** Fetch the latest (current) approval_request for a reference_id — backward compat */
+export function useApprovalRequestForReference(referenceId?: string) {
+  const { data, ...rest } = useApprovalRequestsForReference(referenceId);
+  return { data: data?.[0] || null, ...rest };
 }
