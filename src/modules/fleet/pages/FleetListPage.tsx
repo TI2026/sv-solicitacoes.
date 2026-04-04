@@ -100,7 +100,7 @@ export default function FleetListPage() {
   const canSeeDiaria = hasAnyRole(['diretoria', 'administrativo']);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('abastecimento');
-  const [subFilter, setSubFilter] = useState<'pendentes' | 'negados'>('pendentes');
+  const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'concluidos'>('pendentes');
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const softDelete = useSoftDeleteRequest();
 
