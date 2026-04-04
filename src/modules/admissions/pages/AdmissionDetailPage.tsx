@@ -65,6 +65,8 @@ export default function AdmissionDetailPage() {
   const qc = useQueryClient();
   const { data: req, isLoading } = useAdmissionRequest(id!);
   const { data: approvalRequest } = useApprovalRequestForReference(id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const previousCycles = (allApprovalCycles || []).slice(1);
   const { data: candidates } = useCandidates(id!);
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
