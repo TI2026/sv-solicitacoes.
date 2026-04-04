@@ -189,6 +189,38 @@ export default function MyApprovalsTab() {
         )}
       </div>
 
+      {/* Pending fuel requests (mine) */}
+      {(() => {
+        const myPendingFuel = (pendingFuel || []).filter((r: any) => r.requester_user_id === user?.id);
+        if (myPendingFuel.length === 0) return null;
+        return (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Send className="w-4 h-4" />
+              Aguardando encaminhamento ({myPendingFuel.length})
+            </h3>
+            <div className="space-y-2">
+              {myPendingFuel.map((r: any) => (
+                <Card key={r.id} className="border-l-4 border-l-amber-400">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="secondary" className="text-[10px]">{REQUEST_TYPE_LABELS[r.type] || r.type}</Badge>
+                      <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700">Enviado — Aguardando encaminhamento</Badge>
+                      {r.valor && (
+                        <span className="text-[10px] font-medium">R$ {Number(r.valor).toFixed(2)}</span>
+                      )}
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* History */}
       {myHistory.length > 0 && (
         <div>
