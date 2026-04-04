@@ -68,7 +68,7 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-71:                   <span className="flex items-center gap-1">
+<span className="flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
                     {new Date(req.data_abastecimento).toLocaleDateString('pt-BR')}
                   </span>
