@@ -10,6 +10,7 @@ import { Loader2, Undo2, Search } from 'lucide-react';
 import { useEpiDeliveries, useUpdateDeliveryStatus } from '../hooks/useEpiQueries';
 import { EPI_DELIVERY_STATUS_LABELS } from '../types';
 import { StatusBadge } from '@/components/StatusBadge';
+import { PhotoUpload } from '../components/PhotoUpload';
 
 export default function EpiReturnPage() {
   const [search, setSearch] = useState('');
@@ -18,8 +19,9 @@ export default function EpiReturnPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [form, setForm] = useState({ movement_type: 'return', condition: 'bom', reason: '', notes: '' });
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
-  const openReturn = (d: any) => { setSelected(d); setForm({ movement_type: 'return', condition: 'bom', reason: '', notes: '' }); setDialogOpen(true); };
+  const openReturn = (d: any) => { setSelected(d); setForm({ movement_type: 'return', condition: 'bom', reason: '', notes: '' }); setPhotoUrls([]); setDialogOpen(true); };
 
   const handleReturn = async () => {
     if (!selected) return;
@@ -118,6 +120,12 @@ export default function EpiReturnPage() {
             </div>
             <div className="space-y-1.5"><Label className="text-xs">Motivo</Label><Input value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} /></div>
             <div className="space-y-1.5"><Label className="text-xs">Observações</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
+            <PhotoUpload
+              label="Fotos da Devolução (opcional)"
+              folder="returns"
+              maxFiles={5}
+              onPhotosChange={setPhotoUrls}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

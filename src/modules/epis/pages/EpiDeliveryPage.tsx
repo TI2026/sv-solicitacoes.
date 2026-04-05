@@ -12,6 +12,7 @@ import { EPI_DELIVERY_STATUS_LABELS, EPI_REASON_LABELS } from '../types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
 import { SignaturePad } from '../components/SignaturePad';
+import { PhotoUpload } from '../components/PhotoUpload';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { maskCPF } from '@/lib/masks';
@@ -66,6 +67,7 @@ export default function EpiDeliveryPage() {
 
   const [sigEmployee, setSigEmployee] = useState<string | null>(null);
   const [sigResponsible, setSigResponsible] = useState<string | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
   const resetForm = useCallback(() => {
     setCollaboratorId('');
@@ -75,6 +77,7 @@ export default function EpiDeliveryPage() {
     setLines([newLine()]);
     setSigEmployee(null);
     setSigResponsible(null);
+    setPhotoUrls([]);
   }, []);
 
   // Pre-select collaborator from querystring
@@ -519,6 +522,16 @@ export default function EpiDeliveryPage() {
             <div className="space-y-1.5">
               <Label className="text-xs">Observações Gerais</Label>
               <Textarea value={generalNotes} onChange={e => setGeneralNotes(e.target.value)} rows={2} />
+            </div>
+
+            {/* Photos */}
+            <div className="pt-2 border-t border-border">
+              <PhotoUpload
+                label="Fotos da Entrega (opcional)"
+                folder="deliveries"
+                maxFiles={5}
+                onPhotosChange={setPhotoUrls}
+              />
             </div>
 
             {/* Signatures */}
