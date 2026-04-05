@@ -120,6 +120,12 @@ export default function EpiReturnPage() {
             </div>
             <div className="space-y-1.5"><Label className="text-xs">Motivo</Label><Input value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} /></div>
             <div className="space-y-1.5"><Label className="text-xs">Observações</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} /></div>
+            <PhotoUpload
+              label="Fotos da Devolução (opcional)"
+              folder="returns"
+              maxFiles={5}
+              onPhotosChange={setPhotoUrls}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
