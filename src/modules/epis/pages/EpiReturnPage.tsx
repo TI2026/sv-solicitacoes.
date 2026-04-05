@@ -19,6 +19,7 @@ export default function EpiReturnPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [form, setForm] = useState({ movement_type: 'return', condition: 'bom', reason: '', notes: '' });
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
   const openReturn = (d: any) => { setSelected(d); setForm({ movement_type: 'return', condition: 'bom', reason: '', notes: '' }); setDialogOpen(true); };
 
