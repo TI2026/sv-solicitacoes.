@@ -141,6 +141,43 @@ export default function EpiReturnPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog para selecionar EPI a devolver */}
+      <Dialog open={selectDialogOpen} onOpenChange={setSelectDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Selecionar EPI para Devolução</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Buscar colaborador ou EPI..." value={selectSearch} onChange={e => setSelectSearch(e.target.value)} className="pl-9" />
+            </div>
+            {activeDeliveries.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">Nenhum EPI ativo para devolução</p>
+            ) : (
+              <div className="divide-y divide-border max-h-[50vh] overflow-y-auto">
+                {activeDeliveries.filter(d => {
+                  if (!selectSearch) return true;
+                  const s = selectSearch.toLowerCase();
+                  return d.collaborator?.full_name?.toLowerCase().includes(s) || d.epi_item?.name?.toLowerCase().includes(s);
+                }).map(d => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2.5 hover:bg-muted/50 flex items-center justify-between gap-2"
+                    onClick={() => { openReturn(d); setSelectDialogOpen(false); }}
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{d.collaborator?.full_name || '—'}</p>
+                      <p className="text-xs text-muted-foreground">{d.epi_item?.name || '—'}{d.size ? ` (${d.size})` : ''} — {new Date(d.delivered_at).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
