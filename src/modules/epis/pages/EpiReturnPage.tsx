@@ -10,6 +10,7 @@ import { Loader2, Undo2, Search } from 'lucide-react';
 import { useEpiDeliveries, useUpdateDeliveryStatus } from '../hooks/useEpiQueries';
 import { EPI_DELIVERY_STATUS_LABELS } from '../types';
 import { StatusBadge } from '@/components/StatusBadge';
+import { PhotoUpload } from '../components/PhotoUpload';
 
 export default function EpiReturnPage() {
   const [search, setSearch] = useState('');
