@@ -67,6 +67,7 @@ export default function EpiDeliveryPage() {
 
   const [sigEmployee, setSigEmployee] = useState<string | null>(null);
   const [sigResponsible, setSigResponsible] = useState<string | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
   const resetForm = useCallback(() => {
     setCollaboratorId('');
