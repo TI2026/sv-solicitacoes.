@@ -48,9 +48,12 @@ export default function EpiReturnPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Undo2 className="w-6 h-6 text-primary" /> Devoluções de EPI</h1>
-        <p className="text-sm text-muted-foreground">Registre devoluções, perdas e descartes</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Undo2 className="w-6 h-6 text-primary" /> Devoluções de EPI</h1>
+          <p className="text-sm text-muted-foreground">Registre devoluções, perdas e descartes</p>
+        </div>
+        <Button onClick={() => { setSelectSearch(''); setSelectDialogOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> Nova Devolução</Button>
       </div>
 
       <Card>
