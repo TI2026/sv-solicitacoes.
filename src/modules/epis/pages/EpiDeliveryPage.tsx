@@ -524,6 +524,16 @@ export default function EpiDeliveryPage() {
               <Textarea value={generalNotes} onChange={e => setGeneralNotes(e.target.value)} rows={2} />
             </div>
 
+            {/* Photos */}
+            <div className="pt-2 border-t border-border">
+              <PhotoUpload
+                label="Fotos da Entrega (opcional)"
+                folder="deliveries"
+                maxFiles={5}
+                onPhotosChange={setPhotoUrls}
+              />
+            </div>
+
             {/* Signatures */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border">
               <SignaturePad label="Assinatura do Colaborador" onSave={setSigEmployee} />
