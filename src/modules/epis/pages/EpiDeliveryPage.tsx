@@ -12,6 +12,7 @@ import { EPI_DELIVERY_STATUS_LABELS, EPI_REASON_LABELS } from '../types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
 import { SignaturePad } from '../components/SignaturePad';
+import { PhotoUpload } from '../components/PhotoUpload';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { maskCPF } from '@/lib/masks';
