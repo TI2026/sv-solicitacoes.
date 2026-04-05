@@ -77,6 +77,7 @@ export default function EpiDeliveryPage() {
     setLines([newLine()]);
     setSigEmployee(null);
     setSigResponsible(null);
+    setPhotoUrls([]);
   }, []);
 
   // Pre-select collaborator from querystring
