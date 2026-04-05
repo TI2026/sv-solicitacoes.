@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Undo2, Search } from 'lucide-react';
+import { Loader2, Undo2, Search, Plus } from 'lucide-react';
 import { useEpiDeliveries, useUpdateDeliveryStatus } from '../hooks/useEpiQueries';
 import { EPI_DELIVERY_STATUS_LABELS } from '../types';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -17,9 +17,11 @@ export default function EpiReturnPage() {
   const { data: deliveries, isLoading } = useEpiDeliveries();
   const updateStatus = useUpdateDeliveryStatus();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectDialogOpen, setSelectDialogOpen] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [form, setForm] = useState({ movement_type: 'return', condition: 'bom', reason: '', notes: '' });
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [selectSearch, setSelectSearch] = useState('');
 
   const openReturn = (d: any) => { setSelected(d); setForm({ movement_type: 'return', condition: 'bom', reason: '', notes: '' }); setPhotoUrls([]); setDialogOpen(true); };
 
@@ -46,9 +48,12 @@ export default function EpiReturnPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Undo2 className="w-6 h-6 text-primary" /> Devoluções de EPI</h1>
-        <p className="text-sm text-muted-foreground">Registre devoluções, perdas e descartes</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Undo2 className="w-6 h-6 text-primary" /> Devoluções de EPI</h1>
+          <p className="text-sm text-muted-foreground">Registre devoluções, perdas e descartes</p>
+        </div>
+        <Button onClick={() => { setSelectSearch(''); setSelectDialogOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> Nova Devolução</Button>
       </div>
 
       <Card>
@@ -134,6 +139,43 @@ export default function EpiReturnPage() {
               Confirmar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para selecionar EPI a devolver */}
+      <Dialog open={selectDialogOpen} onOpenChange={setSelectDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Selecionar EPI para Devolução</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Buscar colaborador ou EPI..." value={selectSearch} onChange={e => setSelectSearch(e.target.value)} className="pl-9" />
+            </div>
+            {activeDeliveries.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">Nenhum EPI ativo para devolução</p>
+            ) : (
+              <div className="divide-y divide-border max-h-[50vh] overflow-y-auto">
+                {activeDeliveries.filter(d => {
+                  if (!selectSearch) return true;
+                  const s = selectSearch.toLowerCase();
+                  return d.collaborator?.full_name?.toLowerCase().includes(s) || d.epi_item?.name?.toLowerCase().includes(s);
+                }).map(d => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2.5 hover:bg-muted/50 flex items-center justify-between gap-2"
+                    onClick={() => { openReturn(d); setSelectDialogOpen(false); }}
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{d.collaborator?.full_name || '—'}</p>
+                      <p className="text-xs text-muted-foreground">{d.epi_item?.name || '—'}{d.size ? ` (${d.size})` : ''} — {new Date(d.delivered_at).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
