@@ -17,9 +17,11 @@ export default function EpiReturnPage() {
   const { data: deliveries, isLoading } = useEpiDeliveries();
   const updateStatus = useUpdateDeliveryStatus();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectDialogOpen, setSelectDialogOpen] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [form, setForm] = useState({ movement_type: 'return', condition: 'bom', reason: '', notes: '' });
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [selectSearch, setSelectSearch] = useState('');
 
   const openReturn = (d: any) => { setSelected(d); setForm({ movement_type: 'return', condition: 'bom', reason: '', notes: '' }); setPhotoUrls([]); setDialogOpen(true); };
 
