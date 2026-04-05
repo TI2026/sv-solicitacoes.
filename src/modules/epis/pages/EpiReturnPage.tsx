@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Undo2, Search } from 'lucide-react';
+import { Loader2, Undo2, Search, Plus } from 'lucide-react';
 import { useEpiDeliveries, useUpdateDeliveryStatus } from '../hooks/useEpiQueries';
 import { EPI_DELIVERY_STATUS_LABELS } from '../types';
 import { StatusBadge } from '@/components/StatusBadge';
