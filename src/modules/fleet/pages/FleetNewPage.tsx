@@ -111,10 +111,11 @@ export default function FleetNewPage() {
         roles: user.roles || [],
       });
       if (!limitResult.canCreate) {
-        const { toast } = await import('@/hooks/use-toast').then(m => ({ toast: m.useToast }));
-        // Use direct import for toast
-        import('@/components/ui/use-toast').then(() => {});
-        alert(`Limite diário atingido (${limitResult.used}/${limitResult.limit}). Tente novamente amanhã.`);
+        toast({
+          title: 'Limite diário atingido',
+          description: `Você já criou ${limitResult.used} de ${limitResult.limit} solicitações hoje.`,
+          variant: 'destructive',
+        });
         setSubmitting(false);
         return;
       }
