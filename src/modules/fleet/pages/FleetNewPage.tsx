@@ -244,6 +244,7 @@ export default function FleetNewPage() {
       if (sendImmediately && result?.id && type !== 'diaria') {
         await statusMutation.mutateAsync({ requestId: result.id, toStatus: 'enviado' });
       }
+      clearDraft();
       navigate('/fleet');
     } catch {
       // toast handled by mutation
