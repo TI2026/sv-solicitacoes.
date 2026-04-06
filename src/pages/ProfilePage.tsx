@@ -2,12 +2,13 @@ import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { ROLE_LABELS } from '@/types';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Shield, Camera, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { User, Shield, Camera, Loader2, Lock, Eye, EyeOff, Crown, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 /** Resize image to max dimensions using Canvas, returns JPEG blob */
