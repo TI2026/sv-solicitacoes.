@@ -244,7 +244,10 @@ export default function FleetDetailPage() {
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-800 dark:text-amber-400">Solicitação devolvida para ajuste</AlertTitle>
           <AlertDescription className="text-amber-700 dark:text-amber-300">
-            {req.review_notes && <p className="mb-2">Motivo: {req.review_notes}</p>}
+            {(() => {
+              const reason = req.review_notes || (allApprovalCycles?.[0] as any)?.approval_request_steps?.find((s: any) => s.status === 'returned')?.comments;
+              return reason ? <p className="mb-2">Motivo: {reason}</p> : null;
+            })()}
             <p className="mb-2">Edite os dados necessários e reenvie a solicitação.</p>
             <Button size="sm" className="gap-1" onClick={() => handleStatusChange('enviado')} disabled={isPending}>
               {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
