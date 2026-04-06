@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MoneyInput } from '@/components/MoneyInput';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { Checkbox } from '@/components/ui/checkbox';
+import { UniformSizesPicker } from './UniformSizesPicker';
 import { Loader2 } from 'lucide-react';
 import { maskCurrency, minDateToday } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,7 +28,7 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
   const [salarioFormatted, setSalarioFormatted] = useState('');
   const [salarioNum, setSalarioNum] = useState(0);
   const [showSizes, setShowSizes] = useState(false);
-  const [sizes, setSizes] = useState({ shirt_size: '', pants_size: '', shoe_size: '' });
+  const [uniformSizes, setUniformSizes] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     cargo_funcao: '',
     local_contratacao: '',
@@ -53,13 +54,10 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
         justificativa: admission.justificativa || '',
         priority: (admission as any).priority || 'media',
       });
-      const hasSize = admission.shirt_size || admission.pants_size || admission.shoe_size;
-      setShowSizes(!!hasSize);
-      setSizes({
-        shirt_size: admission.shirt_size || '',
-        pants_size: admission.pants_size || '',
-        shoe_size: admission.shoe_size || '',
-      });
+      const uSizes = (admission as any).uniform_sizes || {};
+      const hasSize = Object.keys(uSizes).length > 0;
+      setShowSizes(hasSize);
+      setUniformSizes(uSizes);
       if (admission.salario_previsto) {
         const formatted = maskCurrency(String(Math.round(Number(admission.salario_previsto) * 100)));
         setSalarioFormatted(formatted);
@@ -105,9 +103,7 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
           motivo: form.motivo.trim().slice(0, 200),
           justificativa: form.justificativa.trim().slice(0, 500) || null,
           priority: form.priority,
-          shirt_size: showSizes ? sizes.shirt_size || null : null,
-          pants_size: showSizes ? sizes.pants_size || null : null,
-          shoe_size: showSizes ? sizes.shoe_size || null : null,
+          uniform_sizes: showSizes ? uniformSizes : {},
         })
         .eq('id', admission.id);
 
@@ -235,41 +231,7 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
             <Label htmlFor="edit-show-sizes" className="cursor-pointer font-normal">Informar tamanhos de EPI/uniforme</Label>
           </div>
           {showSizes && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/30">
-              <div className="space-y-2">
-                <Label>Camisa</Label>
-                <Select value={sizes.shirt_size} onValueChange={v => setSizes(p => ({ ...p, shirt_size: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'].map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Calça</Label>
-                <Select value={sizes.pants_size} onValueChange={v => setSizes(p => ({ ...p, pants_size: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'].map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Calçado</Label>
-                <Select value={sizes.shoe_size} onValueChange={v => setSizes(p => ({ ...p, shoe_size: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 16 }, (_, i) => String(33 + i)).map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <UniformSizesPicker value={uniformSizes} onChange={setUniformSizes} />
           )}
         </div>
         <DialogFooter>

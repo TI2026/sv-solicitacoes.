@@ -105,6 +105,12 @@ export default function EpiDeliveryPage() {
     // Don't auto-load kit here; user clicks "Carregar Kit" button
   }, [collaborators]);
 
+  // Get collaborator's saved uniform sizes
+  const getCollabSizes = useCallback((): Record<string, string> => {
+    const collab = collaborators?.find((c: any) => c.id === collaboratorId);
+    return (collab as any)?.uniform_sizes || {};
+  }, [collaboratorId, collaborators]);
+
   const loadKitForCollaborator = useCallback(() => {
     const collab = collaborators?.find((c: any) => c.id === collaboratorId);
     if (!collab || !allKitRules?.length) {
@@ -114,6 +120,7 @@ export default function EpiDeliveryPage() {
 
     const sId = sectorId || collab.sector_id;
     const roleName = collab.role_name || '';
+    const savedSizes = (collab as any)?.uniform_sizes || {};
 
     // Match rules: same sector or no sector (global), and same role or no role (global)
     const matchingRules = allKitRules.filter((r: any) => {
@@ -130,9 +137,14 @@ export default function EpiDeliveryPage() {
     // Remove existing non-manual empty lines, keep manual ones
     const manualLines = lines.filter(l => !l.fromKit && l.epi_item_id);
 
-    const kitLines: DeliveryLineItem[] = matchingRules.map((r: any) =>
-      newLine(r.epi_item_id, String(r.quantity || 1), true)
-    );
+    const kitLines: DeliveryLineItem[] = matchingRules.map((r: any) => {
+      const line = newLine(r.epi_item_id, String(r.quantity || 1), true);
+      // Auto-fill size from collaborator's saved preferences
+      if (savedSizes[r.epi_item_id]) {
+        line.size = savedSizes[r.epi_item_id];
+      }
+      return line;
+    });
 
     // Avoid duplicates with manual lines
     const manualItemIds = new Set(manualLines.map(l => l.epi_item_id));
@@ -144,7 +156,18 @@ export default function EpiDeliveryPage() {
   }, [collaboratorId, collaborators, allKitRules, sectorId, lines, toast]);
 
   const updateLine = (id: string, field: keyof DeliveryLineItem, value: string) => {
-    setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: value, fromKit: field === 'epi_item_id' ? false : l.fromKit } : l));
+    setLines(prev => prev.map(l => {
+      if (l.id !== id) return l;
+      const updated = { ...l, [field]: value, fromKit: field === 'epi_item_id' ? false : l.fromKit };
+      // Auto-fill size when EPI item changes
+      if (field === 'epi_item_id' && !l.size) {
+        const savedSizes = getCollabSizes();
+        if (savedSizes[value]) {
+          updated.size = savedSizes[value];
+        }
+      }
+      return updated;
+    }));
   };
 
   const removeLine = (id: string) => {

@@ -21,9 +21,7 @@ export function useCreateCollaboratorFromAdmission() {
       worksite?: string;
       admission_request_id?: string;
       user_profile_id?: string | null;
-      shirt_size?: string | null;
-      pants_size?: string | null;
-      shoe_size?: string | null;
+      uniform_sizes?: Record<string, string>;
     }) => {
       // Check if collaborator already exists for this admission
       if (params.admission_request_id) {
@@ -65,9 +63,7 @@ export function useCreateCollaboratorFromAdmission() {
         worksite: params.worksite || '',
         admission_request_id: params.admission_request_id || null,
         user_profile_id: params.user_profile_id || null,
-        shirt_size: params.shirt_size || null,
-        pants_size: params.pants_size || null,
-        shoe_size: params.shoe_size || null,
+        uniform_sizes: params.uniform_sizes || {},
         status: 'ativo',
         active: true,
       }).select().single();
