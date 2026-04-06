@@ -25,6 +25,8 @@ export default function AdmissionNewPage() {
 
   const [salarioFormatted, setSalarioFormatted] = useState('');
   const [salarioNum, setSalarioNum] = useState(0);
+  const [showSizes, setShowSizes] = useState(false);
+  const [sizes, setSizes] = useState({ shirt_size: '', pants_size: '', shoe_size: '' });
   const [form, setForm] = useState({
     local_contratacao: '',
     cargo_funcao: '',
