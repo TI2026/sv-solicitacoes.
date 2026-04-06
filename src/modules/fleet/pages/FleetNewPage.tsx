@@ -102,6 +102,21 @@ export default function FleetNewPage() {
     if (!user || !isValid()) return;
     setSubmitting(true);
     try {
+      // Check daily limit
+      const limitResult = await checkLimit.mutateAsync({
+        userId: user.id,
+        requestType: type,
+        roles: user.roles || [],
+      });
+      if (!limitResult.canCreate) {
+        const { toast } = await import('@/hooks/use-toast').then(m => ({ toast: m.useToast }));
+        // Use direct import for toast
+        import('@/components/ui/use-toast').then(() => {});
+        alert(`Limite diário atingido (${limitResult.used}/${limitResult.limit}). Tente novamente amanhã.`);
+        setSubmitting(false);
+        return;
+      }
+
       const payload: Record<string, any> = {
         requester_user_id: user.id,
         data_abastecimento: data,
