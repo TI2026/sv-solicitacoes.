@@ -742,7 +742,7 @@ export default function AdmissionDetailPage() {
                   dataPrevistaInicio={req.data_prevista_inicio}
                 />
               ))}
-              <CreateCollaboratorFromAdmissionButton admissionId={id!} candidates={approvedCandidates} cargoFuncao={req.cargo_funcao} worksite={req.local_contratacao} />
+              <CreateCollaboratorFromAdmissionButton admissionId={id!} candidates={approvedCandidates} cargoFuncao={req.cargo_funcao} worksite={req.local_contratacao} shirtSize={(req as any).shirt_size} pantsSize={(req as any).pants_size} shoeSize={(req as any).shoe_size} />
               <StartEpiDeliveryButton admissionId={id!} />
             </div>
           </CardContent>
