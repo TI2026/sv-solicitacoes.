@@ -67,9 +67,23 @@ export default function ProfilePage() {
     ],
   });
 
-  if (!user) return null;
+  // Fetch role details from roles table based on user's role keys
+  const { data: userRoleDetails } = useQuery({
+    queryKey: ['user-role-details', user?.roles],
+    queryFn: async () => {
+      if (!user?.roles?.length) return [];
+      const { data } = await supabase
+        .from('roles')
+        .select('key, name, description, is_master')
+        .in('key', user.roles)
+        .eq('active', true)
+        .order('is_master', { ascending: false });
+      return data || [];
+    },
+    enabled: !!user?.roles?.length,
+  });
 
-  const primaryRole = user.roles[0];
+  if (!user) return null;
 
   const handleAvatarUpload = async (file: File) => {
     if (file.size > 5 * 1024 * 1024) {
