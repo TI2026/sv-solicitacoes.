@@ -133,6 +133,8 @@ export default function FleetListPage() {
   const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'aprovadas' | 'concluidos'>('pendentes');
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const softDelete = useSoftDeleteRequest();
+  const abastLimit = useDailyLimitForRole(user?.roles, 'abastecimento');
+  const reembolsoLimit = useDailyLimitForRole(user?.roles, 'reembolso');
 
   // If activeTab is diaria but user can't see it, force to abastecimento
   if (activeTab === 'diaria' && !canSeeDiaria) {
