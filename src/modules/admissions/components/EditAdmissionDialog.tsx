@@ -28,7 +28,7 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
   const [salarioFormatted, setSalarioFormatted] = useState('');
   const [salarioNum, setSalarioNum] = useState(0);
   const [showSizes, setShowSizes] = useState(false);
-  const [sizes, setSizes] = useState({ shirt_size: '', pants_size: '', shoe_size: '' });
+  const [uniformSizes, setUniformSizes] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     cargo_funcao: '',
     local_contratacao: '',
