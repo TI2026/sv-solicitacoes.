@@ -163,9 +163,12 @@ export type Database = {
           justificativa: string | null
           local_contratacao: string
           motivo: string
+          pants_size: string | null
           priority: string
           requester_user_id: string
           salario_previsto: number | null
+          shirt_size: string | null
+          shoe_size: string | null
           status: Database["public"]["Enums"]["admission_status"]
           tipo_contrato: string
           updated_at: string
@@ -186,9 +189,12 @@ export type Database = {
           justificativa?: string | null
           local_contratacao?: string
           motivo?: string
+          pants_size?: string | null
           priority?: string
           requester_user_id: string
           salario_previsto?: number | null
+          shirt_size?: string | null
+          shoe_size?: string | null
           status?: Database["public"]["Enums"]["admission_status"]
           tipo_contrato?: string
           updated_at?: string
@@ -209,9 +215,12 @@ export type Database = {
           justificativa?: string | null
           local_contratacao?: string
           motivo?: string
+          pants_size?: string | null
           priority?: string
           requester_user_id?: string
           salario_previsto?: number | null
+          shirt_size?: string | null
+          shoe_size?: string | null
           status?: Database["public"]["Enums"]["admission_status"]
           tipo_contrato?: string
           updated_at?: string
@@ -793,9 +802,12 @@ export type Database = {
           full_name: string
           id: string
           observacoes: string | null
+          pants_size: string | null
           rg: string | null
           role_name: string
           sector_id: string | null
+          shirt_size: string | null
+          shoe_size: string | null
           status: string
           telefone: string | null
           updated_at: string
@@ -813,9 +825,12 @@ export type Database = {
           full_name: string
           id?: string
           observacoes?: string | null
+          pants_size?: string | null
           rg?: string | null
           role_name?: string
           sector_id?: string | null
+          shirt_size?: string | null
+          shoe_size?: string | null
           status?: string
           telefone?: string | null
           updated_at?: string
@@ -833,9 +848,12 @@ export type Database = {
           full_name?: string
           id?: string
           observacoes?: string | null
+          pants_size?: string | null
           rg?: string | null
           role_name?: string
           sector_id?: string | null
+          shirt_size?: string | null
+          shoe_size?: string | null
           status?: string
           telefone?: string | null
           updated_at?: string
