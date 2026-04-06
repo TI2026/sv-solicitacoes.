@@ -13,6 +13,16 @@ import { ROLE_LABELS } from '@/types';
 import { REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Settings, Plus, Pencil, Trash2, Loader2, Gauge } from 'lucide-react';
 
+const ROLE_DISPLAY_LABELS: Record<string, string> = {
+  diretoria: 'Diretoria',
+  administrativo: 'Administrativo',
+  rh: 'Recursos Humanos',
+  supervisor: 'Supervisor',
+  colaborador: 'Colaborador',
+  compras: 'Compras',
+  financeiro: 'Financeiro',
+};
+
 const AVAILABLE_ROLES = ['diretoria', 'administrativo', 'rh', 'supervisor', 'colaborador', 'compras', 'financeiro'];
 const AVAILABLE_TYPES = ['abastecimento', 'reembolso', 'diaria'];
 
