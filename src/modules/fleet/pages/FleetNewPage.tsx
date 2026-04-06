@@ -21,6 +21,7 @@ export default function FleetNewPage() {
   const initialType = searchParams.get('type') || 'abastecimento';
   const createMutation = useCreateFuelRequest();
   const statusMutation = useFuelSetStatus();
+  const checkLimit = useCheckDailyLimit();
   const [submitting, setSubmitting] = useState(false);
 
   const [type] = useState(initialType);
