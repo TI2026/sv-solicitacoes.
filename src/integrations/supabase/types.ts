@@ -171,6 +171,7 @@ export type Database = {
           shoe_size: string | null
           status: Database["public"]["Enums"]["admission_status"]
           tipo_contrato: string
+          uniform_sizes: Json | null
           updated_at: string
           welcome_local_apresentacao: string | null
           welcome_pdf_generated_at: string | null
@@ -197,6 +198,7 @@ export type Database = {
           shoe_size?: string | null
           status?: Database["public"]["Enums"]["admission_status"]
           tipo_contrato?: string
+          uniform_sizes?: Json | null
           updated_at?: string
           welcome_local_apresentacao?: string | null
           welcome_pdf_generated_at?: string | null
@@ -223,6 +225,7 @@ export type Database = {
           shoe_size?: string | null
           status?: Database["public"]["Enums"]["admission_status"]
           tipo_contrato?: string
+          uniform_sizes?: Json | null
           updated_at?: string
           welcome_local_apresentacao?: string | null
           welcome_pdf_generated_at?: string | null
@@ -810,6 +813,7 @@ export type Database = {
           shoe_size: string | null
           status: string
           telefone: string | null
+          uniform_sizes: Json | null
           updated_at: string
           user_profile_id: string | null
           worksite: string
@@ -833,6 +837,7 @@ export type Database = {
           shoe_size?: string | null
           status?: string
           telefone?: string | null
+          uniform_sizes?: Json | null
           updated_at?: string
           user_profile_id?: string | null
           worksite?: string
@@ -856,6 +861,7 @@ export type Database = {
           shoe_size?: string | null
           status?: string
           telefone?: string | null
+          uniform_sizes?: Json | null
           updated_at?: string
           user_profile_id?: string | null
           worksite?: string
