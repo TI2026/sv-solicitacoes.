@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function FleetNewPage() {
   const { user, hasAnyRole } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const initialType = searchParams.get('type') || 'abastecimento';
   const createMutation = useCreateFuelRequest();
