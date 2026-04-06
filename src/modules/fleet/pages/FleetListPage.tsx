@@ -232,7 +232,7 @@ export default function FleetListPage() {
             <p>• Diretoria aprova ou rejeita</p>
             <p>• Se aprovado: Diretoria/Admin registra pagamento</p>
             <p>• Solicitação é concluída</p>
-            <p>• Limite: 5 solicitações por dia</p>
+            <p>• Limite: {reembolsoLimit} solicitações por dia</p>
           </InfoCard>
 
           <div className="flex gap-2 flex-wrap">
