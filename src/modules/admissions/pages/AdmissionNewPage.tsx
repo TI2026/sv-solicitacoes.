@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MoneyInput } from '@/components/MoneyInput';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
 import { minDateToday } from '@/lib/masks';
 import { useToast } from '@/hooks/use-toast';
