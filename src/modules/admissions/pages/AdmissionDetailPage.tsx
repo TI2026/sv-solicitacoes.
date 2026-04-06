@@ -742,7 +742,7 @@ export default function AdmissionDetailPage() {
                   dataPrevistaInicio={req.data_prevista_inicio}
                 />
               ))}
-              <CreateCollaboratorFromAdmissionButton admissionId={id!} candidates={approvedCandidates} cargoFuncao={req.cargo_funcao} worksite={req.local_contratacao} />
+              <CreateCollaboratorFromAdmissionButton admissionId={id!} candidates={approvedCandidates} cargoFuncao={req.cargo_funcao} worksite={req.local_contratacao} shirtSize={(req as any).shirt_size} pantsSize={(req as any).pants_size} shoeSize={(req as any).shoe_size} />
               <StartEpiDeliveryButton admissionId={id!} />
             </div>
           </CardContent>
@@ -1311,7 +1311,7 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
   );
 }
 
-function CreateCollaboratorFromAdmissionButton({ admissionId, candidates, cargoFuncao, worksite }: { admissionId: string; candidates: any[]; cargoFuncao: string; worksite: string }) {
+function CreateCollaboratorFromAdmissionButton({ admissionId, candidates, cargoFuncao, worksite, shirtSize, pantsSize, shoeSize }: { admissionId: string; candidates: any[]; cargoFuncao: string; worksite: string; shirtSize?: string | null; pantsSize?: string | null; shoeSize?: string | null }) {
   const createCollab = useCreateCollaboratorFromAdmission();
   const [done, setDone] = useState(false);
 
@@ -1323,6 +1323,9 @@ function CreateCollaboratorFromAdmissionButton({ admissionId, candidates, cargoF
         role_name: cargoFuncao,
         worksite,
         admission_request_id: admissionId,
+        shirt_size: c.shirt_size || shirtSize || null,
+        pants_size: c.pants_size || pantsSize || null,
+        shoe_size: c.shoe_size || shoeSize || null,
       });
     }
     setDone(true);
