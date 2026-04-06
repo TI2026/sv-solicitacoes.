@@ -77,9 +77,7 @@ export default function AdmissionNewPage() {
         justificativa: form.justificativa.trim().slice(0, 500) || null,
         priority: form.priority,
         status: 'rascunho' as any,
-        shirt_size: showSizes ? sizes.shirt_size || null : null,
-        pants_size: showSizes ? sizes.pants_size || null : null,
-        shoe_size: showSizes ? sizes.shoe_size || null : null,
+        uniform_sizes: showSizes ? uniformSizes : {},
       };
       const result = await createMutation.mutateAsync(payload);
       if (send && result?.id) {
