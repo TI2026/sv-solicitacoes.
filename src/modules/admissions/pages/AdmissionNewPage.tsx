@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MoneyInput } from '@/components/MoneyInput';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { Checkbox } from '@/components/ui/checkbox';
+import { UniformSizesPicker } from '../components/UniformSizesPicker';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
 import { minDateToday } from '@/lib/masks';
 import { useToast } from '@/hooks/use-toast';
