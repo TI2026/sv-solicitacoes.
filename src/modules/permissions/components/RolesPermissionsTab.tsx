@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Crown, Shield, ChevronRight } from 'lucide-react';
+import { Loader2, Crown, Shield, ChevronRight, Users, KeyRound } from 'lucide-react';
 import { useRoles, usePermissionModules, usePermissionActions, useRolePermissionMatrix, useToggleRolePermission } from '../hooks/usePermissionsData';
+import { Separator } from '@/components/ui/separator';
 
 export default function RolesPermissionsTab() {
   const { data: roles, isLoading: rolesLoading } = useRoles();
@@ -34,58 +35,93 @@ export default function RolesPermissionsTab() {
     return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
 
+  const getRoleIcon = (role: any) => {
+    if (role.is_master) return <Crown className="w-5 h-5 text-yellow-500" />;
+    if (role.key === 'diretoria') return <KeyRound className="w-5 h-5 text-primary" />;
+    return <Shield className="w-5 h-5 text-primary/70" />;
+  };
+
+  const getRoleBorderColor = (role: any) => {
+    if (role.is_master) return 'border-l-yellow-500';
+    if (role.key === 'diretoria') return 'border-l-primary';
+    if (!role.active) return 'border-l-destructive';
+    return 'border-l-muted-foreground/30';
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Roles List */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Cargos</h3>
-        {roles?.map((role: any) => (
-          <Card
-            key={role.id}
-            className={`cursor-pointer transition-all hover:shadow-md ${selectedRoleId === role.id ? 'ring-2 ring-primary border-primary' : ''}`}
-            onClick={() => setSelectedRoleId(role.id)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {role.is_master ? (
-                    <Crown className="w-4 h-4 text-yellow-500" />
-                  ) : (
-                    <Shield className="w-4 h-4 text-primary" />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium">{role.name || role.key}</p>
-                    <p className="text-xs text-muted-foreground">{role.description}</p>
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          Perfis do Sistema
+        </h3>
+        {roles?.map((role: any) => {
+          const isSelected = selectedRoleId === role.id;
+          return (
+            <Card
+              key={role.id}
+              className={`cursor-pointer transition-all border-l-4 ${getRoleBorderColor(role)} ${
+                isSelected
+                  ? 'ring-2 ring-primary bg-primary/5 shadow-md'
+                  : 'hover:shadow-sm hover:bg-muted/30'
+              }`}
+              onClick={() => setSelectedRoleId(role.id)}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 shrink-0">
+                    {getRoleIcon(role)}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold truncate">{role.name || role.key}</p>
+                      {role.is_master && (
+                        <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600 shrink-0">
+                          Master
+                        </Badge>
+                      )}
+                      {role.is_system && !role.is_master && (
+                        <Badge variant="secondary" className="text-[10px] shrink-0">Sistema</Badge>
+                      )}
+                      {!role.active && (
+                        <Badge variant="destructive" className="text-[10px] shrink-0">Inativo</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {role.description || 'Sem descrição'}
+                    </p>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 shrink-0 mt-1 transition-colors ${isSelected ? 'text-primary' : 'text-muted-foreground/40'}`} />
                 </div>
-                <div className="flex items-center gap-2">
-                  {role.is_master && <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600">Master</Badge>}
-                  {role.is_system && <Badge variant="secondary" className="text-[10px]">Sistema</Badge>}
-                  {!role.active && <Badge variant="destructive" className="text-[10px]">Inativo</Badge>}
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Permission Matrix */}
       <div className="lg:col-span-2">
         {selectedRole ? (
           <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                {selectedRole.is_master ? <Crown className="w-5 h-5 text-yellow-500" /> : <Shield className="w-5 h-5 text-primary" />}
-                <div>
-                  <CardTitle className="text-base">
-                    Permissões: {selectedRole.name || selectedRole.key}
+            <CardHeader className="pb-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">{getRoleIcon(selectedRole)}</div>
+                <div className="flex-1">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    {selectedRole.name || selectedRole.key}
+                    {selectedRole.is_master && (
+                      <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600">Master</Badge>
+                    )}
                   </CardTitle>
-                  <CardDescription>
-                    {selectedRole.is_master
-                      ? 'Master possui acesso total — todas as permissões são concedidas automaticamente.'
-                      : 'Marque as permissões para este cargo. As alterações são salvas automaticamente.'}
+                  <CardDescription className="mt-1">
+                    {selectedRole.description}
                   </CardDescription>
+                  <Separator className="mt-3" />
+                  <p className="text-xs text-muted-foreground mt-3">
+                    {selectedRole.is_master
+                      ? '🔒 Master possui acesso total — todas as permissões são concedidas automaticamente.'
+                      : '✏️ Marque as permissões desejadas. Alterações são salvas automaticamente.'}
+                  </p>
                 </div>
               </div>
             </CardHeader>
@@ -126,8 +162,9 @@ export default function RolesPermissionsTab() {
         ) : (
           <Card>
             <CardContent className="py-16 text-center">
-              <Shield className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground">Selecione um cargo para editar suas permissões</p>
+              <Users className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground font-medium">Selecione um perfil</p>
+              <p className="text-xs text-muted-foreground mt-1">Escolha um perfil à esquerda para visualizar e editar suas permissões</p>
             </CardContent>
           </Card>
         )}
