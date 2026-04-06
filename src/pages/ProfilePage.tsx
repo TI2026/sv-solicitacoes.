@@ -2,12 +2,13 @@ import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { ROLE_LABELS } from '@/types';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Shield, Camera, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { User, Shield, Camera, Loader2, Lock, Eye, EyeOff, Crown, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 /** Resize image to max dimensions using Canvas, returns JPEG blob */
@@ -66,9 +67,23 @@ export default function ProfilePage() {
     ],
   });
 
-  if (!user) return null;
+  // Fetch role details from roles table based on user's role keys
+  const { data: userRoleDetails } = useQuery({
+    queryKey: ['user-role-details', user?.roles],
+    queryFn: async () => {
+      if (!user?.roles?.length) return [];
+      const { data } = await supabase
+        .from('roles')
+        .select('key, name, description, is_master')
+        .in('key', user.roles)
+        .eq('active', true)
+        .order('is_master', { ascending: false });
+      return data || [];
+    },
+    enabled: !!user?.roles?.length,
+  });
 
-  const primaryRole = user.roles[0];
+  if (!user) return null;
 
   const handleAvatarUpload = async (file: File) => {
     if (file.size > 5 * 1024 * 1024) {
@@ -178,9 +193,9 @@ export default function ProfilePage() {
               </button>
               <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => { if (e.target.files?.[0]) handleAvatarUpload(e.target.files[0]); e.target.value = ''; }} />
             </div>
-            <div>
+             <div>
               <CardTitle>Meu Perfil</CardTitle>
-              <CardDescription>{primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'} · {user.email}</CardDescription>
+              <CardDescription>{userRoleDetails?.[0]?.name || 'Sem papel'} · {user.email}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -201,13 +216,31 @@ export default function ProfilePage() {
           </div>
           <div className="space-y-2">
             <Label>Papéis de Acesso</Label>
-            <div className="flex flex-wrap gap-2">
-              {user.roles.map(role => (
-                <span key={role} className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                  {ROLE_LABELS[role]}
-                </span>
-              ))}
-              {user.roles.length === 0 && (
+            <div className="space-y-2">
+              {userRoleDetails && userRoleDetails.length > 0 ? (
+                userRoleDetails.map((role: any) => (
+                  <div key={role.key} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+                    <div className="mt-0.5 shrink-0">
+                      {role.is_master ? (
+                        <Crown className="w-4 h-4 text-yellow-500" />
+                      ) : role.key === 'diretoria' ? (
+                        <KeyRound className="w-4 h-4 text-primary" />
+                      ) : (
+                        <Shield className="w-4 h-4 text-primary/70" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{role.name}</span>
+                        {role.is_master && (
+                          <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600">Master</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{role.description}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
                 <span className="text-sm text-muted-foreground">Nenhum papel atribuído</span>
               )}
             </div>
