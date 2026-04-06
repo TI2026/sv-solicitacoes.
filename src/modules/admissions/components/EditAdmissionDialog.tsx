@@ -105,6 +105,9 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
           motivo: form.motivo.trim().slice(0, 200),
           justificativa: form.justificativa.trim().slice(0, 500) || null,
           priority: form.priority,
+          shirt_size: showSizes ? sizes.shirt_size || null : null,
+          pants_size: showSizes ? sizes.pants_size || null : null,
+          shoe_size: showSizes ? sizes.shoe_size || null : null,
         })
         .eq('id', admission.id);
 
