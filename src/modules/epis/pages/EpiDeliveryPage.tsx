@@ -156,7 +156,18 @@ export default function EpiDeliveryPage() {
   }, [collaboratorId, collaborators, allKitRules, sectorId, lines, toast]);
 
   const updateLine = (id: string, field: keyof DeliveryLineItem, value: string) => {
-    setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: value, fromKit: field === 'epi_item_id' ? false : l.fromKit } : l));
+    setLines(prev => prev.map(l => {
+      if (l.id !== id) return l;
+      const updated = { ...l, [field]: value, fromKit: field === 'epi_item_id' ? false : l.fromKit };
+      // Auto-fill size when EPI item changes
+      if (field === 'epi_item_id' && !l.size) {
+        const savedSizes = getCollabSizes();
+        if (savedSizes[value]) {
+          updated.size = savedSizes[value];
+        }
+      }
+      return updated;
+    }));
   };
 
   const removeLine = (id: string) => {
