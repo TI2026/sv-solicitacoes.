@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { useDailyLimitForRole } from '@/hooks/useRequestLimits';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -132,6 +133,8 @@ export default function FleetListPage() {
   const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'aprovadas' | 'concluidos'>('pendentes');
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const softDelete = useSoftDeleteRequest();
+  const abastLimit = useDailyLimitForRole(user?.roles, 'abastecimento');
+  const reembolsoLimit = useDailyLimitForRole(user?.roles, 'reembolso');
 
   // If activeTab is diaria but user can't see it, force to abastecimento
   if (activeTab === 'diaria' && !canSeeDiaria) {
@@ -198,7 +201,7 @@ export default function FleetListPage() {
             <p>• Se aprovado: aguarda recarga do cartão (Administrativo)</p>
             <p>• Colaborador anexa foto do hodômetro e nota fiscal</p>
             <p>• Administrativo revisa e conclui</p>
-            <p>• Limite: 5 solicitações por dia</p>
+            <p>• Limite: {abastLimit} solicitações por dia</p>
           </InfoCard>
 
           {/* Sub-filter: Pendentes / Negados / Concluídos */}
@@ -229,7 +232,7 @@ export default function FleetListPage() {
             <p>• Diretoria aprova ou rejeita</p>
             <p>• Se aprovado: Diretoria/Admin registra pagamento</p>
             <p>• Solicitação é concluída</p>
-            <p>• Limite: 5 solicitações por dia</p>
+            <p>• Limite: {reembolsoLimit} solicitações por dia</p>
           </InfoCard>
 
           <div className="flex gap-2 flex-wrap">

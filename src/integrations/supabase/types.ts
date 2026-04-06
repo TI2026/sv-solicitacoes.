@@ -1675,6 +1675,33 @@ export type Database = {
           },
         ]
       }
+      request_limits: {
+        Row: {
+          created_at: string
+          daily_limit: number
+          id: string
+          request_type: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_limit?: number
+          id?: string
+          request_type: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_limit?: number
+          id?: string
+          request_type?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       role_permission_matrix: {
         Row: {
           action_id: string

@@ -16,7 +16,8 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
-import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { assignReviewerByRequesterSector } from '@/lib/resolveAssignee';
@@ -236,6 +237,25 @@ export default function FleetDetailPage() {
       <Button variant="ghost" className="gap-2" onClick={() => navigate('/fleet')}>
         <ArrowLeft className="w-4 h-4" /> Voltar
       </Button>
+
+      {/* Return alert for owner */}
+      {req?.status === 'retornado' && isOwner && (
+        <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-400">Solicitação devolvida para ajuste</AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
+            {(() => {
+              const reason = req.review_notes || (allApprovalCycles?.[0] as any)?.approval_request_steps?.find((s: any) => s.status === 'returned')?.comments;
+              return reason ? <p className="mb-2">Motivo: {reason}</p> : null;
+            })()}
+            <p className="mb-2">Edite os dados necessários e reenvie a solicitação.</p>
+            <Button size="sm" className="gap-1" onClick={() => handleStatusChange('enviado')} disabled={isPending}>
+              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              Reenviar solicitação
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Header */}
       <Card>
