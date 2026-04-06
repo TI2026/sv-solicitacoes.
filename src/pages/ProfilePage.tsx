@@ -193,9 +193,9 @@ export default function ProfilePage() {
               </button>
               <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => { if (e.target.files?.[0]) handleAvatarUpload(e.target.files[0]); e.target.value = ''; }} />
             </div>
-            <div>
+             <div>
               <CardTitle>Meu Perfil</CardTitle>
-              <CardDescription>{primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'} · {user.email}</CardDescription>
+              <CardDescription>{userRoleDetails?.[0]?.name || 'Sem papel'} · {user.email}</CardDescription>
             </div>
           </div>
         </CardHeader>
