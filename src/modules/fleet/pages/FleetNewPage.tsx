@@ -11,9 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MoneyInput } from '@/components/MoneyInput';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
-import { ArrowLeft, Loader2, Send } from 'lucide-react';
+import { ArrowLeft, Loader2, Send, AlertCircle, FileText } from 'lucide-react';
 import { maskCPF, maskPhone, maskKM, maskAgency, maskAccount, minDateToday, todayBR, isValidPlate, isValidCPF } from '@/lib/masks';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function FleetNewPage() {
   const { user, hasAnyRole } = useAuth();
