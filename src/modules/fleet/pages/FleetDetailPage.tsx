@@ -238,6 +238,22 @@ export default function FleetDetailPage() {
         <ArrowLeft className="w-4 h-4" /> Voltar
       </Button>
 
+      {/* Return alert for owner */}
+      {req?.status === 'retornado' && isOwner && (
+        <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-400">Solicitação devolvida para ajuste</AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
+            {req.review_notes && <p className="mb-2">Motivo: {req.review_notes}</p>}
+            <p className="mb-2">Edite os dados necessários e reenvie a solicitação.</p>
+            <Button size="sm" className="gap-1" onClick={() => handleStatusChange('enviado')} disabled={isPending}>
+              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              Reenviar solicitação
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <Card>
         <CardHeader className="pb-3">
