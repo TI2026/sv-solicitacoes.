@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MoneyInput } from '@/components/MoneyInput';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { Checkbox } from '@/components/ui/checkbox';
+import { UniformSizesPicker } from './UniformSizesPicker';
 import { Loader2 } from 'lucide-react';
 import { maskCurrency, minDateToday } from '@/lib/masks';
 import { supabase } from '@/integrations/supabase/client';
