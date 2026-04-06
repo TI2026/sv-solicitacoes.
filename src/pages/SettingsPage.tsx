@@ -98,7 +98,7 @@ function RequestLimitsSection() {
               <TableBody>
                 {limits.map(l => (
                   <TableRow key={l.id}>
-                    <TableCell className="font-medium">{ROLE_LABELS[l.role] || l.role}</TableCell>
+                    <TableCell className="font-medium">{ROLE_DISPLAY_LABELS[l.role] || l.role}</TableCell>
                     <TableCell>{REQUEST_TYPE_LABELS[l.request_type] || l.request_type}</TableCell>
                     <TableCell className="text-center font-semibold">{l.daily_limit}</TableCell>
                     <TableCell>
@@ -132,7 +132,7 @@ function RequestLimitsSection() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {AVAILABLE_ROLES.map(r => (
-                      <SelectItem key={r} value={r}>{ROLE_LABELS[r] || r}</SelectItem>
+                      <SelectItem key={r} value={r}>{ROLE_DISPLAY_LABELS[r] || r}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
