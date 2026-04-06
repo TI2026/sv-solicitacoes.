@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Loader2, ChevronDown, ChevronUp, CheckCircle2, XCircle, Building2, Users } from 'lucide-react';
+import { Loader2, ChevronDown, ChevronUp, CheckCircle2, XCircle, Building2, Users, Search, Filter } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsersWithRoleAssignments, useRoles, useAssignUserRole, useUserEffectivePermissions, useSectors, useProfiles, useUpdateUserOrgFields } from '../hooks/usePermissionsData';
 
@@ -92,8 +93,42 @@ export default function UsersManagementTab() {
   const { user: currentUser, refreshProfile } = useAuth();
   const { data: users, isLoading } = useUsersWithRoleAssignments();
   const { data: roles } = useRoles();
+  const { data: sectors } = useSectors();
   const assignRole = useAssignUserRole();
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRoleId, setFilterRoleId] = useState<string>('all');
+  const [filterSectorId, setFilterSectorId] = useState<string>('all');
+  const [filterHasSector, setFilterHasSector] = useState<string>('all');
+
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    return users.filter((u: any) => {
+      // Search by name or email
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const matchName = (u.full_name || '').toLowerCase().includes(term);
+        const matchEmail = (u.email || '').toLowerCase().includes(term);
+        if (!matchName && !matchEmail) return false;
+      }
+      // Filter by role
+      if (filterRoleId !== 'all') {
+        const assignment = u.assignments?.[0];
+        if (assignment?.role_id !== filterRoleId) return false;
+      }
+      // Filter by sector
+      if (filterSectorId !== 'all') {
+        if (u.sector_id !== filterSectorId) return false;
+      }
+      // Filter by has/missing sector
+      if (filterHasSector === 'with') {
+        if (!u.sector_id) return false;
+      } else if (filterHasSector === 'without') {
+        if (u.sector_id) return false;
+      }
+      return true;
+    });
+  }, [users, searchTerm, filterRoleId, filterSectorId, filterHasSector]);
 
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
@@ -102,22 +137,83 @@ export default function UsersManagementTab() {
   const handleRoleChange = async (userId: string, roleId: string) => {
     if (!currentUser?.id) return;
     await assignRole.mutateAsync({ userId, roleId, assignedBy: currentUser.id });
-    // If changing own role, refresh auth context
     if (userId === currentUser.id) {
       setTimeout(() => refreshProfile(), 500);
     }
   };
+
+  const hasActiveFilters = searchTerm || filterRoleId !== 'all' || filterSectorId !== 'all' || filterHasSector !== 'all';
 
   return (
     <div className="space-y-3">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Usuários do Sistema</CardTitle>
-          <CardDescription>{users?.length || 0} usuários cadastrados</CardDescription>
+          <CardDescription>
+            {hasActiveFilters
+              ? `${filteredUsers.length} de ${users?.length || 0} usuários`
+              : `${users?.length || 0} usuários cadastrados`}
+          </CardDescription>
         </CardHeader>
+        <CardContent className="pt-0 space-y-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou e-mail..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
+          {/* Filters row */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
+            <Select value={filterRoleId} onValueChange={setFilterRoleId}>
+              <SelectTrigger className="h-8 w-40 text-xs">
+                <SelectValue placeholder="Cargo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">Todos os cargos</SelectItem>
+                {roles?.filter((r: any) => r.active).map((r: any) => (
+                  <SelectItem key={r.id} value={r.id} className="text-xs">{r.name || r.key}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterSectorId} onValueChange={setFilterSectorId}>
+              <SelectTrigger className="h-8 w-40 text-xs">
+                <SelectValue placeholder="Setor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">Todos os setores</SelectItem>
+                {sectors?.map((s: any) => (
+                  <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterHasSector} onValueChange={setFilterHasSector}>
+              <SelectTrigger className="h-8 w-44 text-xs">
+                <SelectValue placeholder="Vínculo setor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">Todos</SelectItem>
+                <SelectItem value="with" className="text-xs">Com setor</SelectItem>
+                <SelectItem value="without" className="text-xs">Sem setor</SelectItem>
+              </SelectContent>
+            </Select>
+            {hasActiveFilters && (
+              <button
+                onClick={() => { setSearchTerm(''); setFilterRoleId('all'); setFilterSectorId('all'); setFilterHasSector('all'); }}
+                className="text-xs text-primary hover:underline ml-1"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        </CardContent>
       </Card>
 
-      {users?.map((u: any) => {
+      {filteredUsers.map((u: any) => {
         const assignment = u.assignments?.[0];
         const roleName = assignment?.roles?.name || assignment?.roles?.key || '—';
         const isMaster = assignment?.roles?.is_master;
