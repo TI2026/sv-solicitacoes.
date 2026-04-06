@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useRequestLimits, useUpsertRequestLimit, useDeleteRequestLimit } from '@/hooks/useRequestLimits';
-import { ROLE_LABELS } from '@/types';
+
 import { REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Settings, Plus, Pencil, Trash2, Loader2, Gauge } from 'lucide-react';
 
