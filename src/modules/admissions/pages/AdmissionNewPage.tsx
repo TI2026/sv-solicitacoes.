@@ -221,44 +221,7 @@ export default function AdmissionNewPage() {
           </div>
 
           {showSizes && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/30">
-              <div className="space-y-2">
-                <Label>Camisa</Label>
-                <Select value={sizes.shirt_size} onValueChange={v => setSizes(p => ({ ...p, shirt_size: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'].map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Calça</Label>
-                <Select value={sizes.pants_size} onValueChange={v => setSizes(p => ({ ...p, pants_size: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'].map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Calçado</Label>
-                <Select value={sizes.shoe_size} onValueChange={v => setSizes(p => ({ ...p, shoe_size: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 16 }, (_, i) => String(33 + i)).map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <p className="text-xs text-muted-foreground sm:col-span-3">
-                Esses tamanhos serão associados ao colaborador quando contratado, facilitando a entrega de EPIs.
-              </p>
-            </div>
+            <UniformSizesPicker value={uniformSizes} onChange={setUniformSizes} />
           )}
 
           <div className="flex gap-3 pt-2">
