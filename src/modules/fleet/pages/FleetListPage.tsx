@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { useDailyLimitForRole } from '@/hooks/useRequestLimits';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
