@@ -21,6 +21,9 @@ export function useCreateCollaboratorFromAdmission() {
       worksite?: string;
       admission_request_id?: string;
       user_profile_id?: string | null;
+      shirt_size?: string | null;
+      pants_size?: string | null;
+      shoe_size?: string | null;
     }) => {
       // Check if collaborator already exists for this admission
       if (params.admission_request_id) {
