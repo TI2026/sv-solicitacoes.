@@ -261,6 +261,34 @@ export default function FleetNewPage() {
         <ArrowLeft className="w-4 h-4" /> Voltar
       </Button>
 
+      {showSessionDraft && (
+        <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-400">Preenchimento não salvo encontrado</AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
+            Você tem dados de um preenchimento anterior. Deseja continuar de onde parou?
+            <div className="flex gap-2 mt-2">
+              <Button size="sm" variant="outline" onClick={restoreFromSession}>Continuar</Button>
+              <Button size="sm" variant="ghost" onClick={discardSessionDraft}>Descartar</Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {showDbDraft && existingDbDraft && (
+        <Alert className="border-primary/50 bg-primary/5">
+          <FileText className="h-4 w-4 text-primary" />
+          <AlertTitle>Rascunho salvo encontrado</AlertTitle>
+          <AlertDescription>
+            Você tem uma solicitação em rascunho. Deseja continuar de onde parou?
+            <div className="flex gap-2 mt-2">
+              <Button size="sm" onClick={() => navigate(`/fleet/${existingDbDraft.id}`)}>Abrir rascunho</Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowDbDraft(false)}>Criar nova</Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Nova Solicitação — {typeLabels[type]}</CardTitle>
