@@ -53,6 +53,13 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
         justificativa: admission.justificativa || '',
         priority: (admission as any).priority || 'media',
       });
+      const hasSize = admission.shirt_size || admission.pants_size || admission.shoe_size;
+      setShowSizes(!!hasSize);
+      setSizes({
+        shirt_size: admission.shirt_size || '',
+        pants_size: admission.pants_size || '',
+        shoe_size: admission.shoe_size || '',
+      });
       if (admission.salario_previsto) {
         const formatted = maskCurrency(String(Math.round(Number(admission.salario_previsto) * 100)));
         setSalarioFormatted(formatted);
