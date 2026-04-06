@@ -63,9 +63,7 @@ export function useCreateCollaboratorFromAdmission() {
         worksite: params.worksite || '',
         admission_request_id: params.admission_request_id || null,
         user_profile_id: params.user_profile_id || null,
-        shirt_size: params.shirt_size || null,
-        pants_size: params.pants_size || null,
-        shoe_size: params.shoe_size || null,
+        uniform_sizes: params.uniform_sizes || {},
         status: 'ativo',
         active: true,
       }).select().single();
