@@ -213,7 +213,7 @@ export default function UsersManagementTab() {
         </CardContent>
       </Card>
 
-      {users?.map((u: any) => {
+      {filteredUsers.map((u: any) => {
         const assignment = u.assignments?.[0];
         const roleName = assignment?.roles?.name || assignment?.roles?.key || '—';
         const isMaster = assignment?.roles?.is_master;
