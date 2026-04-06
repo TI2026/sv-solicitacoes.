@@ -201,7 +201,7 @@ export default function FleetListPage() {
             <p>• Se aprovado: aguarda recarga do cartão (Administrativo)</p>
             <p>• Colaborador anexa foto do hodômetro e nota fiscal</p>
             <p>• Administrativo revisa e conclui</p>
-            <p>• Limite: 5 solicitações por dia</p>
+            <p>• Limite: {abastLimit} solicitações por dia</p>
           </InfoCard>
 
           {/* Sub-filter: Pendentes / Negados / Concluídos */}
