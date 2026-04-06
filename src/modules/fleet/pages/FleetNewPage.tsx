@@ -13,6 +13,7 @@ import { MoneyInput } from '@/components/MoneyInput';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
 import { maskCPF, maskPhone, maskKM, maskAgency, maskAccount, minDateToday, todayBR, isValidPlate, isValidCPF } from '@/lib/masks';
+import { useToast } from '@/hooks/use-toast';
 
 export default function FleetNewPage() {
   const { user, hasAnyRole } = useAuth();
