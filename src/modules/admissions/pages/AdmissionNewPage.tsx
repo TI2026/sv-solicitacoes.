@@ -210,6 +210,58 @@ export default function AdmissionNewPage() {
             <p className="text-xs text-muted-foreground text-right">{form.justificativa.length}/500</p>
           </div>
 
+          <div className="flex items-center gap-2 pt-2">
+            <Checkbox
+              id="show-sizes"
+              checked={showSizes}
+              onCheckedChange={(v) => setShowSizes(!!v)}
+            />
+            <Label htmlFor="show-sizes" className="cursor-pointer font-normal">
+              Informar tamanhos de EPI/uniforme
+            </Label>
+          </div>
+
+          {showSizes && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/30">
+              <div className="space-y-2">
+                <Label>Camisa</Label>
+                <Select value={sizes.shirt_size} onValueChange={v => setSizes(p => ({ ...p, shirt_size: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'].map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Calça</Label>
+                <Select value={sizes.pants_size} onValueChange={v => setSizes(p => ({ ...p, pants_size: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {['PP', 'P', 'M', 'G', 'GG', 'XG', 'XXG'].map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Calçado</Label>
+                <Select value={sizes.shoe_size} onValueChange={v => setSizes(p => ({ ...p, shoe_size: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 16 }, (_, i) => String(33 + i)).map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground sm:col-span-3">
+                Esses tamanhos serão associados ao colaborador quando contratado, facilitando a entrega de EPIs.
+              </p>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !isFormValid()}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
