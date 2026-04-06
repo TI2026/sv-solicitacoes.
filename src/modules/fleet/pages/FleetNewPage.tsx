@@ -57,6 +57,92 @@ export default function FleetNewPage() {
   const [dailyValueFormatted, setDailyValueFormatted] = useState('');
   const [dailyValueNum, setDailyValueNum] = useState(0);
 
+  // ===== DRAFT PERSISTENCE (sessionStorage) =====
+  const DRAFT_KEY = `draft_${type}`;
+  const [showSessionDraft, setShowSessionDraft] = useState(false);
+  const [showDbDraft, setShowDbDraft] = useState(false);
+  const draftLoaded = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const { data: existingDbDraft } = useQuery({
+    queryKey: ['existing_draft', user?.id, type],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('fuel_requests')
+        .select('id')
+        .eq('requester_user_id', user!.id)
+        .eq('type', type)
+        .eq('status', 'rascunho' as any)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      return data?.[0] || null;
+    },
+    enabled: !!user?.id,
+  });
+
+  useEffect(() => {
+    if (draftLoaded.current) return;
+    const saved = sessionStorage.getItem(DRAFT_KEY);
+    if (saved) setShowSessionDraft(true);
+    if (existingDbDraft) setShowDbDraft(true);
+    draftLoaded.current = true;
+  }, [existingDbDraft]);
+
+  const restoreFromSession = () => {
+    const saved = sessionStorage.getItem(DRAFT_KEY);
+    if (!saved) return;
+    try {
+      const d = JSON.parse(saved);
+      if (d.valorFormatted) setValorFormatted(d.valorFormatted);
+      if (d.valorNum) setValorNum(d.valorNum);
+      if (d.data) setData(d.data);
+      if (d.notes) setNotes(d.notes);
+      if (d.placa) setPlaca(d.placa);
+      if (d.km) setKm(d.km);
+      if (d.motivo) setMotivo(d.motivo);
+      if (d.categoria) setCategoria(d.categoria);
+      if (d.paymentMethod) setPaymentMethod(d.paymentMethod);
+      if (d.pixKeyType) setPixKeyType(d.pixKeyType);
+      if (d.pixKey) setPixKey(d.pixKey);
+      if (d.bankName) setBankName(d.bankName);
+      if (d.bankAgency) setBankAgency(d.bankAgency);
+      if (d.bankAccount) setBankAccount(d.bankAccount);
+      if (d.dailyCategory) setDailyCategory(d.dailyCategory);
+      if (d.personName) setPersonName(d.personName);
+      if (d.personCpf) setPersonCpf(d.personCpf);
+      if (d.hours) setHours(d.hours);
+      if (d.dailyValueFormatted) setDailyValueFormatted(d.dailyValueFormatted);
+      if (d.dailyValueNum) setDailyValueNum(d.dailyValueNum);
+    } catch {}
+    setShowSessionDraft(false);
+  };
+
+  const discardSessionDraft = () => {
+    sessionStorage.removeItem(DRAFT_KEY);
+    setShowSessionDraft(false);
+  };
+
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem(DRAFT_KEY);
+  }, [DRAFT_KEY]);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const draft = {
+        valorFormatted, valorNum, data, notes, placa, km, motivo,
+        categoria, paymentMethod, pixKeyType, pixKey, bankName, bankAgency, bankAccount,
+        dailyCategory, personName, personCpf, hours, dailyValueFormatted, dailyValueNum,
+      };
+      const hasContent = valorNum > 0 || placa || categoria || personName || notes;
+      if (hasContent) {
+        sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      }
+    }, 500);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [valorFormatted, valorNum, data, notes, placa, km, motivo, categoria, paymentMethod, pixKeyType, pixKey, bankName, bankAgency, bankAccount, dailyCategory, personName, personCpf, hours, dailyValueFormatted, dailyValueNum]);
+
   const canCreateDiaria = hasAnyRole(['diretoria', 'administrativo']);
   if (type === 'diaria' && !canCreateDiaria) {
     navigate('/fleet');
