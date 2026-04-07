@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useFuelRequest, useFuelAttachments, useFuelSetStatus } from '../hooks/useFleetQueries';
+import { useFuelRequest, useFuelAttachments, useFuelSetStatus, useSoftDeleteRequest } from '../hooks/useFleetQueries';
+import { useQuery } from '@tanstack/react-query';
 import { useApprovalAction } from '../hooks/useApprovalAction';
 import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
@@ -16,7 +17,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
-import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard, CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard, CheckCircle2, Circle, AlertTriangle, Trash2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -33,10 +34,13 @@ export default function FleetDetailPage() {
   const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   const statusMutation = useFuelSetStatus();
+  const softDelete = useSoftDeleteRequest();
   const approvalAction = useApprovalAction();
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
   const [showReasonDialog, setShowReasonDialog] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
 
   // OC/Payment metadata fields
   const [ocNumber, setOcNumber] = useState('');
@@ -44,6 +48,19 @@ export default function FleetDetailPage() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [showOcDialog, setShowOcDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+
+  // Check master role
+  const { data: isMaster } = useQuery({
+    queryKey: ['is_master', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_role_assignments')
+        .select('roles!inner(is_master)')
+        .eq('user_id', user!.id);
+      return data?.some((d: any) => d.roles?.is_master) ?? false;
+    },
+    enabled: !!user?.id,
+  });
 
   const isOwner = req?.requester_user_id === user?.id;
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
@@ -216,7 +233,8 @@ export default function FleetDetailPage() {
   const notaFiscal = attachments?.filter((a: any) => a.type === 'nota_fiscal') || [];
   const canUpload = isOwner && ['aguardando_fotos', 'retornado'].includes(req.status);
   const canSendToReview = isOwner && req.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
-  const isPending = statusMutation.isPending || approvalAction.isPending;
+  const isPending = statusMutation.isPending || approvalAction.isPending || softDelete.isPending;
+  const canMasterDelete = !!isMaster && !['concluido', 'pago'].includes(req?.status || '');
 
   /** Determines which handler to call from the reason dialog */
   const handleReasonConfirm = () => {
@@ -471,8 +489,17 @@ export default function FleetDetailPage() {
             </div>
           )}
 
-          {!isOwner && !isAdmin && !isCurrentFlowApprover && req.status !== 'em_aprovacao' && (
+          {!isOwner && !isAdmin && !isCurrentFlowApprover && !canMasterDelete && req.status !== 'em_aprovacao' && (
             <p className="text-sm text-muted-foreground">Nenhuma ação disponível</p>
+          )}
+
+          {/* MASTER: Delete non-concluded request */}
+          {canMasterDelete && (
+            <div className="border-t border-border pt-3 mt-3">
+              <Button onClick={() => setShowDeleteDialog(true)} variant="destructive" className="gap-2" disabled={isPending}>
+                <Trash2 className="w-4 h-4" /> Excluir Solicitação
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -648,6 +675,39 @@ export default function FleetDetailPage() {
             <Button onClick={handlePaymentConfirm} disabled={isPending} className="gap-2">
               {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Confirmar Pagamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog (Master only) */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Solicitação</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Esta ação irá excluir permanentemente esta solicitação e cancelar qualquer fluxo de aprovação ativo. Deseja continuar?
+          </p>
+          <div className="space-y-2">
+            <Label>Motivo (opcional)</Label>
+            <Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Motivo da exclusão..." />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowDeleteDialog(false); setDeleteReason(''); }}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              disabled={softDelete.isPending}
+              className="gap-2"
+              onClick={async () => {
+                await softDelete.mutateAsync({ requestId: id!, reason: deleteReason || undefined });
+                setShowDeleteDialog(false);
+                setDeleteReason('');
+                navigate('/fleet');
+              }}
+            >
+              {softDelete.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Excluir
             </Button>
           </DialogFooter>
         </DialogContent>
