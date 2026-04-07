@@ -22,6 +22,7 @@ import { Loader2 } from "lucide-react";
 import FleetListPage from "@/modules/fleet/pages/FleetListPage";
 import FleetNewPage from "@/modules/fleet/pages/FleetNewPage";
 import FleetDetailPage from "@/modules/fleet/pages/FleetDetailPage";
+import FleetVehiclesPage from "@/modules/fleet/pages/FleetVehiclesPage";
 
 // Admissions module
 import AdmissionListPage from "@/modules/admissions/pages/AdmissionListPage";
@@ -93,6 +94,7 @@ const AppRoutes = () => (
     <Route path="/fleet" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />
     <Route path="/fleet/new" element={<ProtectedRoute><FleetNewPage /></ProtectedRoute>} />
     <Route path="/fleet/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
+    <Route path="/fleet/vehicles" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><FleetVehiclesPage /></RoleGuard></ProtectedRoute>} />
 
     {/* Admissions */}
     <Route path="/admissions" element={<ProtectedRoute><AdmissionListPage /></ProtectedRoute>} />
