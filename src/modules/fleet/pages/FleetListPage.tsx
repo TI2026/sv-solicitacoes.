@@ -179,7 +179,10 @@ export default function FleetListPage() {
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSubFilter('pendentes'); }} className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => {
+        if (v === 'veiculos') { navigate('/fleet/vehicles'); return; }
+        setActiveTab(v); setSubFilter('pendentes');
+      }} className="w-full">
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="abastecimento" className="gap-1.5">
             <Fuel className="w-3.5 h-3.5" /> Abastecimento
@@ -190,6 +193,11 @@ export default function FleetListPage() {
           {canSeeDiaria && (
             <TabsTrigger value="diaria" className="gap-1.5">
               <Briefcase className="w-3.5 h-3.5" /> Diária
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="veiculos" className="gap-1.5">
+              🚗 Veículos
             </TabsTrigger>
           )}
         </TabsList>
