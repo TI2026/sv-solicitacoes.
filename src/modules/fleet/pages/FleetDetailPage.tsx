@@ -489,8 +489,17 @@ export default function FleetDetailPage() {
             </div>
           )}
 
-          {!isOwner && !isAdmin && !isCurrentFlowApprover && req.status !== 'em_aprovacao' && (
+          {!isOwner && !isAdmin && !isCurrentFlowApprover && !canMasterDelete && req.status !== 'em_aprovacao' && (
             <p className="text-sm text-muted-foreground">Nenhuma ação disponível</p>
+          )}
+
+          {/* MASTER: Delete non-concluded request */}
+          {canMasterDelete && (
+            <div className="border-t border-border pt-3 mt-3">
+              <Button onClick={() => setShowDeleteDialog(true)} variant="destructive" className="gap-2" disabled={isPending}>
+                <Trash2 className="w-4 h-4" /> Excluir Solicitação
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
