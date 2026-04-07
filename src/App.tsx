@@ -93,8 +93,8 @@ const AppRoutes = () => (
     {/* Fleet */}
     <Route path="/fleet" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />
     <Route path="/fleet/new" element={<ProtectedRoute><FleetNewPage /></ProtectedRoute>} />
-    <Route path="/fleet/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
     <Route path="/fleet/vehicles" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><FleetVehiclesPage /></RoleGuard></ProtectedRoute>} />
+    <Route path="/fleet/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
 
     {/* Admissions */}
     <Route path="/admissions" element={<ProtectedRoute><AdmissionListPage /></ProtectedRoute>} />
