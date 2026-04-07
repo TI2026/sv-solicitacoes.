@@ -679,6 +679,39 @@ export default function FleetDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog (Master only) */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Solicitação</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Esta ação irá excluir permanentemente esta solicitação e cancelar qualquer fluxo de aprovação ativo. Deseja continuar?
+          </p>
+          <div className="space-y-2">
+            <Label>Motivo (opcional)</Label>
+            <Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Motivo da exclusão..." />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowDeleteDialog(false); setDeleteReason(''); }}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              disabled={softDelete.isPending}
+              className="gap-2"
+              onClick={async () => {
+                await softDelete.mutateAsync({ requestId: id!, reason: deleteReason || undefined });
+                setShowDeleteDialog(false);
+                setDeleteReason('');
+                navigate('/fleet');
+              }}
+            >
+              {softDelete.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
