@@ -233,7 +233,8 @@ export default function FleetDetailPage() {
   const notaFiscal = attachments?.filter((a: any) => a.type === 'nota_fiscal') || [];
   const canUpload = isOwner && ['aguardando_fotos', 'retornado'].includes(req.status);
   const canSendToReview = isOwner && req.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
-  const isPending = statusMutation.isPending || approvalAction.isPending;
+  const isPending = statusMutation.isPending || approvalAction.isPending || softDelete.isPending;
+  const canMasterDelete = !!isMaster && !['concluido', 'pago'].includes(req?.status || '');
 
   /** Determines which handler to call from the reason dialog */
   const handleReasonConfirm = () => {
