@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Loader2, ChevronDown, ChevronUp, CheckCircle2, XCircle, Building2, Users, Search, Filter } from 'lucide-react';
+import { Loader2, ChevronDown, ChevronUp, CheckCircle2, Building2, Users, Search, Filter } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,7 +15,7 @@ function EffectivePermissions({ userId }: { userId: string }) {
   if (isLoading) return <Loader2 className="w-4 h-4 animate-spin" />;
 
   if (!perms || perms.length === 0) {
-    return <p className="text-xs text-muted-foreground italic">Nenhuma permissão efetiva encontrada</p>;
+    return <p className="text-xs text-muted-foreground italic">Nenhuma permissão efetiva encontrada. Verifique se o perfil possui permissões configuradas.</p>;
   }
 
   const grouped: Record<string, any[]> = {};
@@ -25,21 +25,27 @@ function EffectivePermissions({ userId }: { userId: string }) {
     grouped[modName].push(p);
   });
 
+  const sortedModules = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+
   return (
-    <div className="space-y-2">
-      {Object.entries(grouped).map(([mod, actions]) => (
-        <div key={mod}>
-          <p className="text-xs font-semibold text-foreground">{mod}</p>
-          <div className="flex flex-wrap gap-1 mt-0.5">
-            {actions.map((a: any) => (
-              <Badge key={a.id} variant="secondary" className="text-[10px] gap-1">
-                {a.allowed ? <CheckCircle2 className="w-3 h-3 text-green-600" /> : <XCircle className="w-3 h-3 text-red-500" />}
-                {a.permission_actions?.name}
-              </Badge>
-            ))}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {sortedModules.map(([mod, actions]) => {
+        const allowedActions = actions.filter((a: any) => a.allowed);
+        if (allowedActions.length === 0) return null;
+        return (
+          <div key={mod} className="rounded-lg border border-border bg-muted/30 p-2.5">
+            <p className="text-xs font-semibold text-foreground mb-1.5">{mod}</p>
+            <div className="flex flex-wrap gap-1">
+              {allowedActions.map((a: any) => (
+                <span key={a.id} className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-background rounded px-1.5 py-0.5 border border-border/50">
+                  <CheckCircle2 className="w-2.5 h-2.5 text-green-600 shrink-0" />
+                  {a.permission_actions?.name}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
