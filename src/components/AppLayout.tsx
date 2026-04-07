@@ -140,8 +140,49 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!user) return null;
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const formatRelativeTime = (dateStr: string) => {
+    const now = Date.now();
+    const diff = now - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'agora';
+    if (mins < 60) return `há ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `há ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `há ${days}d`;
+    return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
+  const getNotificationIcon = (metadata: any) => {
+    const entityType = metadata?.entity_type;
+    const status = metadata?.status;
+    if (status === 'aprovado' || status === 'approved') return <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />;
+    if (status === 'reprovado' || status === 'rejected') return <XCircle className="w-4 h-4 text-destructive shrink-0" />;
+    if (status === 'retornado' || status?.startsWith?.('returned')) return <Undo2 className="w-4 h-4 text-amber-500 shrink-0" />;
+    if (entityType === 'approval_request') return <ArrowRightLeft className="w-4 h-4 text-primary shrink-0" />;
+    if (entityType === 'fuel_requests') return <Fuel className="w-4 h-4 text-primary shrink-0" />;
+    if (entityType === 'admission_requests') return <UserPlus className="w-4 h-4 text-primary shrink-0" />;
+    return <Info className="w-4 h-4 text-muted-foreground shrink-0" />;
+  };
+
+  const getNotificationLink = (metadata: any): string | null => {
+    const entityType = metadata?.entity_type;
+    const entityId = metadata?.entity_id;
+    if (!entityId) return null;
+    if (entityType === 'fuel_requests') return `/fleet/${entityId}`;
+    if (entityType === 'admission_requests') return `/admissions/${entityId}`;
+    if (entityType === 'approval_request') return `/fleet`;
+    return null;
+  };
+
+  const handleNotificationClick = async (n: any) => {
+    if (!n.read) {
+      await supabase.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('id', n.id);
+      setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    const link = getNotificationLink(n.metadata);
+    if (link) navigate(link);
   };
 
   return (
