@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
-import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2 } from 'lucide-react';
+import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -140,8 +140,49 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!user) return null;
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const formatRelativeTime = (dateStr: string) => {
+    const now = Date.now();
+    const diff = now - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'agora';
+    if (mins < 60) return `há ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `há ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `há ${days}d`;
+    return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
+  const getNotificationIcon = (metadata: any) => {
+    const entityType = metadata?.entity_type;
+    const status = metadata?.status;
+    if (status === 'aprovado' || status === 'approved') return <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />;
+    if (status === 'reprovado' || status === 'rejected') return <XCircle className="w-4 h-4 text-destructive shrink-0" />;
+    if (status === 'retornado' || status?.startsWith?.('returned')) return <Undo2 className="w-4 h-4 text-amber-500 shrink-0" />;
+    if (entityType === 'approval_request') return <ArrowRightLeft className="w-4 h-4 text-primary shrink-0" />;
+    if (entityType === 'fuel_requests') return <Fuel className="w-4 h-4 text-primary shrink-0" />;
+    if (entityType === 'admission_requests') return <UserPlus className="w-4 h-4 text-primary shrink-0" />;
+    return <Info className="w-4 h-4 text-muted-foreground shrink-0" />;
+  };
+
+  const getNotificationLink = (metadata: any): string | null => {
+    const entityType = metadata?.entity_type;
+    const entityId = metadata?.entity_id;
+    if (!entityId) return null;
+    if (entityType === 'fuel_requests') return `/fleet/${entityId}`;
+    if (entityType === 'admission_requests') return `/admissions/${entityId}`;
+    if (entityType === 'approval_request') return `/fleet`;
+    return null;
+  };
+
+  const handleNotificationClick = async (n: any) => {
+    if (!n.read) {
+      await supabase.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('id', n.id);
+      setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    const link = getNotificationLink(n.metadata);
+    if (link) navigate(link);
   };
 
   return (
@@ -304,16 +345,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   )}
                 </div>
               </div>
-              <div className="max-h-72 overflow-y-auto">
+              <div className="max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <p className="p-4 text-sm text-muted-foreground text-center">Nenhuma notificação</p>
                 ) : (
-                  notifications.map(n => (
-                    <div key={n.id} className={`px-3 py-2.5 border-b border-border last:border-0 ${!n.read ? 'bg-primary/5' : ''}`}>
-                      <p className="text-sm font-medium text-foreground">{n.title}</p>
-                      <p className="text-xs text-muted-foreground">{n.message}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{formatTime(n.created_at)}</p>
-                    </div>
+                  notifications.slice(0, 20).map(n => (
+                    <button
+                      key={n.id}
+                      onClick={() => handleNotificationClick(n)}
+                      className={`w-full text-left flex items-start gap-2.5 px-3 py-2.5 border-b border-border last:border-0 hover:bg-accent/50 transition-colors ${!n.read ? 'bg-primary/5' : ''}`}
+                    >
+                      {getNotificationIcon(n.metadata)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-sm truncate ${!n.read ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}>{n.title}</p>
+                          {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
+                        <p className="text-[11px] text-muted-foreground/70 mt-0.5">{formatRelativeTime(n.created_at)}</p>
+                      </div>
+                    </button>
                   ))
                 )}
               </div>
