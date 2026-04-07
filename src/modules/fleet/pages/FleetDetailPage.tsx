@@ -34,10 +34,13 @@ export default function FleetDetailPage() {
   const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   const statusMutation = useFuelSetStatus();
+  const softDelete = useSoftDeleteRequest();
   const approvalAction = useApprovalAction();
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
   const [showReasonDialog, setShowReasonDialog] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
 
   // OC/Payment metadata fields
   const [ocNumber, setOcNumber] = useState('');
@@ -45,6 +48,19 @@ export default function FleetDetailPage() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [showOcDialog, setShowOcDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+
+  // Check master role
+  const { data: isMaster } = useQuery({
+    queryKey: ['is_master', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_role_assignments')
+        .select('roles!inner(is_master)')
+        .eq('user_id', user!.id);
+      return data?.some((d: any) => d.roles?.is_master) ?? false;
+    },
+    enabled: !!user?.id,
+  });
 
   const isOwner = req?.requester_user_id === user?.id;
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
