@@ -345,16 +345,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   )}
                 </div>
               </div>
-              <div className="max-h-72 overflow-y-auto">
+              <div className="max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <p className="p-4 text-sm text-muted-foreground text-center">Nenhuma notificação</p>
                 ) : (
-                  notifications.map(n => (
-                    <div key={n.id} className={`px-3 py-2.5 border-b border-border last:border-0 ${!n.read ? 'bg-primary/5' : ''}`}>
-                      <p className="text-sm font-medium text-foreground">{n.title}</p>
-                      <p className="text-xs text-muted-foreground">{n.message}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{formatTime(n.created_at)}</p>
-                    </div>
+                  notifications.slice(0, 20).map(n => (
+                    <button
+                      key={n.id}
+                      onClick={() => handleNotificationClick(n)}
+                      className={`w-full text-left flex items-start gap-2.5 px-3 py-2.5 border-b border-border last:border-0 hover:bg-accent/50 transition-colors ${!n.read ? 'bg-primary/5' : ''}`}
+                    >
+                      {getNotificationIcon(n.metadata)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-sm truncate ${!n.read ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}>{n.title}</p>
+                          {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
+                        <p className="text-[11px] text-muted-foreground/70 mt-0.5">{formatRelativeTime(n.created_at)}</p>
+                      </div>
+                    </button>
                   ))
                 )}
               </div>
