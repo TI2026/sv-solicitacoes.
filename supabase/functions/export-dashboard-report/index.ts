@@ -175,42 +175,86 @@ Deno.serve(async (req) => {
 
     // PDF — generate simple text-based report
     if (format === 'pdf') {
-      // Build a simple HTML table for conversion
       let html = `<html><head><meta charset="utf-8"><style>
-        body{font-family:Arial,sans-serif;padding:40px;font-size:11px;color:#333}
-        h1{font-size:18px;margin-bottom:4px}h2{font-size:14px;margin-top:20px;border-bottom:1px solid #ccc;padding-bottom:4px}
-        table{border-collapse:collapse;width:100%;margin-top:8px}
-        th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}
-        th{background:#f5f5f5;font-weight:bold}
-        .right{text-align:right}.total-row{font-weight:bold;background:#f9f9f9}
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Inter',Arial,sans-serif;padding:0;font-size:11px;color:#1a1a1a;background:#fff}
+        .header{background:linear-gradient(135deg,#149047,#0d6e34);color:#fff;padding:32px 40px 24px;margin-bottom:0}
+        .header h1{font-size:22px;font-weight:700;margin-bottom:4px;letter-spacing:-0.3px}
+        .header .subtitle{font-size:12px;opacity:0.85;font-weight:400}
+        .summary-bar{display:flex;gap:0;border-bottom:2px solid #149047;background:#f0faf4}
+        .summary-item{flex:1;padding:16px 20px;border-right:1px solid #d4edda;text-align:center}
+        .summary-item:last-child{border-right:none}
+        .summary-item .label{font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:#666;font-weight:600;margin-bottom:4px}
+        .summary-item .value{font-size:18px;font-weight:700;color:#149047}
+        .content{padding:24px 40px 40px}
+        h2{font-size:13px;font-weight:700;color:#149047;text-transform:uppercase;letter-spacing:0.5px;margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #e8f5ee}
+        h2:first-child{margin-top:0}
+        table{border-collapse:collapse;width:100%;margin-bottom:8px;font-size:10.5px}
+        th{background:#149047;color:#fff;padding:8px 10px;text-align:left;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.3px}
+        td{padding:7px 10px;border-bottom:1px solid #e8e8e8}
+        tr:nth-child(even){background:#f8fdf9}
+        tr:hover{background:#edf7f0}
+        .right{text-align:right}
+        .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600}
+        .total-row{font-weight:700;background:#e8f5ee !important;border-top:2px solid #149047}
+        .total-row td{padding:9px 10px}
+        .footer{margin-top:32px;padding-top:12px;border-top:1px solid #ddd;font-size:9px;color:#999;text-align:center}
+        @media print{body{padding:0}.header{-webkit-print-color-adjust:exact;print-color-adjust:exact}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}tr:nth-child(even){-webkit-print-color-adjust:exact;print-color-adjust:exact}.summary-bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
       </style></head><body>`;
-      html += `<h1>Relatório de Despesas</h1>`;
-      html += `<p>Período: ${fmtDate(startDate)} a ${fmtDate(endDate)} · ${data.length} solicitações · Total: ${fmtCurrency(totalGeral)}</p>`;
 
-      html += `<h2>Por Tipo</h2><table><tr><th>Tipo</th><th class="right">Qtd</th><th class="right">Valor</th></tr>`;
+      // Header
+      html += `<div class="header">
+        <h1>Relatório de Despesas</h1>
+        <div class="subtitle">Período: ${fmtDate(startDate)} a ${fmtDate(endDate)} · Gerado em ${fmtDate(new Date().toISOString())}</div>
+      </div>`;
+
+      // Summary bar
+      const avgPerRequest = data.length > 0 ? totalGeral / data.length : 0;
+      html += `<div class="summary-bar">
+        <div class="summary-item"><div class="label">Total Solicitações</div><div class="value">${data.length}</div></div>
+        <div class="summary-item"><div class="label">Valor Total</div><div class="value">${fmtCurrency(totalGeral)}</div></div>
+        <div class="summary-item"><div class="label">Média por Solicitação</div><div class="value">${fmtCurrency(avgPerRequest)}</div></div>
+        <div class="summary-item"><div class="label">Tipos</div><div class="value">${Object.keys(byType).length}</div></div>
+      </div>`;
+
+      html += `<div class="content">`;
+
+      // Por Tipo
+      html += `<h2>Resumo por Tipo</h2><table><tr><th>Tipo</th><th class="right">Qtd</th><th class="right">Valor Total</th><th class="right">Média</th></tr>`;
       Object.entries(byType).forEach(([t, v]) => {
-        html += `<tr><td>${typeLabels[t] || t}</td><td class="right">${v.count}</td><td class="right">${fmtCurrency(v.total)}</td></tr>`;
+        const avg = v.count > 0 ? v.total / v.count : 0;
+        html += `<tr><td>${typeLabels[t] || t}</td><td class="right">${v.count}</td><td class="right">${fmtCurrency(v.total)}</td><td class="right">${fmtCurrency(avg)}</td></tr>`;
       });
+      html += `<tr class="total-row"><td>Total</td><td class="right">${data.length}</td><td class="right">${fmtCurrency(totalGeral)}</td><td class="right">${fmtCurrency(avgPerRequest)}</td></tr>`;
       html += `</table>`;
 
-      html += `<h2>Por Setor</h2><table><tr><th>Setor</th><th class="right">Qtd</th><th class="right">Valor</th></tr>`;
+      // Por Setor
+      html += `<h2>Resumo por Setor</h2><table><tr><th>Setor</th><th class="right">Qtd</th><th class="right">Valor Total</th><th class="right">%</th></tr>`;
       Object.entries(bySector).sort((a, b) => b[1].total - a[1].total).forEach(([s, v]) => {
-        html += `<tr><td>${s}</td><td class="right">${v.count}</td><td class="right">${fmtCurrency(v.total)}</td></tr>`;
+        const pct = totalGeral > 0 ? ((v.total / totalGeral) * 100).toFixed(1) : '0.0';
+        html += `<tr><td>${s}</td><td class="right">${v.count}</td><td class="right">${fmtCurrency(v.total)}</td><td class="right">${pct}%</td></tr>`;
       });
       html += `</table>`;
 
-      html += `<h2>Por Colaborador</h2><table><tr><th>Colaborador</th><th class="right">Qtd</th><th class="right">Valor</th></tr>`;
+      // Por Colaborador
+      html += `<h2>Resumo por Colaborador</h2><table><tr><th>Colaborador</th><th class="right">Qtd</th><th class="right">Valor Total</th><th class="right">%</th></tr>`;
       Object.entries(byCollab).sort((a, b) => b[1].total - a[1].total).slice(0, 30).forEach(([n, v]) => {
-        html += `<tr><td>${n}</td><td class="right">${v.count}</td><td class="right">${fmtCurrency(v.total)}</td></tr>`;
+        const pct = totalGeral > 0 ? ((v.total / totalGeral) * 100).toFixed(1) : '0.0';
+        html += `<tr><td>${n}</td><td class="right">${v.count}</td><td class="right">${fmtCurrency(v.total)}</td><td class="right">${pct}%</td></tr>`;
       });
       html += `</table>`;
 
+      // Detalhamento
       html += `<h2>Detalhamento</h2><table><tr><th>Data</th><th>Tipo</th><th>Solicitante</th><th>Placa</th><th class="right">Valor</th><th>Status</th></tr>`;
       data.slice(0, 200).forEach((r: any) => {
         html += `<tr><td>${fmtDate(r.data_abastecimento)}</td><td>${typeLabels[r.type] || r.type}</td><td>${r.profiles?.full_name || r.person_name || ''}</td><td>${r.placa || ''}</td><td class="right">${fmtCurrency(Number(r.valor || 0))}</td><td>${statusLabels[r.status] || r.status}</td></tr>`;
       });
-      if (data.length > 200) html += `<tr><td colspan="6">... e mais ${data.length - 200} registros</td></tr>`;
-      html += `</table></body></html>`;
+      if (data.length > 200) html += `<tr><td colspan="6" style="text-align:center;color:#999;font-style:italic">... e mais ${data.length - 200} registros</td></tr>`;
+      html += `</table>`;
+
+      html += `<div class="footer">SV Engenharia · Relatório gerado automaticamente pelo sistema SV Solicitações</div>`;
+      html += `</div></body></html>`;
 
       // Return HTML as base64 for client-side PDF generation
       const base64 = btoa(unescape(encodeURIComponent(html)));
