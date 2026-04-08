@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { ExportReportDialog } from '@/components/ExportReportDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
