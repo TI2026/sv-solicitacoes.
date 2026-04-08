@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { ExportReportDialog } from '@/components/ExportReportDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
@@ -6,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ADMISSION_STATUS_LABELS, FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
-import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase, ShieldAlert, Wifi, ClipboardCheck } from 'lucide-react';
+import { Loader2, Fuel, DollarSign, Users, Clock, CheckCircle, BarChart3, ListChecks, Receipt, Briefcase, ShieldAlert, Wifi, ClipboardCheck, Download } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -75,6 +76,7 @@ export default function DashboardPage() {
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
   const { data: isMaster } = useIsMaster();
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const isRH = hasAnyRole(['diretoria', 'rh']);
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
@@ -287,14 +289,23 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Olá, {user.full_name || 'Usuário'}!</h1>
-        <p className="text-muted-foreground mt-1">
-          {primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'}
-          {user.department && <> · {user.department}</>}
-          {isMaster && <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800"><ShieldAlert className="w-3 h-3" />Master</span>}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Olá, {user.full_name || 'Usuário'}!</h1>
+          <p className="text-muted-foreground mt-1">
+            {primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'}
+            {user.department && <> · {user.department}</>}
+            {isMaster && <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800"><ShieldAlert className="w-3 h-3" />Master</span>}
+          </p>
+        </div>
+        {isAdmin && (
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setExportOpen(true)}>
+            <Download className="w-4 h-4" /> Exportar
+          </Button>
+        )}
       </div>
+
+      {isAdmin && <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} />}
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="w-full sm:w-auto flex-wrap">
