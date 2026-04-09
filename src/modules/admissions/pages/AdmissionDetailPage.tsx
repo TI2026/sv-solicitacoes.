@@ -594,7 +594,78 @@ export default function AdmissionDetailPage() {
         </Card>
       )}
 
-      {/* ===== ETAPA 3: Documentos - Link Externo (documentos_em_analise) ===== */}
+      {/* ===== Histórico de Entrevistas ===== */}
+      {isRH && interviews && interviews.length > 0 && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <CalendarClock className="w-4 h-4" /> Histórico de Entrevistas
+            </h3>
+            <div className="space-y-2">
+              {interviews.map((iv: any) => {
+                const candidateName = candidates?.find((c: any) => c.id === iv.candidate_id)?.nome || '—';
+                const resultLabel = iv.result === 'aprovado' ? 'Aprovado' : iv.result === 'reprovado' ? 'Reprovado' : iv.result === 'segunda_fase' ? 'Segunda fase' : iv.result === 'aguardando' ? 'Aguardando' : null;
+                const resultVariant = iv.result === 'aprovado' ? 'approved' : iv.result === 'reprovado' ? 'rejected' : 'pending';
+                return (
+                  <div key={iv.id} className="border border-border rounded-lg p-3 space-y-1">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <p className="text-sm font-medium text-foreground">{candidateName}</p>
+                      <div className="flex items-center gap-2">
+                        {resultLabel && (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            resultVariant === 'approved' ? 'status-approved' :
+                            resultVariant === 'rejected' ? 'status-rejected' : 'status-pending'
+                          }`}>
+                            {resultLabel}
+                          </span>
+                        )}
+                        {!iv.result && (
+                          <Select
+                            value=""
+                            onValueChange={async (val) => {
+                              if (val && val !== '_empty') {
+                                await updateInterview.mutateAsync({ id: iv.id, admissionId: id!, data: { result: val } });
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-28">
+                              <SelectValue placeholder="Registrar resultado" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="aprovado">Aprovado</SelectItem>
+                              <SelectItem value="reprovado">Reprovado</SelectItem>
+                              <SelectItem value="segunda_fase">Segunda fase</SelectItem>
+                              <SelectItem value="aguardando">Aguardando</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> {formatDateTimeBR(iv.scheduled_at)}</p>
+                      {iv.profiles?.full_name && <p className="flex items-center gap-1"><User className="w-3 h-3" /> {iv.profiles.full_name}</p>}
+                      {iv.interview_mode === 'online' && iv.meeting_link && (
+                        <p className="flex items-center gap-1"><Video className="w-3 h-3" /> <a href={iv.meeting_link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-[200px]">{iv.meeting_link}</a></p>
+                      )}
+                      {iv.interview_mode !== 'online' && iv.interview_address && (
+                        <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {iv.interview_address}{iv.interview_city ? `, ${iv.interview_city}` : ''}</p>
+                      )}
+                      {iv.notes && <p className="mt-1 italic">{iv.notes}</p>}
+                    </div>
+                    {(iv.result === 'aprovado' || iv.result === 'reprovado') && (
+                      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {iv.result === 'aprovado' ? 'Considere avançar o status da admissão.' : 'Considere retroceder ou cancelar a admissão.'}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {isRH && status === 'documentos_em_analise' && (
         <Card>
           <CardContent className="p-4 space-y-3">
