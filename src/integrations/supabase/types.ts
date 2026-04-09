@@ -79,6 +79,87 @@ export type Database = {
           },
         ]
       }
+      admission_interviews: {
+        Row: {
+          admission_request_id: string
+          candidate_id: string
+          conducted_by: string | null
+          created_at: string
+          id: string
+          interview_address: string | null
+          interview_city: string | null
+          interview_mode: string | null
+          meeting_link: string | null
+          notes: string | null
+          result: string | null
+          scheduled_at: string
+        }
+        Insert: {
+          admission_request_id: string
+          candidate_id: string
+          conducted_by?: string | null
+          created_at?: string
+          id?: string
+          interview_address?: string | null
+          interview_city?: string | null
+          interview_mode?: string | null
+          meeting_link?: string | null
+          notes?: string | null
+          result?: string | null
+          scheduled_at: string
+        }
+        Update: {
+          admission_request_id?: string
+          candidate_id?: string
+          conducted_by?: string | null
+          created_at?: string
+          id?: string
+          interview_address?: string | null
+          interview_city?: string | null
+          interview_mode?: string | null
+          meeting_link?: string | null
+          notes?: string | null
+          result?: string | null
+          scheduled_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admission_interviews_admission_request_id_fkey"
+            columns: ["admission_request_id"]
+            isOneToOne: false
+            referencedRelation: "admission_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_interviews_admission_request_id_fkey"
+            columns: ["admission_request_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_interviews_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admission_interviews_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "vw_admissions_list_items"
+            referencedColumns: ["candidato_id"]
+          },
+          {
+            foreignKeyName: "admission_interviews_conducted_by_fkey"
+            columns: ["conducted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admission_public_links: {
         Row: {
           admin_uploaded_at: string | null
