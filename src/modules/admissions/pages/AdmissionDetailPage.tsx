@@ -184,7 +184,21 @@ export default function AdmissionDetailPage() {
   };
 
   const handleScheduleInterview = async (data: any) => {
-    if (!interviewCandidate) return;
+    if (!interviewCandidate || !id) return;
+    // Save to admission_interviews table
+    await createInterview.mutateAsync({
+      admission_request_id: id,
+      candidate_id: interviewCandidate.id,
+      scheduled_at: data.interview_at,
+      conducted_by: data.conducted_by || undefined,
+      interview_mode: data.interview_mode || 'presencial',
+      interview_address: data.interview_address || undefined,
+      interview_city: data.interview_city || undefined,
+      meeting_link: data.meeting_link || undefined,
+      result: data.result && data.result !== '_empty' ? data.result : undefined,
+      notes: data.interview_notes || undefined,
+    });
+    // Also update candidate record for backward compatibility
     await updateCandidate.mutateAsync({
       id: interviewCandidate.id,
       data: {
