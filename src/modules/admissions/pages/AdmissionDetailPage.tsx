@@ -68,8 +68,11 @@ export default function AdmissionDetailPage() {
   const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   const { data: candidates } = useCandidates(id!);
+  const { data: interviews } = useAdmissionInterviews(id!);
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
+  const createInterview = useCreateAdmissionInterview();
+  const updateInterview = useUpdateAdmissionInterview();
   const statusMutation = useAdmissionSetStatus();
   const generatePublicLink = useGeneratePublicLink();
 
