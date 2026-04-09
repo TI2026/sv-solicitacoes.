@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useUpdateCandidate, useMedicalExam, useGeneratePublicLink, useAdmissionPublicLinks, useAdmissionFiles } from '../hooks/useAdmissionQueries';
+import { useAdmissionRequest, useCandidates, useCreateCandidate, useAdmissionSetStatus, useUpdateCandidate, useMedicalExam, useGeneratePublicLink, useAdmissionPublicLinks, useAdmissionFiles, useAdmissionInterviews, useCreateAdmissionInterview, useUpdateAdmissionInterview } from '../hooks/useAdmissionQueries';
 import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { maskCPF, maskPhone, isValidCPF } from '@/lib/masks';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/StatusBadge';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { AdmissionStepper } from '../components/AdmissionStepper';
@@ -68,8 +69,11 @@ export default function AdmissionDetailPage() {
   const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   const { data: candidates } = useCandidates(id!);
+  const { data: interviews } = useAdmissionInterviews(id!);
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
+  const createInterview = useCreateAdmissionInterview();
+  const updateInterview = useUpdateAdmissionInterview();
   const statusMutation = useAdmissionSetStatus();
   const generatePublicLink = useGeneratePublicLink();
 
@@ -95,6 +99,7 @@ export default function AdmissionDetailPage() {
       { table: 'admission_public_links', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_public_links', id!]] },
       { table: 'admission_files', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_files', id!]] },
       { table: 'status_history', queryKeys: [['status_history']] },
+      { table: 'admission_interviews', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_interviews', id!]] },
       { table: 'notifications', queryKeys: [['notifications']] },
     ],
   });
@@ -181,7 +186,21 @@ export default function AdmissionDetailPage() {
   };
 
   const handleScheduleInterview = async (data: any) => {
-    if (!interviewCandidate) return;
+    if (!interviewCandidate || !id) return;
+    // Save to admission_interviews table
+    await createInterview.mutateAsync({
+      admission_request_id: id,
+      candidate_id: interviewCandidate.id,
+      scheduled_at: data.interview_at,
+      conducted_by: data.conducted_by || undefined,
+      interview_mode: data.interview_mode || 'presencial',
+      interview_address: data.interview_address || undefined,
+      interview_city: data.interview_city || undefined,
+      meeting_link: data.meeting_link || undefined,
+      result: data.result && data.result !== '_empty' ? data.result : undefined,
+      notes: data.interview_notes || undefined,
+    });
+    // Also update candidate record for backward compatibility
     await updateCandidate.mutateAsync({
       id: interviewCandidate.id,
       data: {
@@ -576,7 +595,78 @@ export default function AdmissionDetailPage() {
         </Card>
       )}
 
-      {/* ===== ETAPA 3: Documentos - Link Externo (documentos_em_analise) ===== */}
+      {/* ===== Histórico de Entrevistas ===== */}
+      {isRH && interviews && interviews.length > 0 && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <CalendarClock className="w-4 h-4" /> Histórico de Entrevistas
+            </h3>
+            <div className="space-y-2">
+              {interviews.map((iv: any) => {
+                const candidateName = candidates?.find((c: any) => c.id === iv.candidate_id)?.nome || '—';
+                const resultLabel = iv.result === 'aprovado' ? 'Aprovado' : iv.result === 'reprovado' ? 'Reprovado' : iv.result === 'segunda_fase' ? 'Segunda fase' : iv.result === 'aguardando' ? 'Aguardando' : null;
+                const resultVariant = iv.result === 'aprovado' ? 'approved' : iv.result === 'reprovado' ? 'rejected' : 'pending';
+                return (
+                  <div key={iv.id} className="border border-border rounded-lg p-3 space-y-1">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <p className="text-sm font-medium text-foreground">{candidateName}</p>
+                      <div className="flex items-center gap-2">
+                        {resultLabel && (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            resultVariant === 'approved' ? 'status-approved' :
+                            resultVariant === 'rejected' ? 'status-rejected' : 'status-pending'
+                          }`}>
+                            {resultLabel}
+                          </span>
+                        )}
+                        {!iv.result && (
+                          <Select
+                            value=""
+                            onValueChange={async (val) => {
+                              if (val && val !== '_empty') {
+                                await updateInterview.mutateAsync({ id: iv.id, admissionId: id!, data: { result: val } });
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-28">
+                              <SelectValue placeholder="Registrar resultado" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="aprovado">Aprovado</SelectItem>
+                              <SelectItem value="reprovado">Reprovado</SelectItem>
+                              <SelectItem value="segunda_fase">Segunda fase</SelectItem>
+                              <SelectItem value="aguardando">Aguardando</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p className="flex items-center gap-1"><CalendarClock className="w-3 h-3" /> {formatDateTimeBR(iv.scheduled_at)}</p>
+                      {iv.profiles?.full_name && <p className="flex items-center gap-1"><User className="w-3 h-3" /> {iv.profiles.full_name}</p>}
+                      {iv.interview_mode === 'online' && iv.meeting_link && (
+                        <p className="flex items-center gap-1"><Video className="w-3 h-3" /> <a href={iv.meeting_link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-[200px]">{iv.meeting_link}</a></p>
+                      )}
+                      {iv.interview_mode !== 'online' && iv.interview_address && (
+                        <p className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {iv.interview_address}{iv.interview_city ? `, ${iv.interview_city}` : ''}</p>
+                      )}
+                      {iv.notes && <p className="mt-1 italic">{iv.notes}</p>}
+                    </div>
+                    {(iv.result === 'aprovado' || iv.result === 'reprovado') && (
+                      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        {iv.result === 'aprovado' ? 'Considere avançar o status da admissão.' : 'Considere retroceder ou cancelar a admissão.'}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {isRH && status === 'documentos_em_analise' && (
         <Card>
           <CardContent className="p-4 space-y-3">
