@@ -98,6 +98,7 @@ export default function AdmissionDetailPage() {
       { table: 'admission_public_links', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_public_links', id!]] },
       { table: 'admission_files', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_files', id!]] },
       { table: 'status_history', queryKeys: [['status_history']] },
+      { table: 'admission_interviews', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_interviews', id!]] },
       { table: 'notifications', queryKeys: [['notifications']] },
     ],
   });
