@@ -37,24 +37,6 @@ export default function FleetDetailPage() {
   const statusMutation = useFuelSetStatus();
   const softDelete = useSoftDeleteRequest();
   const approvalAction = useApprovalAction();
-
-  const { data: hasConfiguredFlow } = useQuery({
-    queryKey: ['approval_flow_exists', reqType],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('approval_modules')
-        .select('id, approval_flows!inner(id, active, approval_flow_steps!inner(id, active))')
-        .eq('code', reqType)
-        .eq('active', true)
-        .eq('approval_flows.active', true)
-        .eq('approval_flows.approval_flow_steps.active', true)
-        .limit(1)
-        .single();
-      return !!data;
-    },
-    enabled: !!reqType,
-    staleTime: 60_000,
-  });
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
   const [showReasonDialog, setShowReasonDialog] = useState<string | null>(null);
