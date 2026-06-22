@@ -105,7 +105,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
-        .select('id, status, current_approver_user_id, requester_user_id, ended_at, current_step_order, created_at, approval_modules(code, name)')
+        .select('id, status, current_approver_user_id, requester_user_id, reference_id, ended_at, current_step_order, created_at, approval_modules(code, name), profiles!approval_requests_requester_user_id_fkey(full_name)')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;
@@ -335,6 +335,53 @@ export default function DashboardPage() {
               {/* Approval metrics */}
               {(approvalMetrics.myPending.length > 0 || approvalMetrics.myRequests.length > 0 || approvalMetrics.totalActive > 0 || approvalMetrics.recentEnded.length > 0) && (
                 <>
+                  {/* ===== MINHA FILA — pendências reais do motor de aprovação ===== */}
+                  {approvalMetrics.myPending.length > 0 && (
+                    <Card className="border-primary/30">
+                      <CardContent className="p-4">
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                          <ClipboardCheck className="w-4 h-4 text-primary" />
+                          Minha Fila — aguardando minha aprovação
+                          <Badge variant="secondary" className="ml-1">{approvalMetrics.myPending.length}</Badge>
+                        </h3>
+                        <div className="space-y-2 max-h-80 overflow-y-auto">
+                          {approvalMetrics.myPending.slice(0, 20).map((ar: any) => {
+                            const moduleCode = ar.approval_modules?.code as string | undefined;
+                            const isFleet = moduleCode === 'abastecimento' || moduleCode === 'reembolso' || moduleCode === 'diaria';
+                            const route = isFleet
+                              ? `/fleet/${ar.reference_id}`
+                              : moduleCode === 'admissao'
+                                ? `/admissions/${ar.reference_id}`
+                                : `/permissoes`;
+                            return (
+                              <button
+                                key={ar.id}
+                                onClick={() => navigate(route)}
+                                className="w-full text-left flex items-center justify-between gap-3 border border-border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {ar.approval_modules?.name || 'Solicitação'}
+                                    <span className="text-xs text-muted-foreground ml-2">· etapa {ar.current_step_order}</span>
+                                  </p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    Solicitante: {ar.profiles?.full_name || '—'} · {new Date(ar.created_at).toLocaleDateString('pt-BR')}
+                                  </p>
+                                </div>
+                                <Badge className="bg-amber-100 text-amber-800 shrink-0">Aguardando você</Badge>
+                              </button>
+                            );
+                          })}
+                          {approvalMetrics.myPending.length > 20 && (
+                            <p className="text-xs text-muted-foreground text-center pt-1">
+                              Mostrando 20 de {approvalMetrics.myPending.length}
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <MetricCard icon={ClipboardCheck} label="Minhas Aprovações Pendentes" value={approvalMetrics.myPending.length}
                       onClick={() => navigate('/permissoes')} accent="bg-primary/20" />
