@@ -206,7 +206,7 @@ export default function AuditLogsPage() {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="w-full overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

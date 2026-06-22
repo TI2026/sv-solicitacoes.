@@ -58,6 +58,24 @@ export default function FleetDetailPage() {
   const reqType = (req as any)?.type || 'abastecimento';
   const vehicle = useVehicleByPlate((req as any)?.placa);
 
+  const { data: hasConfiguredFlow } = useQuery({
+    queryKey: ['approval_flow_exists', reqType],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('approval_modules')
+        .select('id, approval_flows!inner(id, active, approval_flow_steps!inner(id, active))')
+        .eq('code', reqType)
+        .eq('active', true)
+        .eq('approval_flows.active', true)
+        .eq('approval_flows.approval_flow_steps.active', true)
+        .limit(1)
+        .single();
+      return !!data;
+    },
+    enabled: !!reqType,
+    staleTime: 60_000,
+  });
+
   // ===== APPROVAL FLOW ELIGIBILITY =====
   const isCurrentFlowApprover = approvalRequest
     ? approvalRequest.current_approver_user_id === user?.id && !approvalRequest.ended_at
@@ -303,7 +321,7 @@ export default function FleetDetailPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Veículo</p>
-                    <p className="text-2xl sm:text-3xl font-extrabold font-mono tracking-wider text-foreground leading-tight">
+                    <p className="text-3xl sm:text-4xl font-extrabold font-mono tracking-widest uppercase text-foreground leading-tight">
                       {String((req as any).placa).toUpperCase()}
                     </p>
                     {vehicle?.modelo && (
@@ -377,21 +395,45 @@ export default function FleetDetailPage() {
 
           {/* ADMIN: forward from review to approval (diária) */}
           {isAdmin && reqType === 'diaria' && req.status === 'em_revisao' && (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending} className="gap-2">
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Encaminhar para Aprovação
-              </Button>
-              <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2" disabled={isPending}>
-                <RotateCcw className="w-4 h-4" /> Devolver
-              </Button>
-            </div>
+            hasConfiguredFlow === false ? (
+              <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800 dark:text-amber-400">Fluxo de aprovação não configurado</AlertTitle>
+                <AlertDescription className="text-amber-700 dark:text-amber-300">
+                  Configure uma cadeia de aprovação para "{reqType}" em{' '}
+                  <strong>Permissões &gt; Cadeias de Aprovação</strong> antes de encaminhar esta solicitação.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending || hasConfiguredFlow === undefined} className="gap-2">
+                  {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                  {hasConfiguredFlow === undefined ? 'Verificando...' : 'Encaminhar para Aprovação'}
+                </Button>
+                <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2" disabled={isPending}>
+                  <RotateCcw className="w-4 h-4" /> Devolver
+                </Button>
+              </div>
+            )
           )}
 
           {/* ADMIN: forward to approval (abastecimento/reembolso) */}
           {isAdmin && reqType !== 'diaria' && req.status === 'enviado' && (
-            <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending} className="gap-2">
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Encaminhar para Aprovação
-            </Button>
+            hasConfiguredFlow === false ? (
+              <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800 dark:text-amber-400">Fluxo de aprovação não configurado</AlertTitle>
+                <AlertDescription className="text-amber-700 dark:text-amber-300">
+                  Configure uma cadeia de aprovação para "{reqType}" em{' '}
+                  <strong>Permissões &gt; Cadeias de Aprovação</strong> antes de encaminhar esta solicitação.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending || hasConfiguredFlow === undefined} className="gap-2">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                {hasConfiguredFlow === undefined ? 'Verificando...' : 'Encaminhar para Aprovação'}
+              </Button>
+            )
           )}
 
           {/* APPROVAL FLOW: approve/reject/return — ONLY for eligible approver of current step */}
