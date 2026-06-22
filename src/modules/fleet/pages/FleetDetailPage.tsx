@@ -657,11 +657,11 @@ export default function FleetDetailPage() {
 
       {/* OC Dialog */}
       <Dialog open={showOcDialog} onOpenChange={setShowOcDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Anexar Ordem de Compra</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto py-2 space-y-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Número da OC *</Label>
               <Input value={ocNumber} onChange={e => setOcNumber(e.target.value.slice(0, 50))} placeholder="Ex: OC-2026-001" maxLength={50} />
@@ -671,7 +671,7 @@ export default function FleetDetailPage() {
               <Textarea value={ocNotes} onChange={e => setOcNotes(e.target.value.slice(0, 300))} placeholder="Detalhes da OC..." rows={2} maxLength={300} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
             <Button variant="outline" onClick={() => setShowOcDialog(false)}>Cancelar</Button>
             <Button onClick={handleOcSubmit} disabled={isPending || !ocNumber.trim()} className="gap-2">
               {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
