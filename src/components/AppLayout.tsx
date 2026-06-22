@@ -64,53 +64,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(30);
-    setNotifications(data || []);
-    setUnreadCount(data?.filter(n => !n.read).length || 0);
-  }, [user]);
-
-  // Initial fetch + realtime subscription
-  useEffect(() => {
-    if (!user) return;
-    fetchNotifications();
-
-    const channel = supabase
-      .channel(`notifications-${user.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
-      }, () => { fetchNotifications(); })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
-      }, () => { fetchNotifications(); })
-      .on('postgres_changes', {
-        event: 'DELETE',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
-      }, () => { fetchNotifications(); })
-      .subscribe();
-
-    const interval = setInterval(fetchNotifications, 60_000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(interval);
-    };
-  }, [user, fetchNotifications]);
-
   // Supabase Realtime Presence tracking with route info
   const presenceChannelRef = useRef<any>(null);
   useEffect(() => {
@@ -158,15 +111,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const markAllRead = async () => {
     if (!user) return;
     await supabase.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('user_id', user.id).eq('read', false);
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    setUnreadCount(0);
+    await queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
   };
 
   const clearAll = async () => {
     if (!user) return;
     await supabase.from('notifications').delete().eq('user_id', user.id);
-    setNotifications([]);
-    setUnreadCount(0);
+    await queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
   };
 
   if (!user) return null;
@@ -209,12 +160,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const handleNotificationClick = async (n: any) => {
     if (!n.read) {
       await supabase.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('id', n.id);
-      setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      await queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
     }
     const link = getNotificationLink(n.metadata);
     if (link) navigate(link);
   };
+
 
   return (
     <div className="flex h-screen overflow-hidden">
