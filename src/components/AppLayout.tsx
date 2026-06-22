@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
-import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info } from 'lucide-react';
+import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,11 +19,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const canManage = hasAnyRole(['diretoria', 'administrativo']);
   const canViewAdmission = hasAnyRole(['diretoria', 'rh', 'administrativo']);
+  const canManageVehicles = hasAnyRole(['diretoria']);
   const primaryRole = user?.roles[0];
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
     { to: '/fleet', label: 'Solicitações', icon: Fuel, show: true },
+    { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
     { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
     { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewAdmission },
     { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
