@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMaster } from '@/hooks/useIsMaster';
 import { useFuelRequest, useFuelAttachments, useFuelSetStatus, useSoftDeleteRequest } from '../hooks/useFleetQueries';
 import { useQuery } from '@tanstack/react-query';
 import { useApprovalAction } from '../hooks/useApprovalAction';
