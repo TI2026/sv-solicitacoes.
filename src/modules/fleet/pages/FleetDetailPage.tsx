@@ -22,6 +22,7 @@ import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, Doll
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useVehicleByPlate } from '../hooks/useVehicles';
 
 export default function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +56,7 @@ export default function FleetDetailPage() {
   const isOwner = req?.requester_user_id === user?.id;
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const reqType = (req as any)?.type || 'abastecimento';
+  const vehicle = useVehicleByPlate((req as any)?.placa);
 
   // ===== APPROVAL FLOW ELIGIBILITY =====
   const isCurrentFlowApprover = approvalRequest
@@ -295,18 +297,23 @@ export default function FleetDetailPage() {
           {reqType === 'abastecimento' && ((req as any).placa || (req as any).km || (req as any).motivo) && (
             <div className="border-t border-border pt-3 mt-1 space-y-2">
               {(req as any).placa && (
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
-                  <Car className="w-5 h-5 text-primary shrink-0" />
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Car className="w-6 h-6 text-primary" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Veículo</p>
-                    <p className="text-base font-bold font-mono text-foreground">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Veículo</p>
+                    <p className="text-2xl sm:text-3xl font-extrabold font-mono tracking-wider text-foreground leading-tight">
                       {String((req as any).placa).toUpperCase()}
                     </p>
+                    {vehicle?.modelo && (
+                      <p className="text-sm font-medium text-foreground/80 truncate">{vehicle.modelo}</p>
+                    )}
                   </div>
                   {(req as any).km && (
-                    <div className="text-right">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">KM</p>
-                      <p className="text-sm font-semibold text-foreground">
+                    <div className="text-right shrink-0">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground">KM</p>
+                      <p className="text-lg font-bold text-foreground">
                         {Number((req as any).km).toLocaleString('pt-BR')}
                       </p>
                     </div>
