@@ -612,29 +612,31 @@ export default function FleetDetailPage() {
 
       {/* Reason Dialog — mandatory justification for reject & return */}
       <Dialog open={!!showReasonDialog} onOpenChange={() => setShowReasonDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>
               {showReasonDialog === 'reprovado' ? 'Motivo da Recusa' : 'Motivo da Devolução'}
             </DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">
-            A justificativa é obrigatória.
-          </p>
-          <Textarea
-            value={actionReason}
-            onChange={e => setActionReason(e.target.value.slice(0, 500))}
-            placeholder={showReasonDialog === 'reprovado' ? 'Informe o motivo da recusa (mínimo 10 caracteres)...' : 'Informe o motivo da devolução (mínimo 5 caracteres)...'}
-            rows={3}
-            maxLength={500}
-          />
-          {showReasonDialog === 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 10 && (
-            <p className="text-xs text-destructive">Mínimo 10 caracteres</p>
-          )}
-          {showReasonDialog !== 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 5 && (
-            <p className="text-xs text-destructive">Mínimo 5 caracteres</p>
-          )}
-          <DialogFooter>
+          <div className="flex-1 overflow-y-auto py-2 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              A justificativa é obrigatória.
+            </p>
+            <Textarea
+              value={actionReason}
+              onChange={e => setActionReason(e.target.value.slice(0, 500))}
+              placeholder={showReasonDialog === 'reprovado' ? 'Informe o motivo da recusa (mínimo 10 caracteres)...' : 'Informe o motivo da devolução (mínimo 5 caracteres)...'}
+              rows={3}
+              maxLength={500}
+            />
+            {showReasonDialog === 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 10 && (
+              <p className="text-xs text-destructive">Mínimo 10 caracteres</p>
+            )}
+            {showReasonDialog !== 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 5 && (
+              <p className="text-xs text-destructive">Mínimo 5 caracteres</p>
+            )}
+          </div>
+          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
             <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
             <Button
               onClick={handleReasonConfirm}
