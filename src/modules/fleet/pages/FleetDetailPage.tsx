@@ -773,15 +773,15 @@ function DiariaDetails({ req }: { req: any }) {
       {req.daily_value && <p>Valor diário: R$ {Number(req.daily_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>}
       {req.hours && <p>Horas: {req.hours}h</p>}
       {req.person_name && <p>Profissional: {req.person_name}</p>}
-      {req.person_cpf && <p>CPF: {req.person_cpf}</p>}
+      {req.person_cpf && <p>CPF: <span className="font-mono tracking-tight">{req.person_cpf}</span></p>}
       {req.payment_method === 'pix' && req.pix_key && (
-        <p>Pix: {req.pix_key}</p>
+        <p>Pix: <span className="font-mono tracking-tight">{req.pix_key}</span></p>
       )}
       {req.payment_method === 'conta_bancaria' && (
         <>
           {req.bank_name && <p>Banco: {req.bank_name}</p>}
-          {req.bank_agency && <p>Agência: {req.bank_agency}</p>}
-          {req.bank_account && <p>Conta: {req.bank_account}</p>}
+          {req.bank_agency && <p>Agência: <span className="font-mono tracking-tight">{req.bank_agency}</span></p>}
+          {req.bank_account && <p>Conta: <span className="font-mono tracking-tight">{req.bank_account}</span></p>}
         </>
       )}
       {req.motivo && <p>Motivo: {req.motivo}</p>}
