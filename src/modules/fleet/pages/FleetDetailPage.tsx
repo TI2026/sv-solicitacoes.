@@ -22,7 +22,6 @@ import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, Doll
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { assignReviewerByRequesterSector } from '@/lib/resolveAssignee';
 
 export default function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -84,12 +83,9 @@ export default function FleetDetailPage() {
       : undefined;
     await statusMutation.mutateAsync({ requestId: id, toStatus, reason, startApproval });
 
-    // Auto-assign reviewer by sector when sending
-    if (toStatus === 'enviado' && req?.requester_user_id) {
-      assignReviewerByRequesterSector(id, req.requester_user_id).then(assignee => {
-        if (assignee) refetch();
-      });
-    }
+    // Reviewer assignment is now atomic in fuel_set_status (server-side).
+    // No extra frontend call needed — refetch picks up assigned_to_user_id.
+    if (toStatus === 'enviado') refetch();
 
     setShowReasonDialog(null);
     setActionReason('');
@@ -440,21 +436,25 @@ export default function FleetDetailPage() {
 
           {/* ===== DIÁRIA POST-APPROVAL FLOW ===== */}
 
-          {/* DIÁRIA: Aprovado -> Anexar OC (transitions aprovado -> aguardando_oc -> aguardando_pagamento) */}
+          {/* DIÁRIA: pagamento só aparece a partir de aguardando_oc.
+              Antes disso (rascunho/enviado/em_revisao/em_aprovacao/aprovado) os botões
+              ficam ocultos para evitar liberar pagamento antes da aprovação concluída. */}
+
+          {/* DIÁRIA: Aprovado -> Anexar OC (gera transição aprovado -> aguardando_oc) */}
           {isAdmin && reqType === 'diaria' && req.status === 'aprovado' && (
             <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Anexar OC
             </Button>
           )}
 
-          {/* DIÁRIA: Aguardando OC -> fill OC and advance */}
+          {/* DIÁRIA: Aguardando OC -> confirmar OC */}
           {isAdmin && reqType === 'diaria' && req.status === 'aguardando_oc' && (
             <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Confirmar OC
             </Button>
           )}
 
-          {/* DIÁRIA: Aguardando Pagamento -> Pago */}
+          {/* DIÁRIA: Aguardando Pagamento -> Pago (só depois de OC) */}
           {isAdmin && reqType === 'diaria' && req.status === 'aguardando_pagamento' && (
             <Button onClick={() => setShowPaymentDialog(true)} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} Confirmar Pagamento
