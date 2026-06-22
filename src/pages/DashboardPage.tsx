@@ -19,23 +19,8 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useIsMaster } from '@/hooks/useIsMaster';
 
-// Check if user has master role via user_role_assignments
-function useIsMaster() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ['is_master_check', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return false;
-      const { data } = await supabase
-        .from('user_role_assignments')
-        .select('role_id, roles(is_master)')
-        .eq('user_id', user.id);
-      return (data || []).some((a: any) => a.roles?.is_master);
-    },
-    enabled: !!user?.id,
-  });
-}
 
 function MetricCard({ icon: Icon, label, value, onClick, accent }: {
   icon: any; label: string; value: string | number; onClick?: () => void; accent?: string;
@@ -74,7 +59,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
-  const { data: isMaster } = useIsMaster();
+  const isMaster = useIsMaster();
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
 

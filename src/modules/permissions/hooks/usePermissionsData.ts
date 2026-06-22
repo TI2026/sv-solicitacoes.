@@ -3,17 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { AppRole } from '@/types';
 
-// Map RBAC role keys to legacy app_role enum values
-const ROLE_KEY_TO_APP_ROLE: Record<string, AppRole> = {
-  master: 'diretoria',
-  diretoria: 'diretoria',
-  administrativo: 'administrativo',
-  rh: 'rh',
-  supervisor: 'administrativo',
-  financeiro: 'administrativo',
-  compras: 'administrativo',
-  colaborador: 'colaborador',
-};
+// Granular RBAC role keys recognized by the unified `get_user_roles` RPC.
+// Roles are read exclusively from `user_role_assignments + roles` (new model);
+// the legacy `user_roles` table is no longer written from the UI to avoid
+// flattening granular roles (supervisor/financeiro/compras/master) to administrativo.
+const GRANULAR_ROLE_KEYS = [
+  'master', 'diretoria', 'supervisor', 'administrativo',
+  'financeiro', 'compras', 'rh', 'colaborador',
+] as const;
 
 export function useRoles() {
   return useQuery({
@@ -150,24 +147,11 @@ export function useAssignUserRole() {
         .insert({ user_id: params.userId, role_id: params.roleId, assigned_by: params.assignedBy });
       if (insertErr) throw insertErr;
 
-      // 3. Sync legacy user_roles table (used by AuthContext, guards, sidebar)
-      const mappedAppRole = ROLE_KEY_TO_APP_ROLE[roleData.key] || 'colaborador';
-
-      // Delete existing legacy roles
+      // 3. Legacy `user_roles` is no longer written from the UI — the unified
+      //    `get_user_roles` RPC already merges both sources and preserves the
+      //    granular keys (supervisor/financeiro/compras/master). Wipe any stale
+      //    legacy rows so the user sees a single, granular source of truth.
       await supabase.from('user_roles').delete().eq('user_id', params.userId);
-
-      // Insert mapped legacy role
-      const { error: legacyErr } = await supabase
-        .from('user_roles')
-        .insert({ user_id: params.userId, role: mappedAppRole });
-      if (legacyErr) throw legacyErr;
-
-      // For master/diretoria, also add administrativo for broader access
-      if (roleData.is_master || roleData.key === 'diretoria') {
-        await supabase.from('user_roles')
-          .insert({ user_id: params.userId, role: 'administrativo' as AppRole })
-          .then(() => {}); // ignore if duplicate
-      }
 
       // 4. Rebuild effective permissions
       await supabase.rpc('rebuild_user_permissions', { p_user_id: params.userId });
@@ -181,7 +165,7 @@ export function useAssignUserRole() {
         details: {
           new_role_key: roleData.key,
           new_role_id: params.roleId,
-          mapped_legacy_role: mappedAppRole,
+          granular: GRANULAR_ROLE_KEYS.includes(roleData.key as any),
           is_master: roleData.is_master,
         },
       });
