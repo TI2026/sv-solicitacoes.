@@ -2210,6 +2210,42 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          km: number
+          modelo: string
+          observacoes: string | null
+          placa: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          km?: number
+          modelo: string
+          observacoes?: string | null
+          placa: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          km?: number
+          modelo?: string
+          observacoes?: string | null
+          placa?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       vw_admission_metrics: {
