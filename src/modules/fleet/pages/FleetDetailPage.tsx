@@ -49,18 +49,8 @@ export default function FleetDetailPage() {
   const [showOcDialog, setShowOcDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
-  // Check master role
-  const { data: isMaster } = useQuery({
-    queryKey: ['is_master', user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('user_role_assignments')
-        .select('roles!inner(is_master)')
-        .eq('user_id', user!.id);
-      return data?.some((d: any) => d.roles?.is_master) ?? false;
-    },
-    enabled: !!user?.id,
-  });
+  // Master role consumed from unified AuthContext (no extra DB query).
+  const isMaster = useIsMaster();
 
   const isOwner = req?.requester_user_id === user?.id;
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
