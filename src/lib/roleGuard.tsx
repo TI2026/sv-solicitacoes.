@@ -9,7 +9,8 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ roles, children, fallback = '/dashboard' }: RoleGuardProps) {
-  const { hasAnyRole } = useAuth();
-  if (!hasAnyRole(roles)) return <Navigate to={fallback} replace />;
+  const { hasAnyRole, isMaster } = useAuth();
+  // Master always passes — has full access by definition
+  if (!isMaster && !hasAnyRole(roles)) return <Navigate to={fallback} replace />;
   return <>{children}</>;
 }

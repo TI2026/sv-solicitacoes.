@@ -8,6 +8,7 @@ interface AuthContextType {
   user: UserWithRoles | null;
   loading: boolean;
   isAuthenticated: boolean;
+  isMaster: boolean;
   hasRole: (role: AppRole) => boolean;
   hasAnyRole: (roles: AppRole[]) => boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
@@ -96,6 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return roles.some(r => user?.roles.includes(r)) ?? false;
   }, [user]);
 
+  const isMaster = user?.roles.includes('master') ?? false;
+
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
@@ -142,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       loading,
       isAuthenticated: !!session && !!user,
+      isMaster,
       hasRole,
       hasAnyRole,
       signIn,
