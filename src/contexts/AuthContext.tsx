@@ -93,6 +93,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [loadUser]);
 
+  // Realtime: refresh local user when role assignments or profile change.
+  // Only modern tables (user_role_assignments + profiles), debounced.
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) return;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const trigger = () => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        if (session?.user) loadUser(session.user);
+      }, 300);
+    };
+    const channel = supabase
+      .channel(`auth-user-${uid}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_role_assignments', filter: `user_id=eq.${uid}` }, trigger)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` }, trigger)
+      .subscribe();
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id, loadUser]);
+
   const hasRole = useCallback((role: AppRole) => {
     return user?.roles.includes(role) ?? false;
   }, [user]);

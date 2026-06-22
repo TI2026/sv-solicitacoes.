@@ -29,6 +29,15 @@ export function useRealtimeSubscription({ channelName, tables, enabled = true }:
     if (!enabled || tables.length === 0) return;
 
     let channel: RealtimeChannel = supabase.channel(channelName);
+    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const debouncedInvalidate = (key: string, queryKeys: string[][]) => {
+      const existing = timers.get(key);
+      if (existing) clearTimeout(existing);
+      timers.set(key, setTimeout(() => {
+        for (const qk of queryKeys) queryClient.invalidateQueries({ queryKey: qk });
+        timers.delete(key);
+      }, 300));
+    };
 
     for (const t of tables) {
       channel = (channel as any).on(
@@ -40,9 +49,7 @@ export function useRealtimeSubscription({ channelName, tables, enabled = true }:
           ...(t.filter ? { filter: t.filter } : {}),
         },
         () => {
-          for (const key of t.queryKeys) {
-            queryClient.invalidateQueries({ queryKey: key });
-          }
+          debouncedInvalidate(t.table, t.queryKeys);
         }
       );
     }
@@ -50,6 +57,8 @@ export function useRealtimeSubscription({ channelName, tables, enabled = true }:
     channel.subscribe();
 
     return () => {
+      for (const tm of timers.values()) clearTimeout(tm);
+      timers.clear();
       supabase.removeChannel(channel);
     };
   }, [channelName, enabled, queryClient]);
