@@ -30,7 +30,11 @@ async function fetchUserWithRoles(authUser: User): Promise<UserWithRoles | null>
   if (!profile) return null;
 
   // Fetch roles via security definer function
-  const { data: rolesData } = await supabase.rpc('get_user_roles', { _user_id: authUser.id });
+  const { data: rolesData, error: rolesError } = await supabase.rpc('get_user_roles', { _user_id: authUser.id });
+
+  if (rolesError) {
+    console.error('Error fetching roles from get_user_roles:', rolesError);
+  }
 
   const roles: AppRole[] = (rolesData as AppRole[]) || [];
 

@@ -2368,7 +2368,15 @@ export type Database = {
         | "concluido"
         | "cancelado"
         | "arquivado"
-      app_role: "diretoria" | "administrativo" | "colaborador" | "rh"
+      app_role:
+        | "diretoria"
+        | "administrativo"
+        | "colaborador"
+        | "rh"
+        | "supervisor"
+        | "financeiro"
+        | "compras"
+        | "master"
       candidate_status:
         | "novo"
         | "em_triagem"
@@ -2537,7 +2545,16 @@ export const Constants = {
         "cancelado",
         "arquivado",
       ],
-      app_role: ["diretoria", "administrativo", "colaborador", "rh"],
+      app_role: [
+        "diretoria",
+        "administrativo",
+        "colaborador",
+        "rh",
+        "supervisor",
+        "financeiro",
+        "compras",
+        "master",
+      ],
       candidate_status: [
         "novo",
         "em_triagem",
