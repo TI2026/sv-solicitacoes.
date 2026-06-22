@@ -292,11 +292,33 @@ export default function FleetDetailPage() {
             </div>
           </div>
 
-          {reqType === 'abastecimento' && ((req as any).placa || (req as any).km) && (
-            <div className="flex gap-4 text-sm text-muted-foreground border-t border-border pt-2">
-              {(req as any).placa && <span>🚗 Placa: {(req as any).placa}</span>}
-              {(req as any).km && <span>📏 KM: {(req as any).km}</span>}
-              {(req as any).motivo && <span>📝 {(req as any).motivo}</span>}
+          {reqType === 'abastecimento' && ((req as any).placa || (req as any).km || (req as any).motivo) && (
+            <div className="border-t border-border pt-3 mt-1 space-y-2">
+              {(req as any).placa && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+                  <Car className="w-5 h-5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Veículo</p>
+                    <p className="text-base font-bold font-mono text-foreground">
+                      {String((req as any).placa).toUpperCase()}
+                    </p>
+                  </div>
+                  {(req as any).km && (
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">KM</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {Number((req as any).km).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {(req as any).motivo && (
+                <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                  <span>📝</span>
+                  <span>{(req as any).motivo}</span>
+                </p>
+              )}
             </div>
           )}
           {reqType === 'reembolso' && <ReembolsoDetails req={req} />}

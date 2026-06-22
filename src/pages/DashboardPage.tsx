@@ -95,7 +95,9 @@ export default function DashboardPage() {
     tables: [
       { table: 'fuel_requests', queryKeys: [['fuel_metrics'], ['fuel_all']] },
       { table: 'admission_requests', queryKeys: [['admission_metrics'], ['adm_all']] },
-      { table: 'approval_requests', queryKeys: [['dashboard_approvals']] },
+      { table: 'approval_requests', queryKeys: [['dashboard_approvals'], ['my_approvals'], ['all_approval_requests']] },
+      { table: 'approval_request_steps', queryKeys: [['dashboard_approvals'], ['my_approvals'], ['all_approval_requests'], ['approval_request_for']] },
+      { table: 'notifications', queryKeys: [['dashboard_approvals']] },
     ],
   });
 

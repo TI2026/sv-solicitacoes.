@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Car, Fuel, TrendingUp, DollarSign, AlertTriangle, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // ── Constants ──
@@ -230,6 +231,7 @@ export default function FleetVehiclesPage() {
   const { data: records, isLoading } = useVehicleData();
   const [selectedPlaca, setSelectedPlaca] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
 
   const summaries = useMemo(() => buildVehicleSummaries(records || []), [records]);
   const filtered = useMemo(() => {
@@ -246,9 +248,14 @@ export default function FleetVehiclesPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Veículos</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Histórico e consumo por veículo</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Veículos</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Histórico e consumo por veículo</p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate('/fleet')}>
+          <ArrowLeft className="w-4 h-4" /> Voltar para Solicitações
+        </Button>
       </div>
 
       <div className="relative max-w-sm">

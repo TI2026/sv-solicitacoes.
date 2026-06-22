@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMaster } from '@/hooks/useIsMaster';
 import RolesPermissionsTab from '@/modules/permissions/components/RolesPermissionsTab';
 import UsersManagementTab from '@/modules/permissions/components/UsersManagementTab';
 import ApprovalChainsTab from '@/modules/permissions/components/ApprovalChainsTab';
@@ -188,7 +189,9 @@ function ApprovalInProgressTab() {
 
 export default function PermissionsPage() {
   const { hasAnyRole } = useAuth();
-  const canManageSettings = hasAnyRole(['diretoria']);
+  const isMaster = useIsMaster();
+  // Master e Diretoria têm o mesmo nível de gestão de permissões.
+  const canManageSettings = isMaster || hasAnyRole(['diretoria']);
 
   return (
     <div className="space-y-6 animate-fade-in">
