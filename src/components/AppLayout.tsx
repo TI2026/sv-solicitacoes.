@@ -3,9 +3,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
 import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import logo from '@/assets/logo.png';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
@@ -13,9 +15,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, hasAnyRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+  const unreadCount = notifications.filter((n: any) => !n.read).length;
+
+  useRealtimeSubscription({
+    channelName: `notifications-realtime-${user?.id ?? 'anon'}`,
+    enabled: !!user?.id,
+    tables: [{
+      table: 'notifications',
+      filter: `user_id=eq.${user?.id}`,
+      queryKeys: [['notifications', user?.id]],
+    }],
+  });
 
   const canManage = hasAnyRole(['diretoria', 'administrativo']);
   const canViewAdmission = hasAnyRole(['diretoria', 'rh', 'administrativo']);
@@ -29,9 +57,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
     { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewAdmission },
     { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
-    { to: '/permissoes', label: 'Permissões', icon: Lock, show: true },
+    { to: '/permissoes', label: 'Permissões', icon: Lock, show: canManage },
     { to: '/setores', label: 'Setores', icon: Building2, show: canManage },
   ].filter(item => item.show);
+
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
