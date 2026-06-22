@@ -35,6 +35,8 @@ export default function FleetNewPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [type] = useState(initialType);
+  const { data: vehiclesList } = useVehicles({ onlyActive: true });
+  const [placaPopoverOpen, setPlacaPopoverOpen] = useState(false);
   const [valorFormatted, setValorFormatted] = useState('');
   const [valorNum, setValorNum] = useState(0);
   const [data, setData] = useState(todayBR());
@@ -310,13 +312,54 @@ export default function FleetNewPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Placa do Veículo *</Label>
-                  <DynamicCategorySelect
-                    module="fleet"
-                    fieldKey="vehicle_plate"
-                    value={placa}
-                    onValueChange={setPlaca}
-                    placeholder="Selecione ou adicione"
-                  />
+                  <Popover open={placaPopoverOpen} onOpenChange={setPlacaPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        className={cn('w-full justify-between font-mono uppercase', !placa && 'text-muted-foreground font-sans normal-case')}
+                      >
+                        {placa
+                          ? (() => {
+                              const v = vehiclesList?.find(x => x.placa === placa.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+                              return v ? `${v.placa} — ${v.modelo}` : placa.toUpperCase();
+                            })()
+                          : 'Selecione um veículo'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar placa ou modelo..." />
+                        <CommandList>
+                          <CommandEmpty>
+                            <div className="py-3 px-2 text-xs text-muted-foreground space-y-2">
+                              <p>Nenhum veículo cadastrado.</p>
+                              {hasAnyRole(['diretoria']) && (
+                                <Button size="sm" variant="outline" className="w-full" onClick={() => { setPlacaPopoverOpen(false); navigate('/fleet/vehicles-admin'); }}>
+                                  Cadastrar veículo
+                                </Button>
+                              )}
+                            </div>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {(vehiclesList || []).map(v => (
+                              <CommandItem
+                                key={v.id}
+                                value={`${v.placa} ${v.modelo}`}
+                                onSelect={() => { setPlaca(v.placa); setPlacaPopoverOpen(false); }}
+                              >
+                                <Check className={cn('mr-2 h-4 w-4', placa === v.placa ? 'opacity-100' : 'opacity-0')} />
+                                <span className="font-mono font-semibold mr-2">{v.placa}</span>
+                                <span className="text-muted-foreground text-xs truncate">{v.modelo}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   {placa && !isValidPlate(placa) && (
                     <p className="text-xs text-destructive">Placa inválida (ex: ABC1234)</p>
                   )}
