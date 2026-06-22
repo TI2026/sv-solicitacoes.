@@ -382,16 +382,17 @@ export default function FleetDetailPage() {
             </div>
           )}
 
-          {/* LEGACY: em_aprovacao without active flow — fallback to old isDiretoria */}
-          {req.status === 'em_aprovacao' && !hasActiveFlow && hasRole('diretoria') && (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleStatusChange('aprovado')} disabled={isPending} className="gap-2">
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Aprovar
-              </Button>
-              <Button onClick={() => setShowReasonDialog('reprovado')} variant="destructive" className="gap-2" disabled={isPending}>
-                <XCircle className="w-4 h-4" /> Reprovar
-              </Button>
-            </div>
+          {/* em_aprovacao sem fluxo ativo: aprovação direta NÃO é mais permitida.
+              Toda decisão precisa passar pelo motor de aprovação (process_approval_action). */}
+          {req.status === 'em_aprovacao' && !hasActiveFlow && isAdmin && (
+            <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-amber-800 dark:text-amber-400">Sem fluxo de aprovação ativo</AlertTitle>
+              <AlertDescription className="text-amber-700 dark:text-amber-300">
+                Esta solicitação está em aprovação mas não possui fluxo ativo. Configure um fluxo em
+                Permissões &gt; Cadeias de Aprovação para que a decisão possa ser registrada pelo motor.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Info for non-eligible users viewing em_aprovacao with active flow */}
