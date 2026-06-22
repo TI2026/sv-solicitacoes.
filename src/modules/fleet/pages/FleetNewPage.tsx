@@ -334,13 +334,8 @@ export default function FleetNewPage() {
                         <CommandInput placeholder="Buscar placa ou modelo..." />
                         <CommandList>
                           <CommandEmpty>
-                            <div className="py-3 px-2 text-xs text-muted-foreground space-y-2">
-                              <p>Nenhum veículo cadastrado.</p>
-                              {hasAnyRole(['diretoria']) && (
-                                <Button size="sm" variant="outline" className="w-full" onClick={() => { setPlacaPopoverOpen(false); navigate('/fleet/vehicles-admin'); }}>
-                                  Cadastrar veículo
-                                </Button>
-                              )}
+                            <div className="py-3 px-2 text-xs text-muted-foreground">
+                              <p>Nenhum veículo encontrado.</p>
                             </div>
                           </CommandEmpty>
                           <CommandGroup>
