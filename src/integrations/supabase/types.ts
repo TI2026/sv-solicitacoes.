@@ -2333,6 +2333,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      replace_approval_flow_steps: {
+        Args: { p_flow_id: string; p_steps: Json }
+        Returns: Json
+      }
       soft_delete_request: {
         Args: { _reason?: string; _request_id: string }
         Returns: Json
