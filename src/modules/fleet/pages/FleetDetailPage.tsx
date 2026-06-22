@@ -313,7 +313,7 @@ export default function FleetDetailPage() {
                   {(req as any).km && (
                     <div className="text-right shrink-0">
                       <p className="text-[10px] uppercase tracking-widest text-muted-foreground">KM</p>
-                      <p className="text-lg font-bold text-foreground">
+                      <p className="text-lg font-bold text-foreground font-mono tracking-tight">
                         {Number((req as any).km).toLocaleString('pt-BR')}
                       </p>
                     </div>
@@ -612,29 +612,31 @@ export default function FleetDetailPage() {
 
       {/* Reason Dialog — mandatory justification for reject & return */}
       <Dialog open={!!showReasonDialog} onOpenChange={() => setShowReasonDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>
               {showReasonDialog === 'reprovado' ? 'Motivo da Recusa' : 'Motivo da Devolução'}
             </DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">
-            A justificativa é obrigatória.
-          </p>
-          <Textarea
-            value={actionReason}
-            onChange={e => setActionReason(e.target.value.slice(0, 500))}
-            placeholder={showReasonDialog === 'reprovado' ? 'Informe o motivo da recusa (mínimo 10 caracteres)...' : 'Informe o motivo da devolução (mínimo 5 caracteres)...'}
-            rows={3}
-            maxLength={500}
-          />
-          {showReasonDialog === 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 10 && (
-            <p className="text-xs text-destructive">Mínimo 10 caracteres</p>
-          )}
-          {showReasonDialog !== 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 5 && (
-            <p className="text-xs text-destructive">Mínimo 5 caracteres</p>
-          )}
-          <DialogFooter>
+          <div className="flex-1 overflow-y-auto py-2 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              A justificativa é obrigatória.
+            </p>
+            <Textarea
+              value={actionReason}
+              onChange={e => setActionReason(e.target.value.slice(0, 500))}
+              placeholder={showReasonDialog === 'reprovado' ? 'Informe o motivo da recusa (mínimo 10 caracteres)...' : 'Informe o motivo da devolução (mínimo 5 caracteres)...'}
+              rows={3}
+              maxLength={500}
+            />
+            {showReasonDialog === 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 10 && (
+              <p className="text-xs text-destructive">Mínimo 10 caracteres</p>
+            )}
+            {showReasonDialog !== 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 5 && (
+              <p className="text-xs text-destructive">Mínimo 5 caracteres</p>
+            )}
+          </div>
+          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
             <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
             <Button
               onClick={handleReasonConfirm}
@@ -655,11 +657,11 @@ export default function FleetDetailPage() {
 
       {/* OC Dialog */}
       <Dialog open={showOcDialog} onOpenChange={setShowOcDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Anexar Ordem de Compra</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto py-2 space-y-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Número da OC *</Label>
               <Input value={ocNumber} onChange={e => setOcNumber(e.target.value.slice(0, 50))} placeholder="Ex: OC-2026-001" maxLength={50} />
@@ -669,7 +671,7 @@ export default function FleetDetailPage() {
               <Textarea value={ocNotes} onChange={e => setOcNotes(e.target.value.slice(0, 300))} placeholder="Detalhes da OC..." rows={2} maxLength={300} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
             <Button variant="outline" onClick={() => setShowOcDialog(false)}>Cancelar</Button>
             <Button onClick={handleOcSubmit} disabled={isPending || !ocNumber.trim()} className="gap-2">
               {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -681,17 +683,17 @@ export default function FleetDetailPage() {
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Confirmar Pagamento</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto py-2 space-y-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Observações do Pagamento</Label>
               <Textarea value={paymentNotes} onChange={e => setPaymentNotes(e.target.value.slice(0, 300))} placeholder="Comprovante, referência..." rows={2} maxLength={300} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancelar</Button>
             <Button onClick={handlePaymentConfirm} disabled={isPending} className="gap-2">
               {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -703,18 +705,20 @@ export default function FleetDetailPage() {
 
       {/* Delete Confirmation Dialog (Master only) */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Excluir Solicitação</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Esta ação irá excluir permanentemente esta solicitação e cancelar qualquer fluxo de aprovação ativo. Deseja continuar?
-          </p>
-          <div className="space-y-2">
-            <Label>Motivo (opcional)</Label>
-            <Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Motivo da exclusão..." />
+          <div className="flex-1 overflow-y-auto py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Esta ação irá excluir permanentemente esta solicitação e cancelar qualquer fluxo de aprovação ativo. Deseja continuar?
+            </p>
+            <div className="space-y-2">
+              <Label>Motivo (opcional)</Label>
+              <Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Motivo da exclusão..." />
+            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
             <Button variant="outline" onClick={() => { setShowDeleteDialog(false); setDeleteReason(''); }}>Cancelar</Button>
             <Button
               variant="destructive"
@@ -744,17 +748,17 @@ function ReembolsoDetails({ req }: { req: any }) {
     <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
       {req.categoria && <p>Categoria: {req.categoria}</p>}
       {req.payment_method === 'pix' && req.pix_key && (
-        <p>Pix ({pixLabel}): {req.pix_key}</p>
+        <p>Pix ({pixLabel}): <span className="font-mono tracking-tight">{req.pix_key}</span></p>
       )}
       {req.payment_method === 'conta_bancaria' && (
         <>
           {req.bank_name && <p>Banco: {req.bank_name}</p>}
-          {req.bank_agency && <p>Agência: {req.bank_agency}</p>}
-          {req.bank_account && <p>Conta: {req.bank_account}</p>}
+          {req.bank_agency && <p>Agência: <span className="font-mono tracking-tight">{req.bank_agency}</span></p>}
+          {req.bank_account && <p>Conta: <span className="font-mono tracking-tight">{req.bank_account}</span></p>}
         </>
       )}
       {req.person_name && <p>Beneficiário: {req.person_name}</p>}
-      {req.person_cpf && <p>CPF: {req.person_cpf}</p>}
+      {req.person_cpf && <p>CPF: <span className="font-mono tracking-tight">{req.person_cpf}</span></p>}
       {req.motivo && <p>Motivo: {req.motivo}</p>}
     </div>
   );
@@ -769,15 +773,15 @@ function DiariaDetails({ req }: { req: any }) {
       {req.daily_value && <p>Valor diário: R$ {Number(req.daily_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>}
       {req.hours && <p>Horas: {req.hours}h</p>}
       {req.person_name && <p>Profissional: {req.person_name}</p>}
-      {req.person_cpf && <p>CPF: {req.person_cpf}</p>}
+      {req.person_cpf && <p>CPF: <span className="font-mono tracking-tight">{req.person_cpf}</span></p>}
       {req.payment_method === 'pix' && req.pix_key && (
-        <p>Pix: {req.pix_key}</p>
+        <p>Pix: <span className="font-mono tracking-tight">{req.pix_key}</span></p>
       )}
       {req.payment_method === 'conta_bancaria' && (
         <>
           {req.bank_name && <p>Banco: {req.bank_name}</p>}
-          {req.bank_agency && <p>Agência: {req.bank_agency}</p>}
-          {req.bank_account && <p>Conta: {req.bank_account}</p>}
+          {req.bank_agency && <p>Agência: <span className="font-mono tracking-tight">{req.bank_agency}</span></p>}
+          {req.bank_account && <p>Conta: <span className="font-mono tracking-tight">{req.bank_account}</span></p>}
         </>
       )}
       {req.motivo && <p>Motivo: {req.motivo}</p>}
