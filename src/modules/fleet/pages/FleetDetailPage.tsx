@@ -419,9 +419,21 @@ export default function FleetDetailPage() {
 
           {/* ADMIN: forward to approval (abastecimento/reembolso) */}
           {isAdmin && reqType !== 'diaria' && req.status === 'enviado' && (
-            <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending} className="gap-2">
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />} Encaminhar para Aprovação
-            </Button>
+            hasConfiguredFlow === false ? (
+              <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800 dark:text-amber-400">Fluxo de aprovação não configurado</AlertTitle>
+                <AlertDescription className="text-amber-700 dark:text-amber-300">
+                  Configure uma cadeia de aprovação para "{reqType}" em{' '}
+                  <strong>Permissões &gt; Cadeias de Aprovação</strong> antes de encaminhar esta solicitação.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Button onClick={() => handleStatusChange('em_aprovacao')} disabled={isPending || hasConfiguredFlow === undefined} className="gap-2">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                {hasConfiguredFlow === undefined ? 'Verificando...' : 'Encaminhar para Aprovação'}
+              </Button>
+            )
           )}
 
           {/* APPROVAL FLOW: approve/reject/return — ONLY for eligible approver of current step */}
