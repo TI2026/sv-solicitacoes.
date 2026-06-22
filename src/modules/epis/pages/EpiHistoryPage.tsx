@@ -103,7 +103,18 @@ export default function EpiHistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/epis/deliveries')}><ArrowLeft className="w-5 h-5" /></Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            // Volta para a página anterior do histórico; se não houver, vai para entregas
+            if (window.history.length > 1) navigate(-1);
+            else navigate('/epis/deliveries');
+          }}
+          aria-label="Voltar"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><ClipboardList className="w-6 h-6 text-primary" /> Histórico de EPI</h1>
           <p className="text-sm text-muted-foreground">Entregas, devoluções e movimentações por colaborador</p>
