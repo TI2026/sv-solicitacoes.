@@ -346,13 +346,6 @@ export function useSaveApprovalFlow() {
             })
             .eq('id', flowId);
           if (error) throw error;
-
-          // Safe to delete steps — no approval_request_steps reference them
-          const { error: delErr } = await supabase
-            .from('approval_flow_steps')
-            .delete()
-            .eq('flow_id', flowId);
-          if (delErr) throw delErr;
         }
       } else {
         // New flow: deactivate other active flows for the same module
@@ -380,28 +373,25 @@ export function useSaveApprovalFlow() {
         flowId = data.id;
       }
 
-      // Insert steps for the (possibly new) flow
-      if (params.steps.length > 0) {
-        const reindexedSteps = params.steps.map((s, idx) => {
-          // For dynamic types, approver_user_id is NULL in the flow template.
-          // The real approver is resolved at request time by start_approval_flow RPC.
-          const resolvedUserId = s.approverType === 'usuario_fixo' ? s.fixedUserId : null;
-          return {
-            flow_id: flowId!,
-            step_order: idx + 1,
-            approver_type: s.approverType === 'cargo_perfil'
-              ? `cargo_perfil:${s.approverRoleKey || ''}`
-              : s.approverType,
-            approver_user_id: resolvedUserId,
-            fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
-          };
-        });
+      // Atomic replace via RPC — avoids 409 on (flow_id, step_order) uniqueness
+      // and guarantees DELETE + INSERT happen in the same transaction.
+      const stepsPayload = params.steps.map((s) => {
+        const resolvedUserId = s.approverType === 'usuario_fixo' ? s.fixedUserId : null;
+        return {
+          approver_type: s.approverType === 'cargo_perfil'
+            ? `cargo_perfil:${s.approverRoleKey || ''}`
+            : s.approverType,
+          approver_user_id: resolvedUserId,
+          fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
+        };
+      });
 
-        const { error } = await supabase
-          .from('approval_flow_steps')
-          .insert(reindexedSteps);
-        if (error) throw error;
-      }
+      const { data: replaceResult, error: replaceErr } = await supabase.rpc(
+        'replace_approval_flow_steps',
+        { p_flow_id: flowId!, p_steps: stepsPayload as any }
+      );
+      if (replaceErr) throw replaceErr;
+      if ((replaceResult as any)?.error) throw new Error((replaceResult as any).error);
 
       return { flowId: flowId!, versioned };
     },
