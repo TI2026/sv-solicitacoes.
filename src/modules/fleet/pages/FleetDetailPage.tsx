@@ -705,18 +705,20 @@ export default function FleetDetailPage() {
 
       {/* Delete Confirmation Dialog (Master only) */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Excluir Solicitação</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Esta ação irá excluir permanentemente esta solicitação e cancelar qualquer fluxo de aprovação ativo. Deseja continuar?
-          </p>
-          <div className="space-y-2">
-            <Label>Motivo (opcional)</Label>
-            <Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Motivo da exclusão..." />
+          <div className="flex-1 overflow-y-auto py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Esta ação irá excluir permanentemente esta solicitação e cancelar qualquer fluxo de aprovação ativo. Deseja continuar?
+            </p>
+            <div className="space-y-2">
+              <Label>Motivo (opcional)</Label>
+              <Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Motivo da exclusão..." />
+            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
             <Button variant="outline" onClick={() => { setShowDeleteDialog(false); setDeleteReason(''); }}>Cancelar</Button>
             <Button
               variant="destructive"
