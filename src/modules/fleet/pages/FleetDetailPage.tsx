@@ -303,7 +303,7 @@ export default function FleetDetailPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Veículo</p>
-                    <p className="text-2xl sm:text-3xl font-extrabold font-mono tracking-wider text-foreground leading-tight">
+                    <p className="text-3xl sm:text-4xl font-extrabold font-mono tracking-widest uppercase text-foreground leading-tight">
                       {String((req as any).placa).toUpperCase()}
                     </p>
                     {vehicle?.modelo && (
