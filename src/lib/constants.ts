@@ -91,6 +91,12 @@ export function getStatusVariant(status: string): 'pending' | 'approved' | 'reje
   if (['concluido', 'aprovado', 'encerrado', 'apto', 'approved', 'registros_concluidos', 'ativa', 'devolvido', 'baixado', 'pago'].includes(status)) return 'approved';
   if (['rejeitado', 'reprovado', 'cancelado', 'inapto', 'rejected', 'arquivado', 'perdido'].includes(status)) return 'rejected';
   if (['aguardando_fotos', 'aguardando_documentos', 'submitted', 'pendente_devolucao', 'aguardando_oc', 'aguardando_pagamento'].includes(status)) return 'info';
+  if ([
+    'rascunho', 'enviado', 'em_revisao', 'em_aprovacao',
+    'retornado', 'returned_to_requester', 'em_revisao_admin',
+    'ativa', 'aguardando_triagem', 'em_triagem', 'pending',
+    'returned_for_adjustment'
+  ].includes(status)) return 'pending';
   return 'pending';
 }
 
