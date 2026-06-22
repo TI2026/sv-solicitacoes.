@@ -58,6 +58,24 @@ export default function FleetDetailPage() {
   const reqType = (req as any)?.type || 'abastecimento';
   const vehicle = useVehicleByPlate((req as any)?.placa);
 
+  const { data: hasConfiguredFlow } = useQuery({
+    queryKey: ['approval_flow_exists', reqType],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('approval_modules')
+        .select('id, approval_flows!inner(id, active, approval_flow_steps!inner(id, active))')
+        .eq('code', reqType)
+        .eq('active', true)
+        .eq('approval_flows.active', true)
+        .eq('approval_flows.approval_flow_steps.active', true)
+        .limit(1)
+        .single();
+      return !!data;
+    },
+    enabled: !!reqType,
+    staleTime: 60_000,
+  });
+
   // ===== APPROVAL FLOW ELIGIBILITY =====
   const isCurrentFlowApprover = approvalRequest
     ? approvalRequest.current_approver_user_id === user?.id && !approvalRequest.ended_at
