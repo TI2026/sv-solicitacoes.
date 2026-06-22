@@ -313,7 +313,7 @@ export default function FleetDetailPage() {
                   {(req as any).km && (
                     <div className="text-right shrink-0">
                       <p className="text-[10px] uppercase tracking-widest text-muted-foreground">KM</p>
-                      <p className="text-lg font-bold text-foreground">
+                      <p className="text-lg font-bold text-foreground font-mono tracking-tight">
                         {Number((req as any).km).toLocaleString('pt-BR')}
                       </p>
                     </div>
