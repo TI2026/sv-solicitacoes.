@@ -683,17 +683,17 @@ export default function FleetDetailPage() {
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Confirmar Pagamento</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto py-2 space-y-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Observações do Pagamento</Label>
               <Textarea value={paymentNotes} onChange={e => setPaymentNotes(e.target.value.slice(0, 300))} placeholder="Comprovante, referência..." rows={2} maxLength={300} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancelar</Button>
             <Button onClick={handlePaymentConfirm} disabled={isPending} className="gap-2">
               {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
