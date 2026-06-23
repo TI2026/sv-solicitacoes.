@@ -901,6 +901,29 @@ export default function FleetDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Inline attachment preview */}
+      <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) { setPreviewUrl(null); setPreviewType(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{previewTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto flex items-center justify-center bg-muted/30 rounded-md">
+            {previewType === 'image' && previewUrl && (
+              <img src={previewUrl} alt={previewTitle} className="max-w-full max-h-[70vh] object-contain" />
+            )}
+            {previewType === 'pdf' && previewUrl && (
+              <iframe src={previewUrl} title={previewTitle} className="w-full h-[70vh]" />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { if (previewUrl) window.open(previewUrl, '_blank'); }}>
+              Abrir em nova aba
+            </Button>
+            <Button onClick={() => { setPreviewUrl(null); setPreviewType(null); }}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
