@@ -501,17 +501,85 @@ export default function FleetDetailPage() {
             </Button>
           )}
 
-          {/* ADMIN: Final review for abastecimento */}
-          {isAdmin && reqType === 'abastecimento' && req.status === 'em_revisao_admin' && (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleStatusChange('concluido')} disabled={isPending} className="gap-2">
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Finalizar
-              </Button>
-              <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2" disabled={isPending}>
-                <RotateCcw className="w-4 h-4" /> Devolver (Reenviar fotos)
-              </Button>
-            </div>
-          )}
+          {/* ADMIN: Final review for abastecimento — KM + NF verification */}
+          {isAdmin && reqType === 'abastecimento' && req.status === 'em_revisao_admin' && (() => {
+            const kmDeclared = Number((req as any).km || 0);
+            const valorDeclared = Number(req.valor || 0);
+            const kmRealNum = Number(reviewKmReal || kmDeclared);
+            const nfRealNum = Number(reviewNfReal || valorDeclared);
+            const kmDivergent = !reviewKmOk && reviewKmReal !== '' && kmRealNum !== kmDeclared;
+            const nfDivergent = !reviewNfOk && reviewNfReal !== '' && nfRealNum !== valorDeclared;
+            const hasDivergence = kmDivergent || nfDivergent;
+            const justificativaOk = !hasDivergence || reviewDivergenceReason.trim().length >= 10;
+            const buildReviewReason = () => {
+              const parts: string[] = [];
+              if (kmDivergent) parts.push(`KM declarado ${kmDeclared} → real ${kmRealNum}`);
+              if (nfDivergent) parts.push(`Valor NF declarado R$ ${valorDeclared.toFixed(2)} → real R$ ${nfRealNum.toFixed(2)}`);
+              if (reviewDivergenceReason.trim()) parts.push(`Justificativa: ${reviewDivergenceReason.trim()}`);
+              return parts.join(' | ') || undefined;
+            };
+            return (
+              <div className="space-y-3 border border-border rounded-lg p-3 bg-muted/30">
+                <p className="text-xs font-medium text-foreground">Conferência Final</p>
+
+                {/* Hodômetro */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">📷 Hodômetro · declarado: <b className="text-foreground">{kmDeclared.toLocaleString('pt-BR')} km</b></span>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <Checkbox checked={reviewKmOk} onCheckedChange={(v) => setReviewKmOk(!!v)} />
+                      <span>KM confere</span>
+                    </label>
+                  </div>
+                  {!reviewKmOk && (
+                    <Input type="number" placeholder="KM real conferido" value={reviewKmReal} onChange={e => setReviewKmReal(e.target.value)} className="h-8 text-sm" />
+                  )}
+                </div>
+
+                {/* Nota Fiscal */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">🧾 Nota Fiscal · declarado: <b className="text-foreground">R$ {valorDeclared.toFixed(2)}</b></span>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <Checkbox checked={reviewNfOk} onCheckedChange={(v) => setReviewNfOk(!!v)} />
+                      <span>Valor confere</span>
+                    </label>
+                  </div>
+                  {!reviewNfOk && (
+                    <Input type="number" step="0.01" placeholder="Valor real da NF" value={reviewNfReal} onChange={e => setReviewNfReal(e.target.value)} className="h-8 text-sm" />
+                  )}
+                </div>
+
+                {/* Justificativa de divergência */}
+                {hasDivergence && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-amber-700">Justificativa da divergência (mín. 10 caracteres)</Label>
+                    <Textarea
+                      value={reviewDivergenceReason}
+                      onChange={e => setReviewDivergenceReason(e.target.value.slice(0, 500))}
+                      placeholder="Descreva a diferença encontrada entre o declarado e o conferido..."
+                      rows={2}
+                      className="text-sm"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    onClick={() => handleStatusChange('concluido', buildReviewReason())}
+                    disabled={isPending || !justificativaOk}
+                    className="gap-2"
+                  >
+                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                    {hasDivergence ? 'Finalizar com divergência' : 'Finalizar'}
+                  </Button>
+                  <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2" disabled={isPending}>
+                    <RotateCcw className="w-4 h-4" /> Devolver (Reenviar fotos)
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* REEMBOLSO: Admin marks as paid */}
           {isAdmin && reqType === 'reembolso' && req.status === 'aprovado' && (
