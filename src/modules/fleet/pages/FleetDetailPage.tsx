@@ -662,6 +662,33 @@ export default function FleetDetailPage() {
       {/* Approval Flow Status */}
       {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
 
+      {/* Revisor Responsável (admin/owner view) */}
+      {reqType === 'abastecimento' && ['enviado', 'em_revisao', 'em_revisao_admin', 'aguardando_fotos'].includes(req.status) && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+              <User className="w-4 h-4" /> Revisor Responsável
+            </h3>
+            {(req as any).assignee?.full_name ? (
+              <div className="flex items-center gap-2 text-sm">
+                <Badge variant="secondary" className="gap-1">
+                  📋 {(req as any).assignee.full_name}
+                </Badge>
+                <span className="text-xs text-muted-foreground">conduzindo a revisão</span>
+              </div>
+            ) : (
+              <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800 dark:text-amber-400 text-sm">Sem revisor atribuído</AlertTitle>
+                <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
+                  Nenhum responsável foi atribuído automaticamente para esta solicitação. A atribuição é feita pelo setor do solicitante ao enviar para revisão.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Approval Steps Queue */}
       {hasActiveFlow && approvalRequest?.approval_request_steps && (
         <Card>
