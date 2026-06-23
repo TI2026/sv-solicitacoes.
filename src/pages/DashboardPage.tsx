@@ -302,6 +302,60 @@ export default function DashboardPage() {
 
       {isAdmin && <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} />}
 
+      {/* ===== Fila de Aprovação em destaque para Diretoria/Master ===== */}
+      {isMaster && approvalMetrics.myPending.length > 0 && (
+        <Card className="border-2 border-primary/40 bg-primary/5 shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <ClipboardCheck className="w-5 h-5 text-primary" />
+                Ações Pendentes — sua aprovação
+                <Badge className="ml-1 bg-amber-500 text-white animate-pulse">{approvalMetrics.myPending.length}</Badge>
+              </h3>
+              <Button size="sm" variant="outline" onClick={() => navigate('/permissoes?tab=minhas-aprovacoes')}>
+                Abrir Minhas Aprovações
+              </Button>
+            </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {approvalMetrics.myPending.slice(0, 12).map((ar: any) => {
+                const moduleCode = ar.approval_modules?.code as string | undefined;
+                const isFleet = moduleCode === 'abastecimento' || moduleCode === 'reembolso' || moduleCode === 'diaria';
+                const route = isFleet
+                  ? `/fleet/${ar.reference_id}`
+                  : moduleCode === 'admissao'
+                    ? `/admissions/${ar.reference_id}`
+                    : `/permissoes?tab=minhas-aprovacoes`;
+                return (
+                  <button
+                    key={ar.id}
+                    onClick={() => navigate(route)}
+                    className="w-full text-left flex items-center justify-between gap-3 border border-border bg-background rounded-lg p-3.5 hover:border-primary hover:bg-primary/5 transition-all"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-semibold text-foreground truncate">
+                        {ar.approval_modules?.name || 'Solicitação'}
+                        <span className="text-sm text-muted-foreground ml-2 font-normal">· etapa {ar.current_step_order}</span>
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate mt-0.5">
+                        Solicitante: <span className="font-medium text-foreground/85">{ar.profiles?.full_name || '—'}</span>
+                        <span className="mx-1.5">·</span>
+                        {new Date(ar.created_at).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                    <Badge className="bg-amber-500 text-white shrink-0">Aguardando você</Badge>
+                  </button>
+                );
+              })}
+              {approvalMetrics.myPending.length > 12 && (
+                <p className="text-xs text-muted-foreground text-center pt-1">
+                  Mostrando 12 de {approvalMetrics.myPending.length}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="w-full sm:w-auto flex-wrap">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
