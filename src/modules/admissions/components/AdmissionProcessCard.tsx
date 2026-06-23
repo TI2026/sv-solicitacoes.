@@ -48,18 +48,16 @@ export function AdmissionProcessCard({ item, canEdit, canAdvance, canDelete, nex
                 <h3 className="text-sm font-semibold text-foreground truncate">
                   {item.cargo} – {item.candidato_nome}
                 </h3>
+                {item.obra_local && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-semibold">
+                    <MapPin className="w-3 h-3" /> {item.obra_local}
+                  </span>
+                )}
                 {item.total_candidatos > 0 && (
                   <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
                     <Users className="w-3 h-3" />{item.total_candidatos}
                   </span>
                 )}
-              </div>
-
-              {/* Line 2: Quick info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5 truncate">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" /> Obra: {item.obra_local}
-                </span>
               </div>
 
               {/* Line 3: Badges */}
