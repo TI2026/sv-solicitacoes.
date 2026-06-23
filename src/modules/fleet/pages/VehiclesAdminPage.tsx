@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Car, Loader2, Pencil, Plus, Search, Trash2, TrendingDown, AlertTriangle, Activity, Calendar, DollarSign, Fuel, History } from 'lucide-react';
+import { ArrowLeft, Car, Loader2, Pencil, Plus, Search, Trash2, TrendingDown, AlertTriangle, Activity, Calendar, DollarSign, Fuel, History, ExternalLink } from 'lucide-react';
 import { useVehicles, useUpsertVehicle, useDeleteVehicle, type Vehicle } from '../hooks/useVehicles';
 import { useFuelHistory, buildVehicleAnalytics, type VehicleAnalytics } from '../hooks/useVehicleAnalytics';
 import { isValidPlate } from '@/lib/masks';
@@ -322,7 +322,11 @@ export default function VehiclesAdminPage() {
                         const a = analyticsByPlate.get(e.placa.toUpperCase());
                         const isAnomaly = a?.avgKmBetweenFills && e.delta != null && e.delta < a.avgKmBetweenFills * 0.6;
                         return (
-                          <tr key={e.id} className={`border-b border-border/60 hover:bg-muted/30 ${isAnomaly ? 'bg-destructive/5' : ''}`}>
+                          <tr
+                            key={e.id}
+                            onClick={() => navigate(`/fleet/${e.id}`)}
+                            className={`border-b border-border/60 hover:bg-muted/30 cursor-pointer ${isAnomaly ? 'bg-destructive/5' : ''}`}
+                          >
                             <td className="py-2 px-2 text-xs">{new Date(e.data_abastecimento + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
                             <td className="py-2 px-2 font-mono font-semibold">{e.placa}</td>
                             <td className="py-2 px-2 text-right font-mono">{Number(e.km).toLocaleString('pt-BR')}</td>
@@ -331,7 +335,12 @@ export default function VehiclesAdminPage() {
                               {isAnomaly && <span title="Abaixo de 60% da média" className="ml-1">⚠</span>}
                             </td>
                             <td className="py-2 px-2 text-right text-xs">R$ {Number(e.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-2 px-2"><Badge variant="outline" className="text-[10px]">{e.status}</Badge></td>
+                            <td className="py-2 px-2">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-[10px]">{e.status}</Badge>
+                                <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                              </div>
+                            </td>
                           </tr>
                         );
                       })}
@@ -362,7 +371,19 @@ export default function VehiclesAdminPage() {
                     <div key={a.placa} className="border border-destructive/30 bg-destructive/5 rounded-lg p-3 flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0 space-y-1">
-                        <p className="font-mono font-bold text-sm">{a.placa}</p>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <p className="font-mono font-bold text-sm">{a.placa}</p>
+                          {a.lastFillId && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 gap-1.5 text-xs"
+                              onClick={() => navigate(`/fleet/${a.lastFillId}`)}
+                            >
+                              <ExternalLink className="w-3 h-3" /> Ver último abastecimento
+                            </Button>
+                          )}
+                        </div>
                         {a.staleNoFill && (
                           <p className="text-xs text-destructive">
                             Sem abastecimento há <b>{a.daysSinceLastFill} dias</b>
