@@ -27,9 +27,6 @@ const STATUS_VARIANT: Record<Vehicle['status'], 'default' | 'secondary' | 'outli
   manutencao: 'secondary',
 };
 
-export default function VehiclesAdminPage() {
-}
-
 function KpiCard({ icon, label, value, hint, tone }: { icon: React.ReactNode; label: string; value: number | string; hint?: string; tone?: 'neutral' | 'warning' | 'danger' }) {
   const toneClass =
     tone === 'danger' ? 'border-destructive/40 bg-destructive/5' :
@@ -48,7 +45,7 @@ function KpiCard({ icon, label, value, hint, tone }: { icon: React.ReactNode; la
   );
 }
 
-function VehiclesAdminPage_REMOVED() {
+export default function VehiclesAdminPage() {
   const navigate = useNavigate();
   const { data: vehicles, isLoading } = useVehicles();
   const { data: fuelHistory, isLoading: loadingHistory } = useFuelHistory();
