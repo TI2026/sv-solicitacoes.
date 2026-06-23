@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMaster } from '@/hooks/useIsMaster';
@@ -129,30 +130,30 @@ function ApprovalInProgressTab() {
             return (
               <Card key={a.id} className={isActive ? '' : 'opacity-60'}>
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
                     <Badge variant="secondary" className="text-xs">{a.approval_modules?.name || 'Módulo'}</Badge>
                     <Badge variant={isActive ? 'outline' : a.status === 'approved' ? 'default' : 'destructive'} className="text-xs">
                       {a.status === 'approved' ? 'Aprovado' : a.status === 'rejected' ? 'Recusado' : a.status === 'returned_to_requester' ? 'Devolvido' : a.status === 'returned_for_adjustment' ? 'Devolvido' : `Etapa ${a.current_step_order || '?'}`}
                     </Badge>
                     {isActive && a.current_step_order && (
-                      <span className="text-[10px] text-muted-foreground">{approvedSteps}/{totalSteps} etapas</span>
+                      <span className="text-xs text-muted-foreground">{approvedSteps}/{totalSteps} etapas</span>
                     )}
                     {a.approval_flows?.name && (
-                      <Badge variant="outline" className="text-[10px]">{a.approval_flows.name}</Badge>
+                      <Badge variant="outline" className="text-xs">{a.approval_flows.name}</Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <User className="w-3 h-3" />
-                    <span>{a.profiles?.full_name || 'Solicitante'}</span>
-                    <span>·</span>
-                    <Clock className="w-3 h-3" />
-                    <span>{formatDistanceToNow(lastActivityAt, { addSuffix: true, locale: ptBR })}</span>
+                  <div className="flex items-center gap-x-2 gap-y-1 text-sm text-muted-foreground flex-wrap min-w-0">
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span className="font-medium text-foreground/90 truncate max-w-[16rem]">{a.profiles?.full_name || 'Solicitante'}</span>
+                    <span className="hidden sm:inline">·</span>
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span className="shrink-0">{formatDistanceToNow(lastActivityAt, { addSuffix: true, locale: ptBR })}</span>
                     {isActive && currentStep && (
                       <>
-                        <span>·</span>
-                        <span>Aprovador: {currentStep.profiles?.full_name || '—'}</span>
+                        <span className="hidden sm:inline">·</span>
+                        <span className="truncate max-w-[16rem]">Aprovador: <span className="font-medium text-foreground/90">{currentStep.profiles?.full_name || '—'}</span></span>
                         {currentStep.approver_rule && (
-                          <Badge variant="outline" className="text-[10px]">{getApproverTypeLabel(currentStep.approver_rule)}</Badge>
+                          <Badge variant="outline" className="text-xs">{getApproverTypeLabel(currentStep.approver_rule)}</Badge>
                         )}
                       </>
                     )}
@@ -193,6 +194,37 @@ export default function PermissionsPage() {
   // Master e Diretoria têm o mesmo nível de gestão de permissões.
   const canManageSettings = isMaster || hasAnyRole(['diretoria']);
 
+  // Sincroniza a aba ativa com ?tab=... — permite que o sidebar (e qualquer link
+  // externo) force a abertura de uma aba específica como "minhas-aprovacoes".
+  const [searchParams, setSearchParams] = useSearchParams();
+  const TAB_ALIASES: Record<string, string> = {
+    'minhas-aprovacoes': 'my-approvals',
+    'my-approvals': 'my-approvals',
+    'andamento': 'in-progress',
+    'in-progress': 'in-progress',
+    'roles': 'roles',
+    'perfis': 'roles',
+    'users': 'users',
+    'usuarios': 'users',
+    'chains': 'chains',
+    'aprovadores': 'chains',
+  };
+  const rawTab = searchParams.get('tab') || '';
+  const requestedTab = TAB_ALIASES[rawTab];
+  const fallbackTab = canManageSettings ? 'roles' : 'my-approvals';
+  const activeTab =
+    requestedTab &&
+    (['my-approvals', 'in-progress'].includes(requestedTab) ||
+      (canManageSettings && ['roles', 'users', 'chains'].includes(requestedTab)))
+      ? requestedTab
+      : fallbackTab;
+
+  const handleTabChange = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', value);
+    setSearchParams(next, { replace: true });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -202,7 +234,7 @@ export default function PermissionsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue={canManageSettings ? 'roles' : 'my-approvals'} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="grid w-full" style={{ gridTemplateColumns: canManageSettings ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
           {canManageSettings && (
             <TabsTrigger value="roles" className="gap-2">

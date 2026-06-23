@@ -135,12 +135,14 @@ export default function MyApprovalsTab() {
                             <Badge variant="outline" className="text-[10px]">{getApproverTypeLabel(approverRule)}</Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <User className="w-3 h-3" />
-                          <span>Solicitante: {a.profiles?.full_name || 'Desconhecido'}</span>
-                          <span>·</span>
-                          <Clock className="w-3 h-3" />
-                          <span>{formatDistanceToNow(getApprovalLastActivityDate(a), { addSuffix: true, locale: ptBR })}</span>
+                        <div className="flex items-center gap-x-2 gap-y-1 text-sm text-muted-foreground flex-wrap min-w-0">
+                          <User className="w-3.5 h-3.5 shrink-0" />
+                          <span className="font-medium text-foreground/90 truncate">
+                            {a.profiles?.full_name || 'Desconhecido'}
+                          </span>
+                          <span className="hidden sm:inline">·</span>
+                          <Clock className="w-3.5 h-3.5 shrink-0" />
+                          <span className="shrink-0">{formatDistanceToNow(getApprovalLastActivityDate(a), { addSuffix: true, locale: ptBR })}</span>
                         </div>
                         {/* Steps timeline */}
                         <div className="flex items-center gap-1 mt-2 flex-wrap">
@@ -204,12 +206,12 @@ export default function MyApprovalsTab() {
                 <Card key={r.id} className="border-l-4 border-l-amber-400">
                   <CardContent className="p-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary" className="text-[10px]">{REQUEST_TYPE_LABELS[r.type] || r.type}</Badge>
-                      <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700">Enviado — Aguardando encaminhamento</Badge>
+                      <Badge variant="secondary" className="text-xs">{REQUEST_TYPE_LABELS[r.type] || r.type}</Badge>
+                      <Badge variant="outline" className="text-xs border-amber-400 text-amber-700">Aguardando encaminhamento</Badge>
                       {r.valor && (
-                        <span className="text-[10px] font-medium">R$ {Number(r.valor).toFixed(2)}</span>
+                        <span className="text-sm font-semibold">R$ {Number(r.valor).toFixed(2)}</span>
                       )}
-                      <span className="text-xs text-muted-foreground ml-auto">
+                      <span className="text-sm text-muted-foreground ml-auto">
                         {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
                       </span>
                     </div>
@@ -233,16 +235,16 @@ export default function MyApprovalsTab() {
               return (
                 <Card key={a.id} className={a.ended_at ? 'opacity-70' : ''}>
                   <CardContent className="p-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary" className="text-[10px]">{a.approval_modules?.name}</Badge>
-                      <Badge variant={statusInfo.variant} className="text-[10px]">{statusInfo.label}</Badge>
-                      <span className="text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <Badge variant="secondary" className="text-xs">{a.approval_modules?.name}</Badge>
+                      <Badge variant={statusInfo.variant} className="text-xs">{statusInfo.label}</Badge>
+                      <span className="text-sm font-medium text-foreground/80 truncate max-w-[14rem]">
                         {a.profiles?.full_name}
                       </span>
                       {a.current_step_order && !a.ended_at && (
-                        <Badge variant="outline" className="text-[10px]">Etapa {a.current_step_order}</Badge>
+                        <Badge variant="outline" className="text-xs">Etapa {a.current_step_order}</Badge>
                       )}
-                      <span className="text-xs text-muted-foreground ml-auto">
+                      <span className="text-sm text-muted-foreground ml-auto shrink-0">
                         {formatDistanceToNow(getApprovalLastActivityDate(a), { addSuffix: true, locale: ptBR })}
                       </span>
                     </div>

@@ -24,6 +24,8 @@ export interface VehicleAnalytics {
   lastDeltaAnomaly: boolean;
   lastDelta: number | null;
   staleNoFill: boolean; // >30 days without fill
+  /** id of the most recent fuel_request for this plate (used for deep-linking) */
+  lastFillId: string | null;
 }
 
 const VALID_STATUSES = ['enviado', 'em_aprovacao', 'aprovado', 'aguardando_fotos', 'em_revisao_admin', 'concluido', 'pago', 'aguardando_oc', 'aguardando_pagamento'];
@@ -86,6 +88,7 @@ export function buildVehicleAnalytics(entries: FuelEntry[]): VehicleAnalytics[] 
     const last = fills[fills.length - 1];
     const lastFillAt = last?.data_abastecimento || null;
     const lastKm = last ? Number(last.km) : null;
+    const lastFillId = last?.id || null;
     const lastDelta = deltas.length ? deltas[deltas.length - 1] : null;
     const lastDeltaAnomaly = !!(avgKm && lastDelta != null && deltas.length >= 3 && lastDelta < avgKm * 0.6);
 
@@ -111,6 +114,7 @@ export function buildVehicleAnalytics(entries: FuelEntry[]): VehicleAnalytics[] 
       lastDeltaAnomaly,
       lastDelta,
       staleNoFill,
+      lastFillId,
     });
   }
   return out.sort((a, b) => a.placa.localeCompare(b.placa));
