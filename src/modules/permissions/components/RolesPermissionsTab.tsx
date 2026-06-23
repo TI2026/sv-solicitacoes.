@@ -8,6 +8,9 @@ import { Separator } from '@/components/ui/separator';
 
 export default function RolesPermissionsTab() {
   const { data: roles, isLoading: rolesLoading } = useRoles();
+  // Regra de negócio do cliente: Diretoria === Master. O papel `master` é
+  // ocultado da UI; Diretoria assume todos os privilégios automaticamente.
+  const visibleRoles = (roles || []).filter((r: any) => r.key !== 'master');
   const { data: modules } = usePermissionModules();
   const { data: actions } = usePermissionActions();
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
@@ -57,7 +60,7 @@ export default function RolesPermissionsTab() {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Perfis do Sistema
         </h3>
-        {roles?.map((role: any) => {
+        {visibleRoles.map((role: any) => {
           const isSelected = selectedRoleId === role.id;
           return (
             <Card

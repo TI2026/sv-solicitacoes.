@@ -54,7 +54,7 @@ export function useCandidate(candidateId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('candidates')
-        .select('*, admission_requests(id, cargo_funcao, status)')
+        .select('*, admission_requests(id, cargo_funcao, status, centro_custo)')
         .eq('id', candidateId)
         .single();
       if (error) throw error;

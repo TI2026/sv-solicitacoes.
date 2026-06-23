@@ -223,10 +223,27 @@ export default function DashboardPage() {
     const byStatus = Object.entries(
       d.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {} as Record<string, number>)
     ).map(([status, count]) => ({ name: ADMISSION_STATUS_LABELS[status] || status, value: count, status }));
+    // Tempo médio de fechamento (em dias) — usa welcome_pdf_generated_at quando disponível como proxy do encerramento
+    const closedWithDates = d.filter((a: any) => a.status === 'concluido' && a.welcome_pdf_generated_at && a.created_at);
+    const avgDaysToClose = closedWithDates.length
+      ? closedWithDates.reduce((sum: number, a: any) => {
+          const start = new Date(a.created_at).getTime();
+          const end = new Date(a.welcome_pdf_generated_at).getTime();
+          return sum + Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
+        }, 0) / closedWithDates.length
+      : 0;
+    // Admissões iniciadas no mês corrente
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const noMes = d.filter((a: any) => new Date(a.created_at).getTime() >= monthStart).length;
+    const concluidosNoMes = d.filter((a: any) => a.status === 'concluido' && new Date(a.created_at).getTime() >= monthStart).length;
     return {
       total, pendentes, concluidos, salarioTotal, byStatus,
       pendentesData: d.filter(a => !['concluido', 'cancelado'].includes(a.status)),
       concluidosData: d.filter(a => a.status === 'concluido'),
+      avgDaysToClose,
+      noMes,
+      concluidosNoMes,
     };
   }, [admData]);
 
@@ -607,6 +624,61 @@ export default function DashboardPage() {
                 })()}
               </CardContent>
             </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4" /> Diárias Concluídas
+                </h3>
+                {(() => {
+                  const completed = (fuelData || []).filter((f: any) => ['aprovado', 'concluido', 'encerrado'].includes(f.status) && f.type === 'diaria');
+                  if (completed.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhuma</p>;
+                  return (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {completed.slice(0, 20).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/fleet/${item.id}`)}>
+                          <div>
+                            <span className="font-medium">{canSeeFinancials ? formatCurrency(Number(item.daily_value || item.valor || 0)) : '••••••'}</span>
+                            {item.person_name && <span className="text-xs text-muted-foreground ml-2">{item.person_name}</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
+                            <StatusBadge status={item.status} label={FUEL_STATUS_LABELS[item.status] || item.status} />
+                          </div>
+                        </div>
+                      ))}
+                      {completed.length > 20 && <p className="text-xs text-muted-foreground text-center">+{completed.length - 20} mais</p>}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
+            {isRH && (
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4" /> Admissões Concluídas
+                  </h3>
+                  {admMetrics.concluidosData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma</p>
+                  ) : (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {admMetrics.concluidosData.slice(0, 20).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admissions/${item.id}`)}>
+                          <div className="min-w-0">
+                            <span className="font-medium truncate">{item.cargo_funcao || 'Admissão'}</span>
+                            {item.centro_custo && <span className="text-xs text-muted-foreground ml-2">{item.centro_custo}</span>}
+                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                      ))}
+                      {admMetrics.concluidosData.length > 20 && <p className="text-xs text-muted-foreground text-center">+{admMetrics.concluidosData.length - 20} mais</p>}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
@@ -623,6 +695,35 @@ export default function DashboardPage() {
                   onClick={() => openDrilldown({ title: 'Salário Total Previsto', data: admMetrics.pendentesData, type: 'admission', summary: formatCurrency(admMetrics.salarioTotal) })} />
               ) : (
                 <MetricCard icon={DollarSign} label="Salário Total" value="••••••" />
+              )}
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <MetricCard
+                icon={Clock}
+                label="Tempo Médio de Fechamento"
+                value={admMetrics.avgDaysToClose ? `${admMetrics.avgDaysToClose.toFixed(1)} dias` : '—'}
+                accent="bg-blue-100"
+              />
+              <MetricCard
+                icon={Users}
+                label="Iniciadas no Mês"
+                value={admMetrics.noMes}
+                accent="bg-primary/15"
+                onClick={() => navigate('/admissions')}
+              />
+              <MetricCard
+                icon={CheckCircle}
+                label="Concluídas no Mês"
+                value={admMetrics.concluidosNoMes}
+                accent="bg-emerald-100"
+              />
+              {canSeeFinancials && admMetrics.concluidos > 0 && (
+                <MetricCard
+                  icon={DollarSign}
+                  label="Salário Médio"
+                  value={formatCurrency(admMetrics.salarioTotal / Math.max(1, admMetrics.total))}
+                  accent="bg-amber-100"
+                />
               )}
             </div>
             {admMetrics.byStatus.length > 0 && (

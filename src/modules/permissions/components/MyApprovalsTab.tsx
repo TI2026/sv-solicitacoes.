@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, Clock, CheckCircle2, XCircle, RotateCcw, ClipboardCheck, User, Info, Send } from 'lucide-react';
+import { Loader2, Clock, CheckCircle2, XCircle, RotateCcw, ClipboardCheck, User, Info, Send, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyApprovals, useProcessApproval, usePendingFuelRequests } from '../hooks/usePermissionsData';
 import { formatDistanceToNow } from 'date-fns';
@@ -41,6 +42,7 @@ function getStatusBadge(status: string) {
 
 export default function MyApprovalsTab() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: approvals, isLoading } = useMyApprovals(user?.id);
   const { data: pendingFuel, isLoading: loadingFuel } = usePendingFuelRequests();
   const processAction = useProcessApproval();
@@ -70,6 +72,14 @@ export default function MyApprovalsTab() {
 
   const handleApprove = (id: string) => {
     processAction.mutate({ approvalRequestId: id, action: 'approve' });
+  };
+
+  const buildRoute = (a: any) => {
+    const code = a.approval_modules?.code as string | undefined;
+    if (!code || !a.reference_id) return null;
+    if (code === 'admissao') return `/admissions/${a.reference_id}`;
+    if (['abastecimento', 'reembolso', 'diaria'].includes(code)) return `/fleet/${a.reference_id}`;
+    return null;
   };
 
   const handleActionConfirm = () => {
@@ -169,15 +179,20 @@ export default function MyApprovalsTab() {
                         </div>
                       </div>
                       {/* Actions: ONLY for the eligible approver of the current step */}
-                      <div className="flex gap-2 shrink-0 flex-wrap">
-                        <Button size="sm" onClick={() => handleApprove(a.id)} disabled={processAction.isPending} className="gap-1">
+                      <div className="flex gap-2 shrink-0 flex-wrap items-center">
+                        {buildRoute(a) && (
+                          <Button size="sm" variant="ghost" onClick={() => navigate(buildRoute(a)!)} className="gap-1">
+                            <ExternalLink className="w-4 h-4" /> Detalhes
+                          </Button>
+                        )}
+                        <Button size="default" onClick={() => handleApprove(a.id)} disabled={processAction.isPending} className="gap-1.5 font-semibold">
                           <CheckCircle2 className="w-4 h-4" /> Aprovar
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => { setActionDialog({ id: a.id, type: 'reject' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1">
+                        <Button size="default" variant="destructive" onClick={() => { setActionDialog({ id: a.id, type: 'reject' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1.5 font-semibold">
                           <XCircle className="w-4 h-4" /> Reprovar
                         </Button>
                         {canReturn && (
-                          <Button size="sm" variant="outline" onClick={() => { setActionDialog({ id: a.id, type: 'return' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1">
+                          <Button size="default" variant="outline" onClick={() => { setActionDialog({ id: a.id, type: 'return' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1.5">
                             <RotateCcw className="w-4 h-4" /> Devolver
                           </Button>
                         )}
