@@ -111,7 +111,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     items: NavItem[];
   }
 
-  const navGroups: NavGroup[] = [
+  const rawNavGroups: NavGroup[] = [
     {
       label: 'Geral',
       items: [
@@ -148,7 +148,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
       ],
     },
-  ]
+  ];
+  const navGroups: NavGroup[] = rawNavGroups
     .map(g => ({ ...g, items: g.items.filter(i => i.show) }))
     .filter(g => g.items.length > 0);
 
