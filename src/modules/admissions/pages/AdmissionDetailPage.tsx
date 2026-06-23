@@ -341,7 +341,14 @@ export default function AdmissionDetailPage() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-lg">{req.cargo_funcao || 'Admissão'}</CardTitle>
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <CardTitle className="text-lg truncate">{req.cargo_funcao || 'Admissão'}</CardTitle>
+              {req.local_contratacao && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 text-sm font-semibold">
+                  <MapPin className="w-4 h-4" /> Obra: {req.local_contratacao}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               {canEdit && (
                 <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)} className="gap-1">
@@ -364,7 +371,6 @@ export default function AdmissionDetailPage() {
             <span className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="w-3.5 h-3.5" />{req.data_prevista_inicio ? new Date(req.data_prevista_inicio).toLocaleDateString('pt-BR') : '—'}</span>
             <span className="flex items-center gap-1.5 text-muted-foreground"><User className="w-3.5 h-3.5" />{(req as any).profiles?.full_name || '—'}</span>
             <span className="flex items-center gap-1.5 text-muted-foreground"><Briefcase className="w-3.5 h-3.5" />{req.tipo_contrato || '—'}</span>
-            <span className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="w-3.5 h-3.5" />{req.local_contratacao || '—'}</span>
           </div>
           {req.motivo && <p className="text-sm text-muted-foreground border-t border-border pt-2">{req.motivo}</p>}
         </CardContent>
