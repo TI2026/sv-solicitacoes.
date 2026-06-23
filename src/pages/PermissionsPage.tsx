@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMaster } from '@/hooks/useIsMaster';
@@ -193,6 +194,37 @@ export default function PermissionsPage() {
   // Master e Diretoria têm o mesmo nível de gestão de permissões.
   const canManageSettings = isMaster || hasAnyRole(['diretoria']);
 
+  // Sincroniza a aba ativa com ?tab=... — permite que o sidebar (e qualquer link
+  // externo) force a abertura de uma aba específica como "minhas-aprovacoes".
+  const [searchParams, setSearchParams] = useSearchParams();
+  const TAB_ALIASES: Record<string, string> = {
+    'minhas-aprovacoes': 'my-approvals',
+    'my-approvals': 'my-approvals',
+    'andamento': 'in-progress',
+    'in-progress': 'in-progress',
+    'roles': 'roles',
+    'perfis': 'roles',
+    'users': 'users',
+    'usuarios': 'users',
+    'chains': 'chains',
+    'aprovadores': 'chains',
+  };
+  const rawTab = searchParams.get('tab') || '';
+  const requestedTab = TAB_ALIASES[rawTab];
+  const fallbackTab = canManageSettings ? 'roles' : 'my-approvals';
+  const activeTab =
+    requestedTab &&
+    (['my-approvals', 'in-progress'].includes(requestedTab) ||
+      (canManageSettings && ['roles', 'users', 'chains'].includes(requestedTab)))
+      ? requestedTab
+      : fallbackTab;
+
+  const handleTabChange = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', value);
+    setSearchParams(next, { replace: true });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -202,7 +234,7 @@ export default function PermissionsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue={canManageSettings ? 'roles' : 'my-approvals'} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList className="grid w-full" style={{ gridTemplateColumns: canManageSettings ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
           {canManageSettings && (
             <TabsTrigger value="roles" className="gap-2">
