@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle, Send, FileText, CreditCard, ClipboardCheck, RotateCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +18,36 @@ const REJECTED_STATUSES = new Set(['reprovado']);
 const COMPLETED_STATUSES = new Set(['aprovado', 'concluido', 'encerrado']);
 const DIARIA_APPROVED_STATUSES = new Set(['aprovado']);
 const DIARIA_COMPLETED_STATUSES = new Set(['concluido', 'encerrado']);
+
+/**
+ * Computes the highest-priority quick action for this request based on
+ * current user's role + request status. Returns null if nothing to do.
+ */
+function getQuickAction(req: any, userId?: string, roles: string[] = []): { label: string; icon: any; tone: 'primary' | 'warning' | 'danger' } | null {
+  if (!req || !userId) return null;
+  const isOwner = req.requester_user_id === userId;
+  const hasRole = (r: string) => roles.includes(r) || roles.includes('master');
+  const isAdmin = hasRole('diretoria') || hasRole('administrativo');
+  const isCompras = hasRole('diretoria') || hasRole('compras');
+  const isFinanceiro = hasRole('diretoria') || hasRole('financeiro');
+
+  // Owner-side actions first
+  if (isOwner && req.status === 'rascunho') return { label: 'Enviar', icon: Send, tone: 'primary' };
+  if (isOwner && req.status === 'retornado') return { label: 'Ajustar e reenviar', icon: RotateCcw, tone: 'warning' };
+  if (isOwner && req.status === 'aguardando_fotos') return { label: 'Anexar fotos', icon: FileText, tone: 'warning' };
+
+  // Approval flow
+  if (req.status === 'em_aprovacao' && req.current_approver_user_id === userId) {
+    return { label: 'Aprovar', icon: ClipboardCheck, tone: 'danger' };
+  }
+
+  // Operational by role
+  if (isAdmin && req.status === 'em_revisao_admin') return { label: 'Revisar', icon: ClipboardCheck, tone: 'primary' };
+  if (isCompras && req.status === 'aguardando_oc') return { label: 'Anexar OC', icon: FileText, tone: 'warning' };
+  if (isFinanceiro && req.status === 'aguardando_pagamento') return { label: 'Confirmar pagamento', icon: CreditCard, tone: 'warning' };
+
+  return null;
+}
 
 function groupRequests(requests: any[] = []) {
   const rejected = requests.filter((request) => REJECTED_STATUSES.has(request.status));
@@ -65,7 +95,7 @@ function InfoCard({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyIcon, emptyText, canDelete, onDelete }: any) {
+function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyIcon, emptyText, canDelete, onDelete, userId, roles }: any) {
   if (isLoading) return (
     <div className="space-y-3">
       {[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
@@ -111,6 +141,27 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
                   )}
                 </div>
               </Link>
+              {(() => {
+                const action = getQuickAction(req, userId, roles);
+                if (!action) return null;
+                const Icon = action.icon;
+                const toneCls =
+                  action.tone === 'danger'
+                    ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 animate-pulse'
+                    : action.tone === 'warning'
+                      ? 'bg-amber-500 text-white hover:bg-amber-600'
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90';
+                return (
+                  <Button
+                    size="sm"
+                    className={`shrink-0 gap-1.5 ${toneCls}`}
+                    onClick={(e) => { e.preventDefault(); navigate(`/fleet/${req.id}`); }}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{action.label}</span>
+                  </Button>
+                );
+              })()}
               {canDelete && (
                 <Button variant="ghost" size="icon" className="shrink-0 text-destructive hover:text-destructive" onClick={(e) => { e.preventDefault(); onDelete?.(req); }}>
                   <Trash2 className="w-4 h-4" />
@@ -220,11 +271,11 @@ export default function FleetListPage() {
           </div>
 
           {subFilter === 'pendentes' ? (
-            <RequestList requests={abastGroups.pending} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.pending} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
           ) : subFilter === 'negados' ? (
-            <RequestList requests={abastGroups.rejected} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.rejected} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
           ) : (
-            <RequestList requests={abastGroups.completed} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação concluída" />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.completed} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
@@ -250,11 +301,11 @@ export default function FleetListPage() {
           </div>
 
           {subFilter === 'pendentes' ? (
-            <RequestList requests={reembolsoGroups.pending} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.pending} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
           ) : subFilter === 'negados' ? (
-            <RequestList requests={reembolsoGroups.rejected} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.rejected} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
           ) : (
-            <RequestList requests={reembolsoGroups.completed} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação concluída" />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.completed} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
@@ -283,13 +334,13 @@ export default function FleetListPage() {
             </div>
 
             {subFilter === 'pendentes' ? (
-              <RequestList requests={diariaGroups.pending} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária pendente" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.pending} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária pendente" canDelete={isAdmin} onDelete={setDeleteTarget} />
             ) : subFilter === 'negados' ? (
-              <RequestList requests={diariaGroups.rejected} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.rejected} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
             ) : subFilter === 'aprovadas' ? (
-              <RequestList requests={diariaGroups.approved} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária aprovada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.approved} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária aprovada" canDelete={isAdmin} onDelete={setDeleteTarget} />
             ) : (
-              <RequestList requests={diariaGroups.completed} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária concluída" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.completed} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária concluída" canDelete={isAdmin} onDelete={setDeleteTarget} />
             )}
           </TabsContent>
         )}

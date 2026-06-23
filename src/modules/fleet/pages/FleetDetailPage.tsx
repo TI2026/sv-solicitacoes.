@@ -258,7 +258,7 @@ export default function FleetDetailPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
+    <div className="max-w-5xl mx-auto space-y-4 animate-fade-in">
       <Button variant="ghost" className="gap-2" onClick={() => navigate('/fleet')}>
         <ArrowLeft className="w-4 h-4" /> Voltar
       </Button>
@@ -282,8 +282,9 @@ export default function FleetDetailPage() {
         </Alert>
       )}
 
-      {/* Header */}
-      <Card>
+      {/* Header + Actions side-by-side on desktop */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -367,8 +368,8 @@ export default function FleetDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Actions */}
-      <Card>
+        {/* Actions — sticky right column on desktop */}
+        <Card className="lg:sticky lg:top-4 self-start">
         <CardContent className="p-4 space-y-3">
           <h3 className="text-sm font-semibold text-foreground">Ações</h3>
 
@@ -566,6 +567,7 @@ export default function FleetDetailPage() {
           )}
         </CardContent>
       </Card>
+      </div>
 
       {/* Approval Flow Status */}
       {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
