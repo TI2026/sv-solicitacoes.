@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Badge } from '@/components/ui/badge';
 import { DOC_STATUS_LABELS, EXAM_STATUS_LABELS, CANDIDATE_STATUS_LABELS } from '@/lib/constants';
 import { ArrowLeft, Loader2, CheckCircle, XCircle, FileText, Stethoscope, ClipboardList, User, CalendarClock, MapPin, AlertTriangle, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
