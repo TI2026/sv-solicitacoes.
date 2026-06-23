@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle, Send, FileText, CreditCard, ClipboardCheck, RotateCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,6 +18,36 @@ const REJECTED_STATUSES = new Set(['reprovado']);
 const COMPLETED_STATUSES = new Set(['aprovado', 'concluido', 'encerrado']);
 const DIARIA_APPROVED_STATUSES = new Set(['aprovado']);
 const DIARIA_COMPLETED_STATUSES = new Set(['concluido', 'encerrado']);
+
+/**
+ * Computes the highest-priority quick action for this request based on
+ * current user's role + request status. Returns null if nothing to do.
+ */
+function getQuickAction(req: any, userId?: string, roles: string[] = []): { label: string; icon: any; tone: 'primary' | 'warning' | 'danger' } | null {
+  if (!req || !userId) return null;
+  const isOwner = req.requester_user_id === userId;
+  const hasRole = (r: string) => roles.includes(r) || roles.includes('master');
+  const isAdmin = hasRole('diretoria') || hasRole('administrativo');
+  const isCompras = hasRole('diretoria') || hasRole('compras');
+  const isFinanceiro = hasRole('diretoria') || hasRole('financeiro');
+
+  // Owner-side actions first
+  if (isOwner && req.status === 'rascunho') return { label: 'Enviar', icon: Send, tone: 'primary' };
+  if (isOwner && req.status === 'retornado') return { label: 'Ajustar e reenviar', icon: RotateCcw, tone: 'warning' };
+  if (isOwner && req.status === 'aguardando_fotos') return { label: 'Anexar fotos', icon: FileText, tone: 'warning' };
+
+  // Approval flow
+  if (req.status === 'em_aprovacao' && req.current_approver_user_id === userId) {
+    return { label: 'Aprovar', icon: ClipboardCheck, tone: 'danger' };
+  }
+
+  // Operational by role
+  if (isAdmin && req.status === 'em_revisao_admin') return { label: 'Revisar', icon: ClipboardCheck, tone: 'primary' };
+  if (isCompras && req.status === 'aguardando_oc') return { label: 'Anexar OC', icon: FileText, tone: 'warning' };
+  if (isFinanceiro && req.status === 'aguardando_pagamento') return { label: 'Confirmar pagamento', icon: CreditCard, tone: 'warning' };
+
+  return null;
+}
 
 function groupRequests(requests: any[] = []) {
   const rejected = requests.filter((request) => REJECTED_STATUSES.has(request.status));
