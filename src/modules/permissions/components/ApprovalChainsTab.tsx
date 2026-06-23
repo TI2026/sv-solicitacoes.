@@ -31,20 +31,24 @@ const APPROVER_TYPE_ICONS: Record<string, any> = {
 const APPROVER_TYPE_HELPERS: Record<string, string> = {
   responsavel_do_setor_do_solicitante: 'O sistema localizará automaticamente o responsável do setor do solicitante.',
   gestor_imediato: 'O sistema localizará automaticamente o gestor imediato do usuário relacionado.',
-  cargo_perfil: 'Qualquer usuário com o cargo/perfil selecionado poderá aprovar esta etapa.',
+  cargo_perfil: 'Apenas usuários ATIVOS com o cargo selecionado E lotados no MESMO setor do solicitante poderão aprovar esta etapa.',
 };
 
 const DYNAMIC_TYPES = ['responsavel_do_setor_do_solicitante', 'gestor_imediato'];
 
-function parseApproverType(raw: string): { type: StepDraft['approverType']; roleKey: string | null } {
-  if (raw.startsWith('cargo_perfil:')) {
-    return { type: 'cargo_perfil', roleKey: raw.replace('cargo_perfil:', '') };
+function parseApproverType(raw: string, roleKey?: string | null): { type: StepDraft['approverType']; roleKey: string | null } {
+  // Legacy rows persisted as "cargo_perfil:<role>" in approver_type.
+  if (raw && raw.startsWith('cargo_perfil:')) {
+    return { type: 'cargo_perfil', roleKey: raw.replace('cargo_perfil:', '') || (roleKey ?? null) };
   }
-  return { type: raw as StepDraft['approverType'], roleKey: null };
+  if (raw === 'cargo_perfil') {
+    return { type: 'cargo_perfil', roleKey: roleKey ?? null };
+  }
+  return { type: (raw as StepDraft['approverType']) || 'usuario_fixo', roleKey: roleKey ?? null };
 }
 
 function getDisplayApproverType(raw: string): string {
-  if (raw.startsWith('cargo_perfil:')) return 'cargo_perfil';
+  if (raw && raw.startsWith('cargo_perfil')) return 'cargo_perfil';
   return raw;
 }
 
@@ -96,7 +100,7 @@ export default function ApprovalChainsTab() {
       (flow.approval_flow_steps || [])
         .sort((a: any, b: any) => a.step_order - b.step_order)
         .map((s: any) => {
-          const parsed = parseApproverType(s.approver_type || 'usuario_fixo');
+          const parsed = parseApproverType(s.approver_type || 'usuario_fixo', s.approver_role_key);
           return {
             stepOrder: s.step_order,
             approverType: parsed.type,
@@ -181,9 +185,9 @@ export default function ApprovalChainsTab() {
     if (displayType === 'responsavel_do_setor_especifico') {
       return `${label}: ${step.sectors?.name || 'N/A'}`;
     }
-    if (raw.startsWith('cargo_perfil:')) {
-      const roleKey = raw.replace('cargo_perfil:', '');
-      return `Cargo: ${roleKey}`;
+    if (displayType === 'cargo_perfil') {
+      const roleKey = step.approver_role_key || (raw.includes(':') ? raw.split(':')[1] : '');
+      return `Cargo: ${roleKey || 'N/A'} (mesmo setor do solicitante)`;
     }
     return label;
   };
