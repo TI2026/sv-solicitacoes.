@@ -271,11 +271,11 @@ export default function FleetListPage() {
           </div>
 
           {subFilter === 'pendentes' ? (
-            <RequestList requests={abastGroups.pending} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.pending} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
           ) : subFilter === 'negados' ? (
-            <RequestList requests={abastGroups.rejected} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.rejected} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
           ) : (
-            <RequestList requests={abastGroups.completed} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação concluída" />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.completed} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
@@ -301,11 +301,11 @@ export default function FleetListPage() {
           </div>
 
           {subFilter === 'pendentes' ? (
-            <RequestList requests={reembolsoGroups.pending} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.pending} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
           ) : subFilter === 'negados' ? (
-            <RequestList requests={reembolsoGroups.rejected} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.rejected} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
           ) : (
-            <RequestList requests={reembolsoGroups.completed} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação concluída" />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.completed} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação concluída" />
           )}
         </TabsContent>
 
@@ -334,13 +334,13 @@ export default function FleetListPage() {
             </div>
 
             {subFilter === 'pendentes' ? (
-              <RequestList requests={diariaGroups.pending} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária pendente" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.pending} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária pendente" canDelete={isAdmin} onDelete={setDeleteTarget} />
             ) : subFilter === 'negados' ? (
-              <RequestList requests={diariaGroups.rejected} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.rejected} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
             ) : subFilter === 'aprovadas' ? (
-              <RequestList requests={diariaGroups.approved} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária aprovada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.approved} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária aprovada" canDelete={isAdmin} onDelete={setDeleteTarget} />
             ) : (
-              <RequestList requests={diariaGroups.completed} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária concluída" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.completed} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária concluída" canDelete={isAdmin} onDelete={setDeleteTarget} />
             )}
           </TabsContent>
         )}
