@@ -378,11 +378,10 @@ export function useSaveApprovalFlow() {
       const stepsPayload = params.steps.map((s) => {
         const resolvedUserId = s.approverType === 'usuario_fixo' ? s.fixedUserId : null;
         return {
-          approver_type: s.approverType === 'cargo_perfil'
-            ? `cargo_perfil:${s.approverRoleKey || ''}`
-            : s.approverType,
+          approver_type: s.approverType,
           approver_user_id: resolvedUserId,
           fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
+          approver_role_key: s.approverType === 'cargo_perfil' ? (s.approverRoleKey || null) : null,
         };
       });
 
@@ -494,7 +493,7 @@ export function useEligibleApprovers() {
     queryFn: async () => {
       const { data: profiles, error: pErr } = await supabase
         .from('profiles')
-        .select('id, full_name, email, avatar_url')
+        .select('id, full_name, email, avatar_url, active')
         .order('full_name');
       if (pErr) throw pErr;
 
@@ -526,7 +525,9 @@ export function useEligibleApprovers() {
         }
       });
 
-      return (profiles || []).filter((p: any) => eligibleUserIds.has(p.id));
+      return (profiles || [])
+        .filter((p: any) => p.active !== false)
+        .filter((p: any) => eligibleUserIds.has(p.id));
     },
   });
 }

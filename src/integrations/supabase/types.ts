@@ -326,6 +326,7 @@ export type Database = {
       approval_flow_steps: {
         Row: {
           active: boolean
+          approver_role_key: string | null
           approver_type: string
           approver_user_id: string | null
           created_at: string
@@ -337,6 +338,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          approver_role_key?: string | null
           approver_type?: string
           approver_user_id?: string | null
           created_at?: string
@@ -348,6 +350,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          approver_role_key?: string | null
           approver_type?: string
           approver_user_id?: string | null
           created_at?: string
@@ -520,6 +523,7 @@ export type Database = {
         Row: {
           action_at: string | null
           approval_request_id: string
+          approver_role_key: string | null
           approver_rule: string | null
           approver_user_id: string
           comments: string | null
@@ -533,6 +537,7 @@ export type Database = {
         Insert: {
           action_at?: string | null
           approval_request_id: string
+          approver_role_key?: string | null
           approver_rule?: string | null
           approver_user_id: string
           comments?: string | null
@@ -546,6 +551,7 @@ export type Database = {
         Update: {
           action_at?: string | null
           approval_request_id?: string
+          approver_role_key?: string | null
           approver_rule?: string | null
           approver_user_id?: string
           comments?: string | null
@@ -1662,6 +1668,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active: boolean
           avatar_url: string | null
           created_at: string
           department: string
@@ -1674,6 +1681,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active?: boolean
           avatar_url?: string | null
           created_at?: string
           department?: string
@@ -1686,6 +1694,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active?: boolean
           avatar_url?: string | null
           created_at?: string
           department?: string

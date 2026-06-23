@@ -2,10 +2,10 @@
 
 export const APPROVER_TYPE_LABELS: Record<string, string> = {
   usuario_fixo: 'Usuário fixo',
-  diretor_do_setor_do_solicitante: 'Diretor do setor do solicitante',
-  diretor_do_setor_do_colaborador_relacionado: 'Diretor do setor do colaborador relacionado',
+  responsavel_do_setor_do_solicitante: 'Responsável do setor do solicitante',
   responsavel_do_setor_especifico: 'Responsável do setor específico',
   gestor_imediato: 'Gestor imediato',
+  cargo_perfil: 'Cargo / Perfil aprovador',
 };
 
 export const APPROVAL_STEP_STATUS_LABELS: Record<string, string> = {
@@ -28,7 +28,9 @@ export const APPROVAL_REQUEST_STATUS_LABELS: Record<string, string> = {
 
 export function getApproverTypeLabel(type: string | null | undefined): string {
   if (!type) return APPROVER_TYPE_LABELS.usuario_fixo;
-  return APPROVER_TYPE_LABELS[type] || type;
+  // Legacy support: any leftover "cargo_perfil:<role>" string still renders as Cargo/Perfil.
+  const normalized = type.startsWith('cargo_perfil') ? 'cargo_perfil' : type;
+  return APPROVER_TYPE_LABELS[normalized] || type;
 }
 
 export function getStepStatusLabel(status: string): string {
