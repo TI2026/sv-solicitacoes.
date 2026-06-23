@@ -114,31 +114,36 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
       {requests.map((req: any) => (
         <Card key={req.id} className="hover:border-primary/30 transition-colors">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
               <Link to={`/fleet/${req.id}`} className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-base font-semibold text-foreground">
                     R$ {Number(req.valor || req.daily_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                   <StatusBadge status={req.status} label={FUEL_STATUS_LABELS[req.status] || req.status} />
                   {req.type !== 'abastecimento' && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">
                       {REQUEST_TYPE_LABELS[req.type] || req.type}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-<span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
+                <div className="flex items-center gap-x-3 gap-y-1 mt-1.5 text-sm text-muted-foreground flex-wrap min-w-0">
+                  <span className="flex items-center gap-1 shrink-0">
+                    <Calendar className="w-3.5 h-3.5" />
                     {new Date(req.data_abastecimento).toLocaleDateString('pt-BR')}
                   </span>
-                  {req.placa && <span>🚗 {req.placa}</span>}
-                  {req.categoria && <span>{req.categoria}</span>}
-                  {req.person_name && <span>{req.person_name}</span>}
-                  {isAdmin && req.profiles && <span>{req.profiles.full_name}</span>}
-                  {isAdmin && (req as any).assignee?.full_name && ['enviado', 'em_revisao'].includes(req.status) && (
-                    <span className="text-primary font-medium">📋 {(req as any).assignee.full_name}</span>
+                  {req.placa && <span className="shrink-0">🚗 {req.placa}</span>}
+                  {req.categoria && <span className="truncate max-w-[12rem]">{req.categoria}</span>}
+                  {req.person_name && <span className="truncate max-w-[14rem] font-medium text-foreground/80">{req.person_name}</span>}
+                  {isAdmin && req.profiles && (
+                    <span className="truncate max-w-[14rem] font-medium text-foreground/80">{req.profiles.full_name}</span>
                   )}
+                  {isAdmin && (req as any).assignee?.full_name && ['enviado', 'em_revisao'].includes(req.status) && (
+                    <span className="text-primary font-medium truncate max-w-[14rem]">📋 {(req as any).assignee.full_name}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground/70 ml-auto shrink-0">
+                    Criado {new Date(req.created_at || req.data_abastecimento).toLocaleDateString('pt-BR')}
+                  </span>
                 </div>
               </Link>
               {(() => {
