@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/StatusBadge';
-import { StatusTimeline } from '@/components/StatusTimeline';
+import { FleetTimeline } from '../components/FleetTimeline';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
 import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard, CheckCircle2, Circle, AlertTriangle, Trash2 } from 'lucide-react';
@@ -62,6 +62,19 @@ export default function FleetDetailPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<'image' | 'pdf' | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>('');
+
+  // Reembolso pre-approval checklist (4 mandatory items)
+  const [reembChecklist, setReembChecklist] = useState({
+    valorConfere: false,
+    beneficiarioConfere: false,
+    comprovanteOk: false,
+    categoriaOk: false,
+  });
+  const reembChecklistComplete =
+    reembChecklist.valorConfere &&
+    reembChecklist.beneficiarioConfere &&
+    reembChecklist.comprovanteOk &&
+    reembChecklist.categoriaOk;
 
   // Master role consumed from unified AuthContext (no extra DB query).
   const isMaster = useIsMaster();
@@ -127,10 +140,21 @@ export default function FleetDetailPage() {
   /** Approval flow action (approve/reject/return) — uses process_approval_action */
   const handleApprovalAction = async (action: 'approve' | 'reject' | 'return', comments?: string) => {
     if (!id || !approvalRequest || approvalAction.isPending) return;
+    let finalComments = comments;
+    if (action === 'approve' && reqType === 'reembolso') {
+      const checklistSummary = [
+        '✅ Checklist Reembolso:',
+        `• Valor confere com comprovante: ${reembChecklist.valorConfere ? 'sim' : 'não'}`,
+        `• Beneficiário/CPF conferidos: ${reembChecklist.beneficiarioConfere ? 'sim' : 'não'}`,
+        `• Comprovante legível anexado: ${reembChecklist.comprovanteOk ? 'sim' : 'não'}`,
+        `• Categoria correta: ${reembChecklist.categoriaOk ? 'sim' : 'não'}`,
+      ].join('\n');
+      finalComments = comments ? `${checklistSummary}\n\n${comments}` : checklistSummary;
+    }
     await approvalAction.mutateAsync({
       approvalRequestId: approvalRequest.id,
       action,
-      comments: comments || undefined,
+      comments: finalComments || undefined,
       fuelRequestId: id,
       fuelRequestType: reqType,
     });
@@ -461,8 +485,42 @@ export default function FleetDetailPage() {
 
           {/* APPROVAL FLOW: approve/reject/return — ONLY for eligible approver of current step */}
           {req.status === 'em_aprovacao' && hasActiveFlow && isCurrentFlowApprover && (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleApprovalAction('approve')} disabled={isPending} className="gap-2">
+            <div className="space-y-3">
+              {reqType === 'reembolso' && (
+                <div className="space-y-2 border border-amber-300/60 rounded-lg p-3 bg-amber-50 dark:bg-amber-950/20">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Checklist obrigatório antes de aprovar
+                  </p>
+                  <div className="space-y-1.5 text-xs">
+                    {[
+                      { key: 'valorConfere', label: 'Valor confere com o comprovante' },
+                      { key: 'beneficiarioConfere', label: 'Beneficiário e CPF conferidos' },
+                      { key: 'comprovanteOk', label: 'Comprovante anexado e legível' },
+                      { key: 'categoriaOk', label: 'Categoria de despesa correta' },
+                    ].map(item => (
+                      <label key={item.key} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={(reembChecklist as any)[item.key]}
+                          onCheckedChange={(v) => setReembChecklist(prev => ({ ...prev, [item.key]: !!v }))}
+                        />
+                        <span className="text-foreground">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {!reembChecklistComplete && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                      Marque todos os itens para liberar a aprovação.
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => handleApprovalAction('approve')}
+                disabled={isPending || (reqType === 'reembolso' && !reembChecklistComplete)}
+                className="gap-2"
+              >
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Aprovar
               </Button>
               <Button onClick={() => setShowReasonDialog('reprovado')} variant="destructive" className="gap-2" disabled={isPending}>
@@ -473,6 +531,7 @@ export default function FleetDetailPage() {
                   <RotateCcw className="w-4 h-4" /> Devolver
                 </Button>
               )}
+              </div>
             </div>
           )}
 
@@ -770,7 +829,7 @@ export default function FleetDetailPage() {
       <Card>
         <CardContent className="p-4">
           <h3 className="text-sm font-semibold text-foreground mb-3">Histórico</h3>
-          <StatusTimeline entityId={id!} entityType="fuel_requests" module="fleet" statusLabels={FUEL_STATUS_LABELS} />
+          <FleetTimeline requestId={id!} req={req} approvalRequest={approvalRequest} />
         </CardContent>
       </Card>
 
@@ -782,40 +841,52 @@ export default function FleetDetailPage() {
               {showReasonDialog === 'reprovado' ? 'Motivo da Recusa' : 'Motivo da Devolução'}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto py-2 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              A justificativa é obrigatória.
-            </p>
-            <Textarea
-              value={actionReason}
-              onChange={e => setActionReason(e.target.value.slice(0, 500))}
-              placeholder={showReasonDialog === 'reprovado' ? 'Informe o motivo da recusa (mínimo 10 caracteres)...' : 'Informe o motivo da devolução (mínimo 5 caracteres)...'}
-              rows={3}
-              maxLength={500}
-            />
-            {showReasonDialog === 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 10 && (
-              <p className="text-xs text-destructive">Mínimo 10 caracteres</p>
-            )}
-            {showReasonDialog !== 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 5 && (
-              <p className="text-xs text-destructive">Mínimo 5 caracteres</p>
-            )}
-          </div>
-          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
-            <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
-            <Button
-              onClick={handleReasonConfirm}
-              disabled={
-                !actionReason.trim() ||
-                (showReasonDialog === 'reprovado' && actionReason.trim().length < 10) ||
-                (showReasonDialog !== 'reprovado' && actionReason.trim().length < 5) ||
-                isPending
-              }
-              variant={showReasonDialog === 'reprovado' ? 'destructive' : 'default'}
-            >
-              {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Confirmar
-            </Button>
-          </DialogFooter>
+          {(() => {
+            const minChars = reqType === 'reembolso' ? 20 : (showReasonDialog === 'reprovado' ? 10 : 5);
+            const len = actionReason.trim().length;
+            const tooShort = len > 0 && len < minChars;
+            const valid = len >= minChars;
+            return (
+              <>
+                <div className="flex-1 overflow-y-auto py-2 space-y-3">
+                  {reqType === 'reembolso' && (
+                    <Alert className="border-destructive/50 bg-destructive/5">
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                      <AlertDescription className="text-xs text-destructive">
+                        Reembolso exige justificativa detalhada (mínimo 20 caracteres) — o solicitante e demais aprovadores precisam entender o motivo.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <p className="text-xs text-muted-foreground">A justificativa é obrigatória.</p>
+                  <Textarea
+                    value={actionReason}
+                    onChange={e => setActionReason(e.target.value.slice(0, 500))}
+                    placeholder={`Informe o motivo (mínimo ${minChars} caracteres)...`}
+                    rows={4}
+                    maxLength={500}
+                    className={tooShort ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  />
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={tooShort ? 'text-destructive font-medium' : valid ? 'text-emerald-600' : 'text-muted-foreground'}>
+                      {tooShort ? `Mínimo ${minChars} caracteres (${len}/${minChars})` : valid ? '✓ Justificativa válida' : `Mínimo ${minChars} caracteres`}
+                    </span>
+                    <span className="text-muted-foreground">{len}/500</span>
+                  </div>
+                </div>
+                <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
+                  <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
+                  <Button
+                    onClick={handleReasonConfirm}
+                    disabled={!valid || isPending}
+                    variant={showReasonDialog === 'reprovado' ? 'destructive' : 'default'}
+                  >
+                    {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                    Confirmar
+                  </Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
