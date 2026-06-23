@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FleetTimeline } from '../components/FleetTimeline';
+import { DiariaProgressBar } from '../components/DiariaProgressBar';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
 import { ArrowLeft, Loader2, Upload, Send, CheckCircle, XCircle, RotateCcw, DollarSign, Calendar, User, FileImage, Clock, Car, Receipt, FileText, CreditCard, CheckCircle2, Circle, AlertTriangle, Trash2 } from 'lucide-react';
@@ -81,6 +82,8 @@ export default function FleetDetailPage() {
 
   const isOwner = req?.requester_user_id === user?.id;
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
+  const isCompras = hasAnyRole(['compras', 'diretoria', 'administrativo']);
+  const isFinanceiro = hasAnyRole(['financeiro', 'diretoria', 'administrativo']);
   const reqType = (req as any)?.type || 'abastecimento';
   const vehicle = useVehicleByPlate((req as any)?.placa);
 
@@ -414,6 +417,18 @@ export default function FleetDetailPage() {
         </CardContent>
       </Card>
 
+        {/* DIÁRIA: progress bar shown alongside details on desktop */}
+        {reqType === 'diaria' && (
+          <Card className="lg:col-span-3 order-first lg:order-none">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Clock className="w-4 h-4" /> Progresso da Diária
+              </h3>
+              <DiariaProgressBar requestId={id!} currentStatus={req.status} />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Actions — sticky right column on desktop */}
         <Card className="lg:sticky lg:top-4 self-start">
         <CardContent className="p-4 space-y-3">
@@ -663,31 +678,54 @@ export default function FleetDetailPage() {
               ficam ocultos para evitar liberar pagamento antes da aprovação concluída. */}
 
           {/* DIÁRIA: Aprovado -> Anexar OC (gera transição aprovado -> aguardando_oc) */}
-          {isAdmin && reqType === 'diaria' && req.status === 'aprovado' && (
+          {isCompras && reqType === 'diaria' && req.status === 'aprovado' && (
             <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2">
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Anexar OC
             </Button>
           )}
 
           {/* DIÁRIA: Aguardando OC -> confirmar OC */}
-          {isAdmin && reqType === 'diaria' && req.status === 'aguardando_oc' && (
-            <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2">
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Confirmar OC
-            </Button>
+          {isCompras && reqType === 'diaria' && req.status === 'aguardando_oc' && (
+            <div className="space-y-2 border border-amber-300/60 rounded-lg p-3 bg-amber-50 dark:bg-amber-950/20">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" /> Painel Compras — Registrar OC
+              </p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400">Informe a Ordem de Compra para liberar o pagamento.</p>
+              <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2 w-full sm:w-auto">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Anexar OC
+              </Button>
+            </div>
           )}
 
           {/* DIÁRIA: Aguardando Pagamento -> Pago (só depois de OC) */}
-          {isAdmin && reqType === 'diaria' && req.status === 'aguardando_pagamento' && (
-            <Button onClick={() => setShowPaymentDialog(true)} disabled={isPending} className="gap-2">
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} Confirmar Pagamento
-            </Button>
+          {isFinanceiro && reqType === 'diaria' && req.status === 'aguardando_pagamento' && (
+            <div className="space-y-2 border border-emerald-300/60 rounded-lg p-3 bg-emerald-50 dark:bg-emerald-950/20">
+              <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5" /> Painel Financeiro — Pagamento
+              </p>
+              {(req as any).oc_number && (
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-400">OC registrada: <b>{(req as any).oc_number}</b></p>
+              )}
+              <Button onClick={() => setShowPaymentDialog(true)} disabled={isPending} className="gap-2 w-full sm:w-auto">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />} Confirmar Pagamento
+              </Button>
+            </div>
           )}
 
           {/* DIÁRIA: Pago -> Concluído */}
           {isAdmin && reqType === 'diaria' && req.status === 'pago' && (
-            <Button onClick={() => handleStatusChange('concluido')} disabled={isPending} className="gap-2">
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Concluir
-            </Button>
+            <div className="space-y-2 border border-primary/40 rounded-lg p-3 bg-primary/5">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <CheckCircle className="w-3.5 h-3.5 text-primary" /> Painel Administrativo — Encerramento
+              </p>
+              {(req as any).paid_at && (
+                <p className="text-[11px] text-muted-foreground">Pago em: <b>{new Date((req as any).paid_at).toLocaleDateString('pt-BR')}</b></p>
+              )}
+              <p className="text-[11px] text-muted-foreground">Confirme a entrega/execução do serviço para encerrar a diária.</p>
+              <Button onClick={() => handleStatusChange('concluido')} disabled={isPending} className="gap-2 w-full sm:w-auto">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Concluir Diária
+              </Button>
+            </div>
           )}
 
           {/* DIÁRIA legacy: encerrar (from ativa) */}
