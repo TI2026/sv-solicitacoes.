@@ -246,6 +246,15 @@ export default function FleetDetailPage() {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank');
   };
 
+  const openInlinePreview = async (path: string, label: string) => {
+    const { data } = await supabase.storage.from('fleet').createSignedUrl(path, 300);
+    if (!data?.signedUrl) return;
+    const isPdf = /\.pdf$/i.test(path);
+    setPreviewUrl(data.signedUrl);
+    setPreviewType(isPdf ? 'pdf' : 'image');
+    setPreviewTitle(label);
+  };
+
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   if (!req) return <p className="text-center py-12 text-muted-foreground">Solicitação não encontrada</p>;
 
