@@ -841,40 +841,52 @@ export default function FleetDetailPage() {
               {showReasonDialog === 'reprovado' ? 'Motivo da Recusa' : 'Motivo da Devolução'}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto py-2 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              A justificativa é obrigatória.
-            </p>
-            <Textarea
-              value={actionReason}
-              onChange={e => setActionReason(e.target.value.slice(0, 500))}
-              placeholder={showReasonDialog === 'reprovado' ? 'Informe o motivo da recusa (mínimo 10 caracteres)...' : 'Informe o motivo da devolução (mínimo 5 caracteres)...'}
-              rows={3}
-              maxLength={500}
-            />
-            {showReasonDialog === 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 10 && (
-              <p className="text-xs text-destructive">Mínimo 10 caracteres</p>
-            )}
-            {showReasonDialog !== 'reprovado' && actionReason.trim().length > 0 && actionReason.trim().length < 5 && (
-              <p className="text-xs text-destructive">Mínimo 5 caracteres</p>
-            )}
-          </div>
-          <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
-            <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
-            <Button
-              onClick={handleReasonConfirm}
-              disabled={
-                !actionReason.trim() ||
-                (showReasonDialog === 'reprovado' && actionReason.trim().length < 10) ||
-                (showReasonDialog !== 'reprovado' && actionReason.trim().length < 5) ||
-                isPending
-              }
-              variant={showReasonDialog === 'reprovado' ? 'destructive' : 'default'}
-            >
-              {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Confirmar
-            </Button>
-          </DialogFooter>
+          {(() => {
+            const minChars = reqType === 'reembolso' ? 20 : (showReasonDialog === 'reprovado' ? 10 : 5);
+            const len = actionReason.trim().length;
+            const tooShort = len > 0 && len < minChars;
+            const valid = len >= minChars;
+            return (
+              <>
+                <div className="flex-1 overflow-y-auto py-2 space-y-3">
+                  {reqType === 'reembolso' && (
+                    <Alert className="border-destructive/50 bg-destructive/5">
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                      <AlertDescription className="text-xs text-destructive">
+                        Reembolso exige justificativa detalhada (mínimo 20 caracteres) — o solicitante e demais aprovadores precisam entender o motivo.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <p className="text-xs text-muted-foreground">A justificativa é obrigatória.</p>
+                  <Textarea
+                    value={actionReason}
+                    onChange={e => setActionReason(e.target.value.slice(0, 500))}
+                    placeholder={`Informe o motivo (mínimo ${minChars} caracteres)...`}
+                    rows={4}
+                    maxLength={500}
+                    className={tooShort ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  />
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={tooShort ? 'text-destructive font-medium' : valid ? 'text-emerald-600' : 'text-muted-foreground'}>
+                      {tooShort ? `Mínimo ${minChars} caracteres (${len}/${minChars})` : valid ? '✓ Justificativa válida' : `Mínimo ${minChars} caracteres`}
+                    </span>
+                    <span className="text-muted-foreground">{len}/500</span>
+                  </div>
+                </div>
+                <DialogFooter className="shrink-0 border-t border-border pt-4 mt-2">
+                  <Button variant="outline" onClick={() => setShowReasonDialog(null)}>Cancelar</Button>
+                  <Button
+                    onClick={handleReasonConfirm}
+                    disabled={!valid || isPending}
+                    variant={showReasonDialog === 'reprovado' ? 'destructive' : 'default'}
+                  >
+                    {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                    Confirmar
+                  </Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
