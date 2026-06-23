@@ -223,10 +223,27 @@ export default function DashboardPage() {
     const byStatus = Object.entries(
       d.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {} as Record<string, number>)
     ).map(([status, count]) => ({ name: ADMISSION_STATUS_LABELS[status] || status, value: count, status }));
+    // Tempo médio de fechamento (em dias) — usa welcome_pdf_generated_at quando disponível como proxy do encerramento
+    const closedWithDates = d.filter((a: any) => a.status === 'concluido' && a.welcome_pdf_generated_at && a.created_at);
+    const avgDaysToClose = closedWithDates.length
+      ? closedWithDates.reduce((sum: number, a: any) => {
+          const start = new Date(a.created_at).getTime();
+          const end = new Date(a.welcome_pdf_generated_at).getTime();
+          return sum + Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
+        }, 0) / closedWithDates.length
+      : 0;
+    // Admissões iniciadas no mês corrente
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const noMes = d.filter((a: any) => new Date(a.created_at).getTime() >= monthStart).length;
+    const concluidosNoMes = d.filter((a: any) => a.status === 'concluido' && new Date(a.created_at).getTime() >= monthStart).length;
     return {
       total, pendentes, concluidos, salarioTotal, byStatus,
       pendentesData: d.filter(a => !['concluido', 'cancelado'].includes(a.status)),
       concluidosData: d.filter(a => a.status === 'concluido'),
+      avgDaysToClose,
+      noMes,
+      concluidosNoMes,
     };
   }, [admData]);
 
@@ -678,6 +695,35 @@ export default function DashboardPage() {
                   onClick={() => openDrilldown({ title: 'Salário Total Previsto', data: admMetrics.pendentesData, type: 'admission', summary: formatCurrency(admMetrics.salarioTotal) })} />
               ) : (
                 <MetricCard icon={DollarSign} label="Salário Total" value="••••••" />
+              )}
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <MetricCard
+                icon={Clock}
+                label="Tempo Médio de Fechamento"
+                value={admMetrics.avgDaysToClose ? `${admMetrics.avgDaysToClose.toFixed(1)} dias` : '—'}
+                accent="bg-blue-100"
+              />
+              <MetricCard
+                icon={Users}
+                label="Iniciadas no Mês"
+                value={admMetrics.noMes}
+                accent="bg-primary/15"
+                onClick={() => navigate('/admissions')}
+              />
+              <MetricCard
+                icon={CheckCircle}
+                label="Concluídas no Mês"
+                value={admMetrics.concluidosNoMes}
+                accent="bg-emerald-100"
+              />
+              {canSeeFinancials && admMetrics.concluidos > 0 && (
+                <MetricCard
+                  icon={DollarSign}
+                  label="Salário Médio"
+                  value={formatCurrency(admMetrics.salarioTotal / Math.max(1, admMetrics.total))}
+                  accent="bg-amber-100"
+                />
               )}
             </div>
             {admMetrics.byStatus.length > 0 && (
