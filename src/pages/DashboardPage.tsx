@@ -607,6 +607,61 @@ export default function DashboardPage() {
                 })()}
               </CardContent>
             </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4" /> Diárias Concluídas
+                </h3>
+                {(() => {
+                  const completed = (fuelData || []).filter((f: any) => ['aprovado', 'concluido', 'encerrado'].includes(f.status) && f.type === 'diaria');
+                  if (completed.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">Nenhuma</p>;
+                  return (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {completed.slice(0, 20).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/fleet/${item.id}`)}>
+                          <div>
+                            <span className="font-medium">{canSeeFinancials ? formatCurrency(Number(item.daily_value || item.valor || 0)) : '••••••'}</span>
+                            {item.person_name && <span className="text-xs text-muted-foreground ml-2">{item.person_name}</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
+                            <StatusBadge status={item.status} label={FUEL_STATUS_LABELS[item.status] || item.status} />
+                          </div>
+                        </div>
+                      ))}
+                      {completed.length > 20 && <p className="text-xs text-muted-foreground text-center">+{completed.length - 20} mais</p>}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+
+            {isRH && (
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4" /> Admissões Concluídas
+                  </h3>
+                  {admMetrics.concluidosData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma</p>
+                  ) : (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {admMetrics.concluidosData.slice(0, 20).map((item: any) => (
+                        <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admissions/${item.id}`)}>
+                          <div className="min-w-0">
+                            <span className="font-medium truncate">{item.cargo_funcao || 'Admissão'}</span>
+                            {item.centro_custo && <span className="text-xs text-muted-foreground ml-2">{item.centro_custo}</span>}
+                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                      ))}
+                      {admMetrics.concluidosData.length > 20 && <p className="text-xs text-muted-foreground text-center">+{admMetrics.concluidosData.length - 20} mais</p>}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
