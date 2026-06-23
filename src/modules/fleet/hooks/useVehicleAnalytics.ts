@@ -40,7 +40,16 @@ export function useFuelHistory() {
         .in('status', VALID_STATUSES as any)
         .order('data_abastecimento', { ascending: true });
       if (error) throw error;
-      return (data || []).filter((r: any) => r.placa && r.km != null) as FuelEntry[];
+      return (data || [])
+        .filter((r: any) => r.placa && r.km != null)
+        .map((r: any) => ({
+          id: r.id,
+          placa: String(r.placa),
+          km: Number(r.km),
+          valor: Number(r.valor),
+          data_abastecimento: r.data_abastecimento,
+          status: r.status,
+        })) as FuelEntry[];
     },
     staleTime: 60_000,
   });
