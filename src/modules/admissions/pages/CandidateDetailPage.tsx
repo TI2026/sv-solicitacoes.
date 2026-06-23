@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DOC_STATUS_LABELS, EXAM_STATUS_LABELS, CANDIDATE_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, CheckCircle, XCircle, FileText, Stethoscope, ClipboardList, User, CalendarClock, MapPin, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle, XCircle, FileText, Stethoscope, ClipboardList, User, CalendarClock, MapPin, AlertTriangle, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -125,8 +125,25 @@ export default function CandidateDetailPage() {
       {/* Candidate Info */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-lg flex items-center gap-2"><User className="w-5 h-5" /> {candidate.nome}</CardTitle>
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-lg flex items-center gap-2"><User className="w-5 h-5" /> {candidate.nome}</CardTitle>
+              {((candidate as any).admission_requests?.centro_custo || (candidate as any).admission_requests?.cargo_funcao) && (
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {(candidate as any).admission_requests?.centro_custo && (
+                    <Badge className="bg-primary/15 text-primary border border-primary/30 gap-1 text-xs font-semibold px-2.5 py-1">
+                      <Building2 className="w-3.5 h-3.5" />
+                      Obra: {(candidate as any).admission_requests.centro_custo}
+                    </Badge>
+                  )}
+                  {(candidate as any).admission_requests?.cargo_funcao && (
+                    <Badge variant="outline" className="text-xs">
+                      {(candidate as any).admission_requests.cargo_funcao}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
             <StatusBadge status={candidate.status_triagem} label={CANDIDATE_STATUS_LABELS[candidate.status_triagem] || candidate.status_triagem} />
           </div>
         </CardHeader>
