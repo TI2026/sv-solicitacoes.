@@ -707,12 +707,12 @@ export default function FleetDetailPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Hodômetro {hodometro.length > 0 ? '✅' : '*'}</Label>
-                  <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e => handleUpload(e, 'hodometro')} disabled={uploading} />
+                  <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={e => handleUpload(e, 'hodometro')} disabled={uploading} />
                   <p className="text-[10px] text-muted-foreground">JPEG, PNG, PDF — Máx 10MB</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Nota Fiscal {notaFiscal.length > 0 ? '✅' : '*'}</Label>
-                  <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e => handleUpload(e, 'nota_fiscal')} disabled={uploading} />
+                  <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={e => handleUpload(e, 'nota_fiscal')} disabled={uploading} />
                   <p className="text-[10px] text-muted-foreground">JPEG, PNG, PDF — Máx 10MB</p>
                 </div>
               </div>
@@ -727,7 +727,10 @@ export default function FleetDetailPage() {
                 {attachments.map((att: any) => (
                   <div key={att.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2">
                     <span className="text-muted-foreground">{att.type === 'hodometro' ? '📷 Hodômetro' : '🧾 Nota Fiscal'}</span>
-                    <Button variant="ghost" size="sm" onClick={() => getSignedUrl(att.file_path)}>Ver</Button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openInlinePreview(att.file_path, att.type === 'hodometro' ? 'Hodômetro' : 'Nota Fiscal')}>Pré-visualizar</Button>
+                      <Button variant="ghost" size="sm" onClick={() => getSignedUrl(att.file_path)}>Abrir</Button>
+                    </div>
                   </div>
                 ))}
               </div>
