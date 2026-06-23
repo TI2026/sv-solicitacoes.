@@ -23,6 +23,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useVehicleByPlate } from '../hooks/useVehicles';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +50,18 @@ export default function FleetDetailPage() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [showOcDialog, setShowOcDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+
+  // Final review panel state (em_revisao_admin)
+  const [reviewKmReal, setReviewKmReal] = useState('');
+  const [reviewKmOk, setReviewKmOk] = useState(true);
+  const [reviewNfReal, setReviewNfReal] = useState('');
+  const [reviewNfOk, setReviewNfOk] = useState(true);
+  const [reviewDivergenceReason, setReviewDivergenceReason] = useState('');
+
+  // Inline attachment preview
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<'image' | 'pdf' | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>('');
 
   // Master role consumed from unified AuthContext (no extra DB query).
   const isMaster = useIsMaster();
