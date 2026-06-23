@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import logo from '@/assets/logo.png';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { toast } from 'sonner';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, hasAnyRole } = useAuth();
@@ -17,6 +18,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Controle local da expansão do submenu de EPIs (independente da rota ativa,
+  // permite fechar mesmo estando em /epis).
+  const [epiMenuOpen, setEpiMenuOpen] = useState<boolean>(() => location.pathname.startsWith('/epis'));
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.id],
@@ -34,6 +38,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   const unreadCount = notifications.filter((n: any) => !n.read).length;
+
+  // Toast pop-up para novas notificações via Realtime
+  const lastNotifIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`notifications-toast-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const n: any = payload.new;
+          if (!n || lastNotifIdRef.current === n.id) return;
+          lastNotifIdRef.current = n.id;
+          toast(n.title || 'Nova notificação', {
+            description: n.message || undefined,
+            action: getNotificationLink(n.metadata)
+              ? { label: 'Abrir', onClick: () => navigate(getNotificationLink(n.metadata)!) }
+              : undefined,
+          });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useRealtimeSubscription({
     channelName: `notifications-realtime-${user?.id ?? 'anon'}`,
@@ -118,7 +148,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
         {
           to: '/fleet?filter=minhas',
-          label: 'Minhas Solicitações',
+          label: 'Solicitações',
           icon: Fuel,
           show: true,
           badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' as const } : null,
@@ -300,7 +330,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <div className="space-y-1">
             {group.items.map(item => {
               if (item.to === '/epis') {
-                const epiOpen = isActive('/epis');
+                const epiOpen = epiMenuOpen;
                 const epiSubs = [
                   { to: '/epis/catalog', label: 'Cadastro', icon: HardHat },
                   { to: '/epis/deliveries', label: 'Entregas', icon: Package },
@@ -312,17 +342,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 ];
                 return (
                   <div key={item.to}>
-                    <Link
-                      to={item.to}
-                      onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                        epiOpen ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
+                    <button
+                      type="button"
+                      onClick={() => setEpiMenuOpen(o => !o)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/epis') ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
                       }`}
                     >
                       <item.icon className="w-4 h-4" />
                       {item.label}
                       <ChevronDown className={`w-3.5 h-3.5 ml-auto transition-transform ${epiOpen ? 'rotate-180' : ''}`} />
-                    </Link>
+                    </button>
                     {epiOpen && (
                       <div className="ml-4 mt-1 space-y-0.5 border-l border-sidebar-border pl-3">
                         {epiSubs.map(sub => (
