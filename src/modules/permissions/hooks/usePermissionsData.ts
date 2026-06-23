@@ -486,7 +486,15 @@ export function useProcessApproval() {
   });
 }
 
-/** Profiles eligible as approvers: exclude colaborador role */
+/**
+ * Profiles eligible as approvers.
+ * Critério (Fase 1 hardening):
+ *   - Apenas `user_role_assignments` (a tabela legada `user_roles` foi descontinuada
+ *     como fonte de elegibilidade — ela continua sendo lida apenas pelo
+ *     `get_user_roles` RPC para compatibilidade histórica).
+ *   - O cargo precisa ser diferente de `colaborador` OU o role precisa ser master.
+ *   - O perfil precisa estar ativo (`profiles.active = true`).
+ */
 export function useEligibleApprovers() {
   return useQuery({
     queryKey: ['eligible_approvers'],
@@ -497,30 +505,16 @@ export function useEligibleApprovers() {
         .order('full_name');
       if (pErr) throw pErr;
 
-      const { data: userRoles, error: rErr } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-      if (rErr) throw rErr;
-
       const { data: assignments, error: aErr } = await supabase
         .from('user_role_assignments')
         .select('user_id, roles(key, is_master)');
       if (aErr) throw aErr;
 
       const eligibleUserIds = new Set<string>();
-      
-      (userRoles || []).forEach((ur: any) => {
-        if (ur.role !== 'colaborador') {
-          eligibleUserIds.add(ur.user_id);
-        }
-      });
-
       (assignments || []).forEach((a: any) => {
         const roleKey = a.roles?.key;
-        if (roleKey && roleKey !== 'colaborador') {
-          eligibleUserIds.add(a.user_id);
-        }
-        if (a.roles?.is_master) {
+        const isMaster = !!a.roles?.is_master;
+        if (isMaster || (roleKey && roleKey !== 'colaborador')) {
           eligibleUserIds.add(a.user_id);
         }
       });
