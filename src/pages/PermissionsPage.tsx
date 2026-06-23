@@ -130,30 +130,30 @@ function ApprovalInProgressTab() {
             return (
               <Card key={a.id} className={isActive ? '' : 'opacity-60'}>
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
                     <Badge variant="secondary" className="text-xs">{a.approval_modules?.name || 'Módulo'}</Badge>
                     <Badge variant={isActive ? 'outline' : a.status === 'approved' ? 'default' : 'destructive'} className="text-xs">
                       {a.status === 'approved' ? 'Aprovado' : a.status === 'rejected' ? 'Recusado' : a.status === 'returned_to_requester' ? 'Devolvido' : a.status === 'returned_for_adjustment' ? 'Devolvido' : `Etapa ${a.current_step_order || '?'}`}
                     </Badge>
                     {isActive && a.current_step_order && (
-                      <span className="text-[10px] text-muted-foreground">{approvedSteps}/{totalSteps} etapas</span>
+                      <span className="text-xs text-muted-foreground">{approvedSteps}/{totalSteps} etapas</span>
                     )}
                     {a.approval_flows?.name && (
-                      <Badge variant="outline" className="text-[10px]">{a.approval_flows.name}</Badge>
+                      <Badge variant="outline" className="text-xs">{a.approval_flows.name}</Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <User className="w-3 h-3" />
-                    <span>{a.profiles?.full_name || 'Solicitante'}</span>
-                    <span>·</span>
-                    <Clock className="w-3 h-3" />
-                    <span>{formatDistanceToNow(lastActivityAt, { addSuffix: true, locale: ptBR })}</span>
+                  <div className="flex items-center gap-x-2 gap-y-1 text-sm text-muted-foreground flex-wrap min-w-0">
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span className="font-medium text-foreground/90 truncate max-w-[16rem]">{a.profiles?.full_name || 'Solicitante'}</span>
+                    <span className="hidden sm:inline">·</span>
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span className="shrink-0">{formatDistanceToNow(lastActivityAt, { addSuffix: true, locale: ptBR })}</span>
                     {isActive && currentStep && (
                       <>
-                        <span>·</span>
-                        <span>Aprovador: {currentStep.profiles?.full_name || '—'}</span>
+                        <span className="hidden sm:inline">·</span>
+                        <span className="truncate max-w-[16rem]">Aprovador: <span className="font-medium text-foreground/90">{currentStep.profiles?.full_name || '—'}</span></span>
                         {currentStep.approver_rule && (
-                          <Badge variant="outline" className="text-[10px]">{getApproverTypeLabel(currentStep.approver_rule)}</Badge>
+                          <Badge variant="outline" className="text-xs">{getApproverTypeLabel(currentStep.approver_rule)}</Badge>
                         )}
                       </>
                     )}
