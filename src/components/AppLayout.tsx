@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
-import { LayoutDashboard, Shield, LogOut, Bell, Menu, User, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car } from 'lucide-react';
+import { LayoutDashboard, Shield, LogOut, Bell, Menu, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -48,21 +48,122 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const canManage = hasAnyRole(['diretoria', 'administrativo']);
   const canViewAdmission = hasAnyRole(['diretoria', 'rh', 'administrativo']);
   const canManageVehicles = hasAnyRole(['diretoria']);
+  const canViewEpis = hasAnyRole(['diretoria', 'rh', 'administrativo', 'supervisor']);
+  const canViewSectors = hasAnyRole(['diretoria']);
+  // Aprovador = qualquer papel != colaborador (master incluso)
+  const isApprovalUser = !!user && user.roles.some(r => r !== 'colaborador');
   const primaryRole = user?.roles[0];
 
-  const navItems = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
-    { to: '/fleet', label: 'Solicitações', icon: Fuel, show: true },
-    { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
-    { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
-    { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewAdmission },
-    { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
-    { to: '/permissoes', label: 'Permissões', icon: Lock, show: canManage },
-    { to: '/setores', label: 'Setores', icon: Building2, show: canManage },
-  ].filter(item => item.show);
+  // Badges reativos
+  const { data: myPendingApprovals = 0 } = useQuery({
+    queryKey: ['sidebar_my_pending_approvals', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('approval_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('current_approver_user_id', user!.id)
+        .is('ended_at', null);
+      return count ?? 0;
+    },
+  });
+
+  const { data: myReturnedRequests = 0 } = useQuery({
+    queryKey: ['sidebar_my_returned', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('fuel_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('requester_user_id', user!.id)
+        .eq('status', 'retornado')
+        .is('deleted_at', null);
+      return count ?? 0;
+    },
+  });
+
+  useRealtimeSubscription({
+    channelName: `sidebar-badges-${user?.id ?? 'anon'}`,
+    enabled: !!user?.id,
+    tables: [
+      {
+        table: 'approval_requests',
+        filter: `current_approver_user_id=eq.${user?.id}`,
+        queryKeys: [['sidebar_my_pending_approvals', user?.id]],
+      },
+      {
+        table: 'fuel_requests',
+        filter: `requester_user_id=eq.${user?.id}`,
+        queryKeys: [['sidebar_my_returned', user?.id]],
+      },
+    ],
+  });
+
+  interface NavItem {
+    to: string;
+    label: string;
+    icon: any;
+    show: boolean;
+    badge?: { count: number; tone: 'danger' | 'warning' } | null;
+  }
+  interface NavGroup {
+    label: string;
+    items: NavItem[];
+  }
+
+  const navGroups: NavGroup[] = [
+    {
+      label: 'Geral',
+      items: [
+        { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
+        {
+          to: '/fleet?filter=minhas',
+          label: 'Minhas Solicitações',
+          icon: Fuel,
+          show: true,
+          badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' } : null,
+        },
+        {
+          to: '/permissoes?tab=minhas-aprovacoes',
+          label: 'Minhas Aprovações',
+          icon: CheckSquare,
+          show: isApprovalUser,
+          badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' } : null,
+        },
+      ],
+    },
+    {
+      label: 'Operacional',
+      items: [
+        { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
+        { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
+        { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewEpis },
+      ],
+    },
+    {
+      label: 'Sistema',
+      items: [
+        { to: '/setores', label: 'Setores', icon: Building2, show: canViewSectors },
+        { to: '/permissoes', label: 'Permissões', icon: Lock, show: canManage },
+        { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
+      ],
+    },
+  ]
+    .map(g => ({ ...g, items: g.items.filter(i => i.show) }))
+    .filter(g => g.items.length > 0);
+
+  // Lista plana para o header (encontrar título da página atual)
+  const navItems = navGroups.flatMap(g => g.items);
 
 
-  const isActive = (path: string) => location.pathname.startsWith(path);
+  const isActive = (path: string) => {
+    const cleanPath = path.split('?')[0];
+    if (cleanPath === '/fleet') {
+      // só ativa em /fleet exato (não em /fleet/vehicles-admin)
+      return location.pathname === '/fleet';
+    }
+    return location.pathname.startsWith(cleanPath);
+  };
 
   // Supabase Realtime Presence tracking with route info
   const presenceChannelRef = useRef<any>(null);
@@ -189,8 +290,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
 
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navItems.map(item => {
+          <nav className="flex-1 px-3 py-4 overflow-y-auto">
+            {navGroups.map((group, gi) => (
+              <div key={group.label} className={gi > 0 ? 'mt-4 pt-3 border-t border-sidebar-border/60' : ''}>
+                <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-sidebar-muted">
+                  {group.label}
+                </p>
+                <div className="space-y-1">
+            {group.items.map(item => {
               if (item.to === '/epis') {
                 const epiOpen = isActive('/epis');
                 const epiSubs = [
@@ -249,10 +356,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   }`}
                 >
                   <item.icon className="w-4 h-4" />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge && item.badge.count > 0 && (
+                    <span
+                      className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold ${
+                        item.badge.tone === 'danger'
+                          ? 'bg-destructive text-destructive-foreground animate-pulse'
+                          : 'bg-orange-500 text-white'
+                      }`}
+                    >
+                      {item.badge.count > 99 ? '99+' : item.badge.count}
+                    </span>
+                  )}
                 </Link>
               );
             })}
+                </div>
+              </div>
+            ))}
           </nav>
 
           <div className="px-3 py-4 border-t border-sidebar-border">
@@ -265,17 +386,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
               }`}
             >
-              <Avatar className="w-8 h-8">
-                {user.avatar_url ? (
-                  <AvatarImage src={user.avatar_url} alt={user.full_name || 'Avatar'} onError={(e: any) => { e.currentTarget.style.display = 'none'; }} />
-                ) : null}
-                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm font-semibold">
-                  {user.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className="w-8 h-8">
+                  {user.avatar_url ? (
+                    <AvatarImage src={user.avatar_url} alt={user.full_name || 'Avatar'} onError={(e: any) => { e.currentTarget.style.display = 'none'; }} />
+                  ) : null}
+                  <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm font-semibold">
+                    {user.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                {/* Indicador online (Presence) */}
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-sidebar"
+                  title="Online"
+                />
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-primary truncate">{user.full_name || user.email}</p>
-                <p className="text-[11px] text-sidebar-muted">{primaryRole ? ROLE_LABELS[primaryRole] : 'Sem papel'}</p>
+                <p className="text-[11px] text-sidebar-muted truncate">
+                  {primaryRole
+                    ? primaryRole === 'diretoria'
+                      ? 'Diretoria / Gestão'
+                      : ROLE_LABELS[primaryRole]
+                    : 'Sem papel'}
+                </p>
               </div>
             </Link>
             <Button
