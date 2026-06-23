@@ -368,8 +368,8 @@ export default function FleetDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Actions */}
-      <Card>
+        {/* Actions — sticky right column on desktop */}
+        <Card className="lg:sticky lg:top-4 self-start">
         <CardContent className="p-4 space-y-3">
           <h3 className="text-sm font-semibold text-foreground">Ações</h3>
 
@@ -567,6 +567,7 @@ export default function FleetDetailPage() {
           )}
         </CardContent>
       </Card>
+      </div>
 
       {/* Approval Flow Status */}
       {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
