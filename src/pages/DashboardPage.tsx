@@ -65,6 +65,8 @@ export default function DashboardPage() {
 
   const isRH = hasAnyRole(['diretoria', 'rh']);
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
+  const isCompras = hasAnyRole(['diretoria', 'compras']);
+  const isFinanceiro = hasAnyRole(['diretoria', 'financeiro']);
   // Only master users can see financial values
   const canSeeFinancials = !!isMaster;
 
@@ -187,6 +189,9 @@ export default function DashboardPage() {
     const pendentes = d.filter(f => !['aprovado', 'reprovado', 'encerrado', 'concluido'].includes(f.status)).length;
     const aprovados = d.filter(f => ['encerrado', 'aprovado', 'concluido'].includes(f.status)).length;
     const valorTotal = d.reduce((sum, f) => sum + Number(f.valor || 0), 0);
+    const aguardandoOC = d.filter(f => f.status === 'aguardando_oc');
+    const aguardandoPagamento = d.filter(f => f.status === 'aguardando_pagamento');
+    const emRevisaoAdmin = d.filter(f => f.status === 'em_revisao_admin');
     const byStatus = Object.entries(
       d.reduce((acc, f) => { acc[f.status] = (acc[f.status] || 0) + 1; return acc; }, {} as Record<string, number>)
     ).map(([status, count]) => ({ name: FUEL_STATUS_LABELS[status] || status, value: count, status }));
@@ -203,6 +208,9 @@ export default function DashboardPage() {
       pendentesData: d.filter(f => !['aprovado', 'reprovado', 'encerrado', 'concluido'].includes(f.status)),
       aprovadosData: d.filter(f => ['encerrado', 'aprovado', 'concluido'].includes(f.status)),
       allData: d,
+      aguardandoOC,
+      aguardandoPagamento,
+      emRevisaoAdmin,
     };
   }, [fuelData]);
 
