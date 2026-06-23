@@ -16,12 +16,16 @@ export default function RolesPermissionsTab() {
 
   const selectedRole = roles?.find((r: any) => r.id === selectedRoleId);
 
+  // Regra de negócio: Diretoria === Master (mesmo nível hierárquico e privilégios).
+  const isEffectivelyMaster = (role: any) => !!role && (role.is_master || role.key === 'diretoria');
+  const selectedIsMaster = isEffectivelyMaster(selectedRole);
+
   const isAllowed = (moduleId: string, actionId: string) => {
     return matrix?.some((m: any) => m.module_id === moduleId && m.action_id === actionId && m.allowed);
   };
 
   const handleToggle = (moduleId: string, actionId: string) => {
-    if (!selectedRoleId || selectedRole?.is_master) return;
+    if (!selectedRoleId || selectedIsMaster) return;
     const currently = isAllowed(moduleId, actionId);
     toggleMutation.mutate({
       roleId: selectedRoleId,
@@ -36,14 +40,12 @@ export default function RolesPermissionsTab() {
   }
 
   const getRoleIcon = (role: any) => {
-    if (role.is_master) return <Crown className="w-5 h-5 text-yellow-500" />;
-    if (role.key === 'diretoria') return <KeyRound className="w-5 h-5 text-primary" />;
+    if (isEffectivelyMaster(role)) return <Crown className="w-5 h-5 text-yellow-500" />;
     return <Shield className="w-5 h-5 text-primary/70" />;
   };
 
   const getRoleBorderColor = (role: any) => {
-    if (role.is_master) return 'border-l-yellow-500';
-    if (role.key === 'diretoria') return 'border-l-primary';
+    if (isEffectivelyMaster(role)) return 'border-l-yellow-500';
     if (!role.active) return 'border-l-destructive';
     return 'border-l-muted-foreground/30';
   };
@@ -75,12 +77,12 @@ export default function RolesPermissionsTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold truncate">{role.name || role.key}</p>
-                      {role.is_master && (
+                      {isEffectivelyMaster(role) && (
                         <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600 shrink-0">
                           Master
                         </Badge>
                       )}
-                      {role.is_system && !role.is_master && (
+                      {role.is_system && !isEffectivelyMaster(role) && (
                         <Badge variant="secondary" className="text-[10px] shrink-0">Sistema</Badge>
                       )}
                       {!role.active && (
@@ -109,7 +111,7 @@ export default function RolesPermissionsTab() {
                 <div className="flex-1">
                   <CardTitle className="text-base flex items-center gap-2">
                     {selectedRole.name || selectedRole.key}
-                    {selectedRole.is_master && (
+                    {selectedIsMaster && (
                       <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-600">Master</Badge>
                     )}
                   </CardTitle>
@@ -118,8 +120,10 @@ export default function RolesPermissionsTab() {
                   </CardDescription>
                   <Separator className="mt-3" />
                   <p className="text-xs text-muted-foreground mt-3">
-                    {selectedRole.is_master
-                      ? '🔒 Master possui acesso total — todas as permissões são concedidas automaticamente.'
+                    {selectedIsMaster
+                      ? selectedRole.key === 'diretoria'
+                        ? '🔒 Diretoria opera no mesmo nível de Master — acesso total automático. Não é necessário marcar permissões individuais.'
+                        : '🔒 Master possui acesso total — todas as permissões são concedidas automaticamente.'
                       : '✏️ Marque as permissões desejadas. Alterações são salvas automaticamente.'}
                   </p>
                 </div>
@@ -145,8 +149,8 @@ export default function RolesPermissionsTab() {
                         {actions?.map((act: any) => (
                           <td key={act.id} className="text-center py-2.5 px-1">
                             <Checkbox
-                              checked={selectedRole.is_master || isAllowed(mod.id, act.id)}
-                              disabled={selectedRole.is_master || toggleMutation.isPending}
+                              checked={selectedIsMaster || isAllowed(mod.id, act.id)}
+                              disabled={selectedIsMaster || toggleMutation.isPending}
                               onCheckedChange={() => handleToggle(mod.id, act.id)}
                               className="mx-auto"
                             />
