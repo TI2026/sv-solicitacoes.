@@ -23,6 +23,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useVehicleByPlate } from '../hooks/useVehicles';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +50,18 @@ export default function FleetDetailPage() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [showOcDialog, setShowOcDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+
+  // Final review panel state (em_revisao_admin)
+  const [reviewKmReal, setReviewKmReal] = useState('');
+  const [reviewKmOk, setReviewKmOk] = useState(true);
+  const [reviewNfReal, setReviewNfReal] = useState('');
+  const [reviewNfOk, setReviewNfOk] = useState(true);
+  const [reviewDivergenceReason, setReviewDivergenceReason] = useState('');
+
+  // Inline attachment preview
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<'image' | 'pdf' | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>('');
 
   // Master role consumed from unified AuthContext (no extra DB query).
   const isMaster = useIsMaster();
@@ -231,6 +244,15 @@ export default function FleetDetailPage() {
   const getSignedUrl = async (path: string) => {
     const { data } = await supabase.storage.from('fleet').createSignedUrl(path, 300);
     if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+  };
+
+  const openInlinePreview = async (path: string, label: string) => {
+    const { data } = await supabase.storage.from('fleet').createSignedUrl(path, 300);
+    if (!data?.signedUrl) return;
+    const isPdf = /\.pdf$/i.test(path);
+    setPreviewUrl(data.signedUrl);
+    setPreviewType(isPdf ? 'pdf' : 'image');
+    setPreviewTitle(label);
   };
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
@@ -488,17 +510,85 @@ export default function FleetDetailPage() {
             </Button>
           )}
 
-          {/* ADMIN: Final review for abastecimento */}
-          {isAdmin && reqType === 'abastecimento' && req.status === 'em_revisao_admin' && (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleStatusChange('concluido')} disabled={isPending} className="gap-2">
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Finalizar
-              </Button>
-              <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2" disabled={isPending}>
-                <RotateCcw className="w-4 h-4" /> Devolver (Reenviar fotos)
-              </Button>
-            </div>
-          )}
+          {/* ADMIN: Final review for abastecimento — KM + NF verification */}
+          {isAdmin && reqType === 'abastecimento' && req.status === 'em_revisao_admin' && (() => {
+            const kmDeclared = Number((req as any).km || 0);
+            const valorDeclared = Number(req.valor || 0);
+            const kmRealNum = Number(reviewKmReal || kmDeclared);
+            const nfRealNum = Number(reviewNfReal || valorDeclared);
+            const kmDivergent = !reviewKmOk && reviewKmReal !== '' && kmRealNum !== kmDeclared;
+            const nfDivergent = !reviewNfOk && reviewNfReal !== '' && nfRealNum !== valorDeclared;
+            const hasDivergence = kmDivergent || nfDivergent;
+            const justificativaOk = !hasDivergence || reviewDivergenceReason.trim().length >= 10;
+            const buildReviewReason = () => {
+              const parts: string[] = [];
+              if (kmDivergent) parts.push(`KM declarado ${kmDeclared} → real ${kmRealNum}`);
+              if (nfDivergent) parts.push(`Valor NF declarado R$ ${valorDeclared.toFixed(2)} → real R$ ${nfRealNum.toFixed(2)}`);
+              if (reviewDivergenceReason.trim()) parts.push(`Justificativa: ${reviewDivergenceReason.trim()}`);
+              return parts.join(' | ') || undefined;
+            };
+            return (
+              <div className="space-y-3 border border-border rounded-lg p-3 bg-muted/30">
+                <p className="text-xs font-medium text-foreground">Conferência Final</p>
+
+                {/* Hodômetro */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">📷 Hodômetro · declarado: <b className="text-foreground">{kmDeclared.toLocaleString('pt-BR')} km</b></span>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <Checkbox checked={reviewKmOk} onCheckedChange={(v) => setReviewKmOk(!!v)} />
+                      <span>KM confere</span>
+                    </label>
+                  </div>
+                  {!reviewKmOk && (
+                    <Input type="number" placeholder="KM real conferido" value={reviewKmReal} onChange={e => setReviewKmReal(e.target.value)} className="h-8 text-sm" />
+                  )}
+                </div>
+
+                {/* Nota Fiscal */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">🧾 Nota Fiscal · declarado: <b className="text-foreground">R$ {valorDeclared.toFixed(2)}</b></span>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <Checkbox checked={reviewNfOk} onCheckedChange={(v) => setReviewNfOk(!!v)} />
+                      <span>Valor confere</span>
+                    </label>
+                  </div>
+                  {!reviewNfOk && (
+                    <Input type="number" step="0.01" placeholder="Valor real da NF" value={reviewNfReal} onChange={e => setReviewNfReal(e.target.value)} className="h-8 text-sm" />
+                  )}
+                </div>
+
+                {/* Justificativa de divergência */}
+                {hasDivergence && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-amber-700">Justificativa da divergência (mín. 10 caracteres)</Label>
+                    <Textarea
+                      value={reviewDivergenceReason}
+                      onChange={e => setReviewDivergenceReason(e.target.value.slice(0, 500))}
+                      placeholder="Descreva a diferença encontrada entre o declarado e o conferido..."
+                      rows={2}
+                      className="text-sm"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    onClick={() => handleStatusChange('concluido', buildReviewReason())}
+                    disabled={isPending || !justificativaOk}
+                    className="gap-2"
+                  >
+                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                    {hasDivergence ? 'Finalizar com divergência' : 'Finalizar'}
+                  </Button>
+                  <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2" disabled={isPending}>
+                    <RotateCcw className="w-4 h-4" /> Devolver (Reenviar fotos)
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* REEMBOLSO: Admin marks as paid */}
           {isAdmin && reqType === 'reembolso' && req.status === 'aprovado' && (
@@ -572,6 +662,33 @@ export default function FleetDetailPage() {
       {/* Approval Flow Status */}
       {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
 
+      {/* Revisor Responsável (admin/owner view) */}
+      {reqType === 'abastecimento' && ['enviado', 'em_revisao', 'em_revisao_admin', 'aguardando_fotos'].includes(req.status) && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+              <User className="w-4 h-4" /> Revisor Responsável
+            </h3>
+            {(req as any).assignee?.full_name ? (
+              <div className="flex items-center gap-2 text-sm">
+                <Badge variant="secondary" className="gap-1">
+                  📋 {(req as any).assignee.full_name}
+                </Badge>
+                <span className="text-xs text-muted-foreground">conduzindo a revisão</span>
+              </div>
+            ) : (
+              <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800 dark:text-amber-400 text-sm">Sem revisor atribuído</AlertTitle>
+                <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
+                  Nenhum responsável foi atribuído automaticamente para esta solicitação. A atribuição é feita pelo setor do solicitante ao enviar para revisão.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Approval Steps Queue */}
       {hasActiveFlow && approvalRequest?.approval_request_steps && (
         <Card>
@@ -617,12 +734,12 @@ export default function FleetDetailPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Hodômetro {hodometro.length > 0 ? '✅' : '*'}</Label>
-                  <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e => handleUpload(e, 'hodometro')} disabled={uploading} />
+                  <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={e => handleUpload(e, 'hodometro')} disabled={uploading} />
                   <p className="text-[10px] text-muted-foreground">JPEG, PNG, PDF — Máx 10MB</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Nota Fiscal {notaFiscal.length > 0 ? '✅' : '*'}</Label>
-                  <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e => handleUpload(e, 'nota_fiscal')} disabled={uploading} />
+                  <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={e => handleUpload(e, 'nota_fiscal')} disabled={uploading} />
                   <p className="text-[10px] text-muted-foreground">JPEG, PNG, PDF — Máx 10MB</p>
                 </div>
               </div>
@@ -637,7 +754,10 @@ export default function FleetDetailPage() {
                 {attachments.map((att: any) => (
                   <div key={att.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2">
                     <span className="text-muted-foreground">{att.type === 'hodometro' ? '📷 Hodômetro' : '🧾 Nota Fiscal'}</span>
-                    <Button variant="ghost" size="sm" onClick={() => getSignedUrl(att.file_path)}>Ver</Button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openInlinePreview(att.file_path, att.type === 'hodometro' ? 'Hodômetro' : 'Nota Fiscal')}>Pré-visualizar</Button>
+                      <Button variant="ghost" size="sm" onClick={() => getSignedUrl(att.file_path)}>Abrir</Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -778,6 +898,29 @@ export default function FleetDetailPage() {
               {softDelete.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Excluir
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inline attachment preview */}
+      <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) { setPreviewUrl(null); setPreviewType(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{previewTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto flex items-center justify-center bg-muted/30 rounded-md">
+            {previewType === 'image' && previewUrl && (
+              <img src={previewUrl} alt={previewTitle} className="max-w-full max-h-[70vh] object-contain" />
+            )}
+            {previewType === 'pdf' && previewUrl && (
+              <iframe src={previewUrl} title={previewTitle} className="w-full h-[70vh]" />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { if (previewUrl) window.open(previewUrl, '_blank'); }}>
+              Abrir em nova aba
+            </Button>
+            <Button onClick={() => { setPreviewUrl(null); setPreviewType(null); }}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
