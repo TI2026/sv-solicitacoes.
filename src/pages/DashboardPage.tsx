@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ClipboardCheck, ListChecks, ShieldAlert, Download } from 'lucide-react';
+import { Loader2, ClipboardCheck, ListChecks, ShieldAlert, Download, AlertTriangle } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
