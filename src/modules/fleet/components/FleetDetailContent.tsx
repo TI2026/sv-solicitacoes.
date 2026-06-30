@@ -15,8 +15,11 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
-  ArrowLeft, Loader2, Send, DollarSign, Calendar, User, Car, 
+  ArrowLeft, Loader2, Send, DollarSign, Calendar, User, Car, Clock,
   Receipt, FileText, CreditCard, AlertTriangle, FileImage, Trash2 
 } from 'lucide-react';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
@@ -407,7 +410,7 @@ export function FleetDetailContent() {
         {/* Timeline */}
         <Card className="lg:col-span-3">
           <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2">Histórico de Movimentações</CardTitle></CardHeader>
-          <CardContent><FleetTimeline requestId={id!} /></CardContent>
+          <CardContent><FleetTimeline requestId={id!} req={req} approvalRequest={approvalRequest} /></CardContent>
         </Card>
       </div>
 
