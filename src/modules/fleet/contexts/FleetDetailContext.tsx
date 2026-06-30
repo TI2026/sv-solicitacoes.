@@ -249,11 +249,11 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const handleOcSubmit = async () => {
     if (!id || statusMutation.isPending) return;
     try {
-      const { data: result, error } = await supabase.rpc('register_oc_and_advance', {
+      const { data: result, error } = await supabase.rpc('register_oc_and_advance' as any, {
         _request_id: id,
         _oc_number: ocNumber.trim(),
         _oc_notes: ocNotes.trim() || null,
-      });
+      } as any);
       if (error) throw error;
       if ((result as any)?.error) throw new Error((result as any).error);
 

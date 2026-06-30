@@ -25,7 +25,7 @@ export function useCreateEpiItem() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (item: Record<string, any>) => {
-      const { data, error } = await supabase.from('epi_items').insert(item).select().single();
+      const { data, error } = await (supabase.from('epi_items') as any).insert(item).select().single();
       if (error) throw error;
       await supabase.from('audit_logs').insert({ user_id: user!.id, action: 'create', entity_type: 'epi_items', entity_id: data.id, details: { name: item.name } });
       return data;
@@ -77,7 +77,7 @@ export function useCollaboratorsWithProfiles(filters?: { active?: boolean }) {
     queryKey: ['collaborators-with-profiles', filters, collaborators?.length],
     queryFn: async () => {
       const { data: profiles, error } = await supabase
-        .supabase.from('profiles')
+        .from('profiles')
         .select('id, full_name, email, sector_id')
         .order('full_name');
       if (error) throw error;
@@ -116,7 +116,7 @@ export function useCreateCollaborator() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (item: Record<string, any>) => {
-      const { data, error } = await supabase.from('collaborators').insert(item).select().single();
+      const { data, error } = await (supabase.from('collaborators') as any).insert(item).select().single();
       if (error) throw error;
       return data;
     },
@@ -149,7 +149,7 @@ export function useCreateDelivery() {
   return useMutation({
     mutationFn: async (delivery: Record<string, any>) => {
       const payload = { ...delivery, delivered_by_user_id: user!.id };
-      const { data, error } = await supabase.from('epi_deliveries').insert(payload).select().single();
+      const { data, error } = await (supabase.from('epi_deliveries') as any).insert(payload).select().single();
       if (error) throw error;
       await supabase.from('epi_movements').insert({
         delivery_id: data.id,
