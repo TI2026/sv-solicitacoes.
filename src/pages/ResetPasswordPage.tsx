@@ -93,7 +93,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md animate-fade-in">
         <div className="flex flex-col items-center mb-8">
           <img src={logo} alt="SV Engenharia" className="w-20 h-20 rounded-full object-contain bg-white shadow-md border-2 border-primary/20 p-1 mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">SV Engenharia</h1>
+          <h1 className="text-2xl font-bold text-foreground">SV Engenharia — Redefinição de Senha</h1>
         </div>
 
         <Card className="shadow-lg border-border">
@@ -136,8 +136,14 @@ export default function ResetPasswordPage() {
                       placeholder="Mínimo 8 caracteres"
                       required
                     />
-                    <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <button
+                      type="button"
+                      onClick={() => setShowPw(!showPw)}
+                      aria-label={showPw ? 'Ocultar senha' : 'Mostrar senha'}
+                      aria-pressed={showPw}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPw ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
                     </button>
                   </div>
                   {newPassword.length > 0 && !passwordValid && (
