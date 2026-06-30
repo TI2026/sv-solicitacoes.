@@ -40,7 +40,6 @@ export function useApprovalAction() {
       qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
       qc.invalidateQueries({ queryKey: ['status_history'] });
       qc.invalidateQueries({ queryKey: ['approval_request_for'] });
-      qc.invalidateQueries({ queryKey: ['approval_requests_for'] });
       qc.invalidateQueries({ queryKey: ['my_approvals'] });
       qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
       toast({ title: 'Ação de aprovação processada!' });

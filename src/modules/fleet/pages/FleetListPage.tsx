@@ -9,7 +9,7 @@ import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle, Send, FileText, CreditCard, ClipboardCheck, RotateCcw } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -193,16 +193,20 @@ export default function FleetListPage() {
   const reembolsoLimit = useDailyLimitForRole(user?.roles, 'reembolso');
 
   // If activeTab is diaria but user can't see it, force to abastecimento
-  if (activeTab === 'diaria' && !canSeeDiaria) {
-    setActiveTab('abastecimento');
-  }
+  useEffect(() => {
+    if (activeTab === 'diaria' && !canSeeDiaria) {
+      setActiveTab('abastecimento');
+    }
+  }, [activeTab, canSeeDiaria]);
 
-  const { data: abastData, isLoading: abastLoading } = useFuelRequests(user?.id, isAdmin, 'abastecimento');
-  const { data: reembolsoData, isLoading: reembolsoLoading } = useFuelRequests(user?.id, isAdmin, 'reembolso');
-  const { data: diariaData, isLoading: diariaLoading } = useFuelRequests(canSeeDiaria ? user?.id : undefined, canSeeDiaria ? isAdmin : false, canSeeDiaria ? 'diaria' : undefined);
-  const abastGroups = useMemo(() => groupRequests(abastData), [abastData]);
-  const reembolsoGroups = useMemo(() => groupRequests(reembolsoData), [reembolsoData]);
-  const diariaGroups = useMemo(() => groupDiariaRequests(diariaData), [diariaData]);
+  const [page, setPage] = useState(1);
+
+  const { data: abastRes, isLoading: abastLoading } = useFuelRequests(user?.id, isAdmin, 'abastecimento', page);
+  const { data: reembolsoRes, isLoading: reembolsoLoading } = useFuelRequests(user?.id, isAdmin, 'reembolso', page);
+  const { data: diariaRes, isLoading: diariaLoading } = useFuelRequests(canSeeDiaria ? user?.id : undefined, canSeeDiaria ? isAdmin : false, canSeeDiaria ? 'diaria' : undefined, page);
+  const abastGroups = useMemo(() => groupRequests(abastRes?.data), [abastRes]);
+  const reembolsoGroups = useMemo(() => groupRequests(reembolsoRes?.data), [reembolsoRes]);
+  const diariaGroups = useMemo(() => groupDiariaRequests(diariaRes?.data), [diariaRes]);
 
   useRealtimeSubscription({
     channelName: 'fleet-list-realtime',
@@ -236,7 +240,7 @@ export default function FleetListPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => {
-        setActiveTab(v); setSubFilter('pendentes');
+        setActiveTab(v); setSubFilter('pendentes'); setPage(1);
       }} className="w-full">
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="abastecimento" className="gap-1.5">
@@ -350,6 +354,12 @@ export default function FleetListPage() {
           </TabsContent>
         )}
       </Tabs>
+
+      <div className="flex justify-between items-center mt-4 p-4 border-t border-border bg-card rounded-b-lg">
+        <Button variant="outline" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
+        <span className="text-sm text-muted-foreground">Página {page}</span>
+        <Button variant="outline" onClick={() => setPage(p => p + 1)}>Próxima</Button>
+      </div>
 
       {/* Delete confirmation dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>

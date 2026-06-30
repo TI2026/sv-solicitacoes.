@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+import { formatApprovalError } from '@/lib/formatApprovalError';
+
 /** Start an approval flow for a module reference */
 export function useStartApprovalFlow() {
   const qc = useQueryClient();
@@ -17,9 +19,7 @@ export function useStartApprovalFlow() {
       if (error) throw error;
       const result = data as any;
       if (result?.error) {
-        // Not a fatal error - just means no flow configured
-        console.warn('Approval flow:', result.error);
-        return result;
+        throw new Error(result.error);
       }
       return result;
     },
@@ -30,9 +30,14 @@ export function useStartApprovalFlow() {
         qc.invalidateQueries({ queryKey: ['approval_request_for'] });
       }
     },
-    onError: (err: any) => {
-      // Silently handle - approval flow is optional enhancement
-      console.warn('Approval flow error:', err.message);
+    onError: (err: Error) => {
+      // [P1-11] Correção: tornar erro visível — IP-PLAN Onda 2
+      toast({
+        title: 'Erro ao iniciar aprovação',
+        description: formatApprovalError(err.message),
+        variant: 'destructive',
+        duration: 0, // permanece até fechar manualmente
+      });
     },
   });
 }
@@ -40,7 +45,7 @@ export function useStartApprovalFlow() {
 /** Fetch ALL approval_requests for a specific reference_id (all cycles) */
 export function useApprovalRequestsForReference(referenceId?: string) {
   return useQuery({
-    queryKey: ['approval_requests_for', referenceId],
+    queryKey: ['approval_request_for', referenceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
