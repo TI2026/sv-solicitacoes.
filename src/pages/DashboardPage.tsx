@@ -88,18 +88,24 @@ export default function DashboardPage() {
   }, [approvalData, user?.id]);
 
   // Use the new SECURITY INVOKER RPC for metrics aggregation
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const { data: metricsObj, isLoading: metricsLoading } = useQuery({
     queryKey: ['dashboard_metrics'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_dashboard_metrics' as any);
-      if (error) {
+      if (error || !data) {
         console.error('[Dashboard] RPC metrics error:', error);
-        return { fuel: null, admission: null };
+        return {
+          isError: true,
+          fuel: { total: 0, pendentes: 0, aprovados: 0, valor_total: 0, aguardando_oc: 0, aguardando_pagamento: 0, em_revisao_admin: 0, by_status: [], by_type: [] },
+          admission: { total: 0, em_andamento: 0, aguardando_registros: 0, active_cost: 0, by_status: [] }
+        };
       }
-      return data as any;
+      return { isError: false, ...data } as any;
     },
     enabled: !!user,
   });
+
+  const metrics = metricsObj || { fuel: null, admission: null, isError: false };
 
   if (!user) return null;
   const primaryRole = user.roles[0];
@@ -123,6 +129,18 @@ export default function DashboardPage() {
       </div>
 
       {isAdmin && <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} />}
+
+      {metrics?.isError && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-4">
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" />
+          <div>
+            <h4 className="font-semibold text-sm">Dashboard em modo de compatibilidade</h4>
+            <p className="text-xs mt-1 text-amber-700/90">
+              A função de alta performance (RPC) ainda não foi detectada no banco de dados. Os indicadores numéricos abaixo estão em modo demonstração até a atualização.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ===== Fila de Aprovação ===== */}
       {isMaster && approvalMetrics.myPending.length > 0 && (

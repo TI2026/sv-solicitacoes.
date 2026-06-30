@@ -141,7 +141,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
         {
           to: '/fleet?filter=minhas',
-          label: 'Solicitações',
+          label: 'Frota',
           icon: Fuel,
           show: true,
           badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' as const } : null,
