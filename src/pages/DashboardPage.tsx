@@ -91,7 +91,7 @@ export default function DashboardPage() {
   const { data: metricsObj, isLoading: metricsLoading } = useQuery({
     queryKey: ['dashboard_metrics'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_dashboard_metrics');
+      const { data, error } = await supabase.rpc('get_dashboard_metrics' as any);
       if (error || !data) {
         console.error('[Dashboard] RPC metrics error:', error);
         return {
