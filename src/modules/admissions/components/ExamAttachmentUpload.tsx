@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { Upload, Download, FileText, Loader2, Trash2 } from 'lucide-react';
+import { validateFileMagicNumber } from '@/lib/fileValidation';
 
 interface ExamAttachmentUploadProps {
   admissionId: string;
@@ -54,11 +55,21 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
   const handleUpload = async (file: File) => {
     if (uploading) return;
 
-    const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-    if (!allowed.includes(file.type)) {
+    const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'] as const;
+    if (!allowed.includes(file.type as any)) {
       toast({
         title: 'Tipo de arquivo não permitido',
         description: 'Aceitos: PDF, JPG, JPEG, PNG',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const isValidMagicNumber = await validateFileMagicNumber(file, allowed as any);
+    if (!isValidMagicNumber) {
+      toast({
+        title: 'Arquivo inválido',
+        description: 'O arquivo parece estar corrompido ou ter a extensão forjada.',
         variant: 'destructive',
       });
       return;

@@ -14,6 +14,8 @@ interface ApprovalStatusBlockProps {
   previousCycles?: any[];
 }
 
+import { useQuery } from '@tanstack/react-query';
+
 interface HistoryEntry {
   id: string;
   action: string;
@@ -36,21 +38,22 @@ const ACTION_LABELS: Record<string, string> = {
 export function ApprovalStatusBlock({ approvalRequest, previousCycles }: ApprovalStatusBlockProps) {
   const ar = approvalRequest;
 
-  // Fetch approval_history for this request
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  useEffect(() => {
-    if (!ar?.id) return;
-    supabase
-      .from('approval_history')
-      .select('*, profiles:action_by(full_name)')
-      .eq('approval_request_id', ar.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setHistory((data as any[]) || []);
-      });
-  }, [ar?.id, ar?.status]);
+  const { data: historyData } = useQuery({
+    queryKey: ['approval_history', ar?.id, ar?.status],
+    enabled: !!ar?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('approval_history')
+        .select('*, profiles:action_by(full_name)')
+        .eq('approval_request_id', ar.id)
+        .order('created_at', { ascending: false });
+      return (data as any[]) || [];
+    }
+  });
+
+  const history = historyData || [];
 
   if (!approvalRequest) return null;
 

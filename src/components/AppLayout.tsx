@@ -39,7 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const unreadCount = notifications.filter((n: any) => !n.read).length;
 
-  // Toast pop-up para novas notificações via Realtime
+  // Toast pop-up e invalidação de cache para novas notificações via Realtime
   const lastNotifIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!user?.id) return;
@@ -52,6 +52,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           const n: any = payload.new;
           if (!n || lastNotifIdRef.current === n.id) return;
           lastNotifIdRef.current = n.id;
+          
+          queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+
           toast(n.title || 'Nova notificação', {
             description: n.message || undefined,
             action: getNotificationLink(n.metadata)
@@ -63,17 +66,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  useRealtimeSubscription({
-    channelName: `notifications-realtime-${user?.id ?? 'anon'}`,
-    enabled: !!user?.id,
-    tables: [{
-      table: 'notifications',
-      filter: `user_id=eq.${user?.id}`,
-      queryKeys: [['notifications', user?.id]],
-    }],
-  });
+  }, [user?.id, queryClient, navigate]);
 
   const canManage = hasAnyRole(['diretoria', 'administrativo']);
   const canViewAdmission = hasAnyRole(['diretoria', 'rh', 'administrativo']);

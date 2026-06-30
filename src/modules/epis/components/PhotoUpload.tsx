@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, X, ImagePlus, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { validateFileMagicNumber } from '@/lib/fileValidation';
 
 interface PhotoUploadProps {
   label?: string;
@@ -14,11 +16,31 @@ export function PhotoUpload({ label = 'Fotos', folder = 'photos', maxFiles = 5, 
   const [photos, setPhotos] = useState<{ localUrl: string; storagePath: string | null; uploading: boolean }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
     const remaining = maxFiles - photos.length;
-    const toProcess = Array.from(files).slice(0, remaining);
+    let toProcess = Array.from(files).slice(0, remaining);
+    if (toProcess.length === 0) return;
+
+    // Validate mime types & magic numbers
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'] as const;
+    const validFiles: File[] = [];
+    for (const f of toProcess) {
+      if (!allowed.includes(f.type as any)) {
+        toast({ title: 'Tipo não permitido', description: `${f.name} não é uma imagem válida.`, variant: 'destructive' });
+        continue;
+      }
+      const isValid = await validateFileMagicNumber(f, allowed as any);
+      if (!isValid) {
+        toast({ title: 'Arquivo corrompido', description: `${f.name} parece ser forjado ou está corrompido.`, variant: 'destructive' });
+        continue;
+      }
+      validFiles.push(f);
+    }
+    
+    toProcess = validFiles;
     if (toProcess.length === 0) return;
 
     const newPhotos = toProcess.map(f => ({

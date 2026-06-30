@@ -7,19 +7,26 @@ type FuelStatus = Database['public']['Enums']['fuel_status'];
 const FINAL_STATUSES: FuelStatus[] = ['aprovado', 'concluido', 'encerrado'];
 const REJECTED_STATUSES: FuelStatus[] = ['reprovado'];
 
-export function useFuelRequests(userId?: string, isAdmin?: boolean, type?: string) {
+export function useFuelRequests(userId?: string, isAdmin?: boolean, type?: string, page = 1, pageSize = 20) {
   return useQuery({
-    queryKey: ['fuel_requests', userId, isAdmin, type],
+    queryKey: ['fuel_requests', userId, isAdmin, type, page, pageSize],
     queryFn: async () => {
-      const res: any = await supabase
+      let query = supabase
         .from('fuel_requests')
-        .select('*, profiles!fuel_requests_requester_user_id_fkey(full_name, email), assignee:profiles!fuel_requests_assigned_to_user_id_fkey(full_name)')
+        .select('*, profiles!fuel_requests_requester_user_id_fkey(full_name, email), assignee:profiles!fuel_requests_assigned_to_user_id_fkey(full_name)', { count: 'exact' })
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
+
+      if (type) query = query.eq('type', type);
+      if (!isAdmin && userId) query = query.eq('requester_user_id', userId);
+
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize - 1;
+      query = query.range(start, end);
+
+      const res: any = await query;
       if (res.error) throw res.error;
-      let items = res.data || [];
-      if (type) items = items.filter((r: any) => r.type === type);
-      return items;
+      return { data: res.data || [], count: res.count || 0 };
     },
     enabled: !!userId,
   });

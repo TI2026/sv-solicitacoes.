@@ -14,7 +14,6 @@ export const ADMISSION_STATUS_LABELS: Record<string, string> = {
   registros_concluidos: 'Registros Concluídos',
   concluido: 'Admitido',
   cancelado: 'Cancelado',
-  arquivado: 'Arquivado',
 };
 
 export const FUEL_STATUS_LABELS: Record<string, string> = {
@@ -87,14 +86,15 @@ export const PRIORITY_LABELS: Record<string, string> = {
   baixa: 'Baixa',
 };
 
-export function getStatusVariant(status: string): 'pending' | 'approved' | 'rejected' | 'info' {
-  if (['concluido', 'aprovado', 'encerrado', 'apto', 'approved', 'registros_concluidos', 'ativa', 'devolvido', 'baixado', 'pago'].includes(status)) return 'approved';
-  if (['rejeitado', 'reprovado', 'cancelado', 'inapto', 'rejected', 'arquivado', 'perdido'].includes(status)) return 'rejected';
+export function getStatusVariant(status: string): 'pending' | 'approved' | 'rejected' | 'info' | 'default' {
+  if (['encerrado', 'ativa', 'baixado'].includes(status)) return 'default';
+  if (['concluido', 'aprovado', 'apto', 'approved', 'registros_concluidos', 'devolvido', 'pago'].includes(status)) return 'approved';
+  if (['rejeitado', 'reprovado', 'cancelado', 'inapto', 'rejected', 'perdido'].includes(status)) return 'rejected';
   if (['aguardando_fotos', 'aguardando_documentos', 'submitted', 'pendente_devolucao', 'aguardando_oc', 'aguardando_pagamento'].includes(status)) return 'info';
   if ([
     'rascunho', 'enviado', 'em_revisao', 'em_aprovacao',
     'retornado', 'returned_to_requester', 'em_revisao_admin',
-    'ativa', 'aguardando_triagem', 'em_triagem', 'pending',
+    'aguardando_triagem', 'em_triagem', 'pending',
     'returned_for_adjustment'
   ].includes(status)) return 'pending';
   return 'pending';

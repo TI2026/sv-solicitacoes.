@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle, ShieldX, FileText, Download, Upload } from 'lucide-react';
+import { validateFileMagicNumber } from '@/lib/fileValidation';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.png';
 
@@ -86,6 +88,18 @@ export default function PublicSignaturePage() {
       toast({ title: 'Arquivo muito grande', description: 'Máximo 10MB', variant: 'destructive' });
       return;
     }
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'] as const;
+    if (!allowed.includes(file.type as any)) {
+      toast({ title: 'Tipo de arquivo não permitido', description: 'Use PDF, JPEG, PNG ou WebP', variant: 'destructive' });
+      return;
+    }
+    
+    const isValid = await validateFileMagicNumber(file, allowed as any);
+    if (!isValid) {
+      toast({ title: 'Arquivo inválido', description: 'O arquivo parece estar corrompido ou ter a extensão forjada.', variant: 'destructive' });
+      return;
+    }
+
     setUploadingKey(docKey);
     try {
       const signedDocKey = docKey.replace('_ADMIN', '_SIGNED');

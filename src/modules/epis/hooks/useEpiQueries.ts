@@ -3,15 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-// Cast helper — tables not yet in generated types until migration is applied
-const from = (table: string) => (supabase as any).from(table);
 
 // ===================== EPI ITEMS =====================
 export function useEpiItems(filters?: { active?: boolean; category?: string }) {
   return useQuery({
     queryKey: ['epi-items', filters],
     queryFn: async () => {
-      let q = from('epi_items').select('*').order('name');
+      let q = supabase.from('epi_items').select('*').order('name');
       if (filters?.active !== undefined) q = q.eq('active', filters.active);
       if (filters?.category) q = q.eq('category', filters.category);
       const { data, error } = await q;
@@ -27,9 +25,9 @@ export function useCreateEpiItem() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (item: Record<string, any>) => {
-      const { data, error } = await from('epi_items').insert(item).select().single();
+      const { data, error } = await supabase.from('epi_items').insert(item).select().single();
       if (error) throw error;
-      await from('audit_logs').insert({ user_id: user!.id, action: 'create', entity_type: 'epi_items', entity_id: data.id, details: { name: item.name } });
+      await supabase.from('audit_logs').insert({ user_id: user!.id, action: 'create', entity_type: 'epi_items', entity_id: data.id, details: { name: item.name } });
       return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epi-items'] }); toast({ title: 'EPI criado com sucesso' }); },
@@ -43,9 +41,9 @@ export function useUpdateEpiItem() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Record<string, any>) => {
-      const { error } = await from('epi_items').update(updates).eq('id', id);
+      const { error } = await supabase.from('epi_items').update(updates).eq('id', id);
       if (error) throw error;
-      await from('audit_logs').insert({ user_id: user!.id, action: 'update', entity_type: 'epi_items', entity_id: id, details: updates });
+      await supabase.from('audit_logs').insert({ user_id: user!.id, action: 'update', entity_type: 'epi_items', entity_id: id, details: updates });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epi-items'] }); toast({ title: 'EPI atualizado' }); },
     onError: (e: any) => toast({ title: 'Erro ao atualizar', description: e.message, variant: 'destructive' }),
@@ -57,7 +55,7 @@ export function useCollaborators(filters?: { active?: boolean; sector_id?: strin
   return useQuery({
     queryKey: ['collaborators', filters],
     queryFn: async () => {
-      let q = from('collaborators').select('*, sector:sectors(id, name)').order('full_name');
+      let q = supabase.from('collaborators').select('*, sector:sectors(id, name)').order('full_name');
       // New fields: email, telefone, rg, data_nascimento, endereco, observacoes are included via *
       if (filters?.active !== undefined) q = q.eq('active', filters.active);
       if (filters?.sector_id) q = q.eq('sector_id', filters.sector_id);
@@ -79,7 +77,7 @@ export function useCollaboratorsWithProfiles(filters?: { active?: boolean }) {
     queryKey: ['collaborators-with-profiles', filters, collaborators?.length],
     queryFn: async () => {
       const { data: profiles, error } = await supabase
-        .from('profiles')
+        .supabase.from('profiles')
         .select('id, full_name, email, sector_id')
         .order('full_name');
       if (error) throw error;
@@ -118,7 +116,7 @@ export function useCreateCollaborator() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (item: Record<string, any>) => {
-      const { data, error } = await from('collaborators').insert(item).select().single();
+      const { data, error } = await supabase.from('collaborators').insert(item).select().single();
       if (error) throw error;
       return data;
     },
@@ -132,7 +130,7 @@ export function useEpiDeliveries(filters?: { collaborator_id?: string; status?: 
   return useQuery({
     queryKey: ['epi-deliveries', filters],
     queryFn: async () => {
-      let q = from('epi_deliveries')
+      let q = supabase.from('epi_deliveries')
         .select('*, collaborator:collaborators(id, full_name, cpf, role_name, sector_id), epi_item:epi_items(id, code, name, category, ca_number, ca_valid_until, useful_life_days), delivered_by:profiles!epi_deliveries_delivered_by_user_id_fkey(id, full_name), sector:sectors(id, name)')
         .order('delivered_at', { ascending: false });
       if (filters?.collaborator_id) q = q.eq('collaborator_id', filters.collaborator_id);
@@ -151,16 +149,16 @@ export function useCreateDelivery() {
   return useMutation({
     mutationFn: async (delivery: Record<string, any>) => {
       const payload = { ...delivery, delivered_by_user_id: user!.id };
-      const { data, error } = await from('epi_deliveries').insert(payload).select().single();
+      const { data, error } = await supabase.from('epi_deliveries').insert(payload).select().single();
       if (error) throw error;
-      await from('epi_movements').insert({
+      await supabase.from('epi_movements').insert({
         delivery_id: data.id,
         movement_type: 'delivery',
         moved_by_user_id: user!.id,
         reason: delivery.reason || 'primeira_entrega',
         notes: delivery.notes || '',
       });
-      await from('audit_logs').insert({ user_id: user!.id, action: 'epi_delivery', entity_type: 'epi_deliveries', entity_id: data.id, details: { collaborator_id: delivery.collaborator_id, epi_item_id: delivery.epi_item_id } });
+      await supabase.from('audit_logs').insert({ user_id: user!.id, action: 'epi_delivery', entity_type: 'epi_deliveries', entity_id: data.id, details: { collaborator_id: delivery.collaborator_id, epi_item_id: delivery.epi_item_id } });
       return data;
     },
     onSuccess: () => {
@@ -178,9 +176,9 @@ export function useUpdateDeliveryStatus() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ id, status, movement_type, condition, reason, notes }: { id: string; status: string; movement_type: string; condition?: string; reason?: string; notes?: string }) => {
-      const { error: updateError } = await from('epi_deliveries').update({ current_status: status }).eq('id', id);
+      const { error: updateError } = await supabase.from('epi_deliveries').update({ current_status: status }).eq('id', id);
       if (updateError) throw updateError;
-      const { error: movError } = await from('epi_movements').insert({
+      const { error: movError } = await supabase.from('epi_movements').insert({
         delivery_id: id,
         movement_type,
         moved_by_user_id: user!.id,
@@ -189,7 +187,7 @@ export function useUpdateDeliveryStatus() {
         notes: notes || '',
       });
       if (movError) throw movError;
-      await from('audit_logs').insert({ user_id: user!.id, action: `epi_${movement_type}`, entity_type: 'epi_deliveries', entity_id: id, details: { status, reason } });
+      await supabase.from('audit_logs').insert({ user_id: user!.id, action: `epi_${movement_type}`, entity_type: 'epi_deliveries', entity_id: id, details: { status, reason } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['epi-deliveries'] });
@@ -206,7 +204,7 @@ export function useEpiMovements(deliveryId?: string) {
     queryKey: ['epi-movements', deliveryId],
     enabled: !!deliveryId,
     queryFn: async () => {
-      const { data, error } = await from('epi_movements')
+      const { data, error } = await supabase.from('epi_movements')
         .select('*, moved_by:profiles!epi_movements_moved_by_user_id_fkey(id, full_name)')
         .eq('delivery_id', deliveryId!)
         .order('moved_at', { ascending: false });
@@ -221,7 +219,7 @@ export function useEpiKitRules(sectorId?: string, includeInactive = false) {
   return useQuery({
     queryKey: ['epi-kit-rules', sectorId, includeInactive],
     queryFn: async () => {
-      let q = from('epi_kit_rules')
+      let q = supabase.from('epi_kit_rules')
         .select('*, epi_item:epi_items(id, code, name, category), sector:sectors(id, name)')
         .order('created_at');
       if (!includeInactive) q = q.eq('active', true);
@@ -238,7 +236,7 @@ export function useEpiPending() {
   return useQuery({
     queryKey: ['epi-pending'],
     queryFn: async () => {
-      const { data, error } = await from('epi_deliveries')
+      const { data, error } = await supabase.from('epi_deliveries')
         .select('*, collaborator:collaborators(id, full_name, sector_id, role_name), epi_item:epi_items(id, code, name, ca_number, ca_valid_until, useful_life_days)')
         .in('current_status', ['entregue', 'em_uso', 'pendente_devolucao'])
         .order('delivered_at');
@@ -254,7 +252,7 @@ export function useCollaboratorEpiHistory(collaboratorId?: string) {
     queryKey: ['epi-history', collaboratorId],
     enabled: !!collaboratorId,
     queryFn: async () => {
-      const { data, error } = await from('epi_deliveries')
+      const { data, error } = await supabase.from('epi_deliveries')
         .select('*, epi_item:epi_items(id, code, name, category, ca_number), delivered_by:profiles!epi_deliveries_delivered_by_user_id_fkey(id, full_name)')
         .eq('collaborator_id', collaboratorId!)
         .order('delivered_at', { ascending: false });

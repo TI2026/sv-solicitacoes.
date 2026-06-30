@@ -11,6 +11,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // [P0-04] Correção: Blindagem de Edge Functions (Cron/Service) — IP-PLAN Onda 3
+    const authHeader = req.headers.get('Authorization');
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (authHeader !== `Bearer ${serviceKey}`) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const { user_ids, subject, body, metadata, idempotency_key } = await req.json();
 
     if (!user_ids || !subject || !body) {

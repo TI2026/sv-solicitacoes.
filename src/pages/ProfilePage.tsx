@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { User, Shield, Camera, Loader2, Lock, Eye, EyeOff, Crown, KeyRound } from 'lucide-react';
+import { User, Shield, Camera, Loader2, Lock, Eye, EyeOff, Crown, KeyRound, AlertCircle, Check, CheckCircle2, ChevronDown, Edit2, LogOut, Save, ShieldCheck, Mail, Phone, Calendar, MapPin, Search } from 'lucide-react';
+import { validateFileMagicNumber } from '@/lib/fileValidation';
 import { useToast } from '@/hooks/use-toast';
 
 /** Resize image to max dimensions using Canvas, returns JPEG blob */
@@ -90,9 +91,15 @@ export default function ProfilePage() {
       toast({ title: 'Arquivo muito grande', description: 'Máximo 5MB', variant: 'destructive' });
       return;
     }
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowed.includes(file.type)) {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'] as const;
+    if (!allowed.includes(file.type as any)) {
       toast({ title: 'Tipo não permitido', description: 'Use JPG, PNG ou WebP', variant: 'destructive' });
+      return;
+    }
+
+    const isValidMagicNumber = await validateFileMagicNumber(file, allowed as any);
+    if (!isValidMagicNumber) {
+      toast({ title: 'Arquivo inválido', description: 'O arquivo parece estar corrompido ou ter a extensão forjada.', variant: 'destructive' });
       return;
     }
     setUploadingAvatar(true);
