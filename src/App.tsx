@@ -48,6 +48,8 @@ const queryClient = new QueryClient({
   },
 });
 
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+
 function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -60,7 +62,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <AppLayout>{children}</AppLayout>;
+  return (
+    <ErrorBoundary>
+      <AppLayout>
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+      </AppLayout>
+    </ErrorBoundary>
+  );
 }
 
 function AuthRoute({ children }: { children: React.ReactNode }) {

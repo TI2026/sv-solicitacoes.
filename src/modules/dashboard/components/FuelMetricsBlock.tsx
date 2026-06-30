@@ -9,16 +9,20 @@ const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-export function MetricCard({ icon: Icon, label, value, onClick }: any) {
+export function MetricCard({ icon: Icon, label, value, onClick, gradientClass }: any) {
   return (
-    <Card className={onClick ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''} onClick={onClick}>
+    <Card 
+      className={`relative overflow-hidden group ${onClick ? 'cursor-pointer hover:shadow-md transition-all duration-300 hover:-translate-y-1' : ''}`} 
+      onClick={onClick}
+    >
+      <div className={`absolute top-0 left-0 w-1 h-full ${gradientClass || 'bg-blue-500'}`} />
       <CardContent className="p-6 flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500 mb-1">{label}</p>
-          <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
+          <p className="text-sm font-semibold text-slate-500 tracking-tight mb-1">{label}</p>
+          <h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3>
         </div>
-        <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
-          <Icon className="h-6 w-6" />
+        <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${gradientClass ? gradientClass.replace('bg-', 'bg-opacity-10 text-').replace('to-', '') : 'bg-blue-50 text-blue-600'}`}>
+          <Icon className="h-6 w-6 opacity-80" />
         </div>
       </CardContent>
     </Card>
@@ -33,11 +37,11 @@ export function FuelMetricsBlock({ metrics, canSeeFinancials }: { metrics: any; 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard icon={Fuel} label="Total" value={metrics.total} onClick={() => navigate('/fleet')} />
-        <MetricCard icon={Clock} label="Pendentes" value={metrics.pendentes} onClick={() => navigate('/fleet')} />
-        <MetricCard icon={CheckCircle} label="Aprovados" value={metrics.aprovados} onClick={() => navigate('/fleet')} />
+        <MetricCard icon={Fuel} label="Total" value={metrics.total} gradientClass="bg-blue-500" onClick={() => navigate('/fleet')} />
+        <MetricCard icon={Clock} label="Pendentes" value={metrics.pendentes} gradientClass="bg-amber-500" onClick={() => navigate('/fleet')} />
+        <MetricCard icon={CheckCircle} label="Aprovados" value={metrics.aprovados} gradientClass="bg-emerald-500" onClick={() => navigate('/fleet')} />
         {canSeeFinancials && (
-          <MetricCard icon={DollarSign} label="Valor Total" value={formatCurrency(metrics.valor_total || 0)} />
+          <MetricCard icon={DollarSign} label="Valor Total" value={formatCurrency(metrics.valor_total || 0)} gradientClass="bg-purple-500" />
         )}
       </div>
 
