@@ -75,6 +75,7 @@ function DiariaDetails({ req }: { req: any }) {
 
 export function FleetDetailContent() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const {
     id, req, isLoading, attachments, approvalRequest, allApprovalCycles, previousCycles,
     isOwner, isAdmin, isMaster, reqType, vehicle, hasActiveFlow,
