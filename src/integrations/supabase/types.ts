@@ -2347,6 +2347,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_dashboard_metrics: { Args: never; Returns: Json }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]

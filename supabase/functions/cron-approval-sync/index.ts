@@ -3,15 +3,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 serve(async (req) => {
   try {
-    // [P0-03] Correção: Sincronização em background para atomicidade — IP-PLAN Onda 2
-    // Apenas requisições autorizadas podem executar esta Edge Function.
-    // Usamos o HEADER de autorização padrão do CRON.
-    const authHeader = req.headers.get('Authorization')
-    if (authHeader !== `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}` && authHeader !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
-      // Allow execution from Supabase Cron which might use service role key
-      if (!authHeader?.includes(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '')) {
-         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-      }
+    // Only the service role (Supabase Cron) OR a dedicated CRON_SECRET may invoke this function.
+    // The public anon key MUST NOT be accepted here — it is embedded in the frontend bundle.
+    const authHeader = req.headers.get('Authorization') || ''
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    const cronSecret = Deno.env.get('CRON_SECRET') || ''
+    const isService = serviceKey && authHeader === `Bearer ${serviceKey}`
+    const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`
+    if (!isService && !isCron) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
     }
 
     const supabaseAdmin = createClient(

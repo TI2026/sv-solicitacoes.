@@ -103,6 +103,12 @@ Deno.serve(async (req) => {
       try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; }
     };
     const fmtCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const esc = (v: any) => String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 
     if (format === 'xlsx') {
       const wb = XLSX.utils.book_new();
@@ -206,7 +212,7 @@ Deno.serve(async (req) => {
       // Header
       html += `<div class="header">
         <h1>Relatório de Despesas</h1>
-        <div class="subtitle">Período: ${fmtDate(startDate)} a ${fmtDate(endDate)} · Gerado em ${fmtDate(new Date().toISOString())}</div>
+        <div class="subtitle">Período: ${esc(fmtDate(startDate))} a ${esc(fmtDate(endDate))} · Gerado em ${esc(fmtDate(new Date().toISOString()))}</div>
       </div>`;
 
       // Summary bar
@@ -224,7 +230,7 @@ Deno.serve(async (req) => {
       html += `<h2>Resumo por Tipo</h2><table><tr><th>Tipo</th><th class="right">Qtd</th><th class="right">Valor Total</th><th class="right">Média</th></tr>`;
       Object.entries(byType).forEach(([t, v]) => {
         const avg = v.count > 0 ? v.total / v.count : 0;
-        html += `<tr><td>${typeLabels[t] || t}</td><td class="right">${v.count}</td><td class="right">${fmtCurrency(v.total)}</td><td class="right">${fmtCurrency(avg)}</td></tr>`;
+        html += `<tr><td>${esc(typeLabels[t] || t)}</td><td class="right">${v.count}</td><td class="right">${esc(fmtCurrency(v.total))}</td><td class="right">${esc(fmtCurrency(avg))}</td></tr>`;
       });
       html += `<tr class="total-row"><td>Total</td><td class="right">${data.length}</td><td class="right">${fmtCurrency(totalGeral)}</td><td class="right">${fmtCurrency(avgPerRequest)}</td></tr>`;
       html += `</table>`;
@@ -233,7 +239,7 @@ Deno.serve(async (req) => {
       html += `<h2>Resumo por Setor</h2><table><tr><th>Setor</th><th class="right">Qtd</th><th class="right">Valor Total</th><th class="right">%</th></tr>`;
       Object.entries(bySector).sort((a, b) => b[1].total - a[1].total).forEach(([s, v]) => {
         const pct = totalGeral > 0 ? ((v.total / totalGeral) * 100).toFixed(1) : '0.0';
-        html += `<tr><td>${s}</td><td class="right">${v.count}</td><td class="right">${fmtCurrency(v.total)}</td><td class="right">${pct}%</td></tr>`;
+        html += `<tr><td>${esc(s)}</td><td class="right">${v.count}</td><td class="right">${esc(fmtCurrency(v.total))}</td><td class="right">${pct}%</td></tr>`;
       });
       html += `</table>`;
 
@@ -241,14 +247,14 @@ Deno.serve(async (req) => {
       html += `<h2>Resumo por Colaborador</h2><table><tr><th>Colaborador</th><th class="right">Qtd</th><th class="right">Valor Total</th><th class="right">%</th></tr>`;
       Object.entries(byCollab).sort((a, b) => b[1].total - a[1].total).slice(0, 30).forEach(([n, v]) => {
         const pct = totalGeral > 0 ? ((v.total / totalGeral) * 100).toFixed(1) : '0.0';
-        html += `<tr><td>${n}</td><td class="right">${v.count}</td><td class="right">${fmtCurrency(v.total)}</td><td class="right">${pct}%</td></tr>`;
+        html += `<tr><td>${esc(n)}</td><td class="right">${v.count}</td><td class="right">${esc(fmtCurrency(v.total))}</td><td class="right">${pct}%</td></tr>`;
       });
       html += `</table>`;
 
       // Detalhamento
       html += `<h2>Detalhamento</h2><table><tr><th>Data</th><th>Tipo</th><th>Solicitante</th><th>Placa</th><th class="right">Valor</th><th>Status</th></tr>`;
       data.slice(0, 200).forEach((r: any) => {
-        html += `<tr><td>${fmtDate(r.data_abastecimento)}</td><td>${typeLabels[r.type] || r.type}</td><td>${r.profiles?.full_name || r.person_name || ''}</td><td>${r.placa || ''}</td><td class="right">${fmtCurrency(Number(r.valor || 0))}</td><td>${statusLabels[r.status] || r.status}</td></tr>`;
+        html += `<tr><td>${esc(fmtDate(r.data_abastecimento))}</td><td>${esc(typeLabels[r.type] || r.type)}</td><td>${esc(r.profiles?.full_name || r.person_name || '')}</td><td>${esc(r.placa || '')}</td><td class="right">${esc(fmtCurrency(Number(r.valor || 0)))}</td><td>${esc(statusLabels[r.status] || r.status)}</td></tr>`;
       });
       if (data.length > 200) html += `<tr><td colspan="6" style="text-align:center;color:#999;font-style:italic">... e mais ${data.length - 200} registros</td></tr>`;
       html += `</table>`;
@@ -266,7 +272,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Formato inválido' }), { status: 400, headers: corsHeaders });
   } catch (error) {
     console.error('Export error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Erro interno ao gerar relatório' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
