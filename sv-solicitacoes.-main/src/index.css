@@ -1,0 +1,128 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 140 15% 97%;
+    --foreground: 150 30% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 30% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 30% 10%;
+
+    --primary: 145 63% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 140 15% 93%;
+    --secondary-foreground: 150 30% 10%;
+
+    --muted: 140 10% 95%;
+    --muted-foreground: 150 10% 45%;
+
+    --accent: 140 15% 93%;
+    --accent-foreground: 150 30% 10%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 140 10% 90%;
+    --input: 140 10% 90%;
+    --ring: 145 63% 32%;
+
+    --radius: 0.625rem;
+
+    /* Semantic status colors */
+    --status-pending: 38 92% 50%;
+    --status-pending-foreground: 38 92% 14%;
+    --status-pending-bg: 38 92% 95%;
+    --status-approved: 145 63% 36%;
+    --status-approved-foreground: 145 63% 10%;
+    --status-approved-bg: 145 50% 95%;
+    --status-rejected: 0 72% 51%;
+    --status-rejected-foreground: 0 72% 15%;
+    --status-rejected-bg: 0 72% 95%;
+    --status-info: 210 80% 52%;
+    --status-info-foreground: 210 80% 14%;
+    --status-info-bg: 210 80% 95%;
+
+    /* Sidebar */
+    --sidebar-background: 150 30% 14%;
+    --sidebar-foreground: 140 15% 85%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 150 30% 14%;
+    --sidebar-accent: 150 25% 22%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 150 20% 24%;
+    --sidebar-ring: 145 63% 40%;
+    --sidebar-muted: 150 15% 45%;
+
+    /* Chart colors */
+    --chart-1: 145 63% 32%;
+    --chart-2: 38 92% 50%;
+    --chart-3: 210 80% 52%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 280 60% 50%;
+  }
+
+  .dark {
+    --background: 150 20% 6%;
+    --foreground: 140 15% 95%;
+    --card: 150 20% 9%;
+    --card-foreground: 140 15% 95%;
+    --popover: 150 20% 9%;
+    --popover-foreground: 140 15% 95%;
+    --primary: 145 63% 42%;
+    --primary-foreground: 150 20% 6%;
+    --secondary: 150 15% 18%;
+    --secondary-foreground: 140 15% 95%;
+    --muted: 150 15% 14%;
+    --muted-foreground: 140 10% 60%;
+    --accent: 150 15% 18%;
+    --accent-foreground: 140 15% 95%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 15% 18%;
+    --input: 150 15% 18%;
+    --ring: 145 63% 42%;
+    --sidebar-background: 150 20% 4%;
+    --sidebar-foreground: 140 15% 80%;
+    --sidebar-primary: 145 63% 42%;
+    --sidebar-primary-foreground: 150 20% 4%;
+    --sidebar-accent: 150 15% 12%;
+    --sidebar-accent-foreground: 140 15% 95%;
+    --sidebar-border: 150 15% 14%;
+    --sidebar-ring: 145 63% 42%;
+    --sidebar-muted: 150 10% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer utilities {
+  .status-pending {
+    @apply bg-[hsl(var(--status-pending-bg))] text-[hsl(var(--status-pending-foreground))];
+  }
+  .status-approved {
+    @apply bg-[hsl(var(--status-approved-bg))] text-[hsl(var(--status-approved-foreground))];
+  }
+  .status-rejected {
+    @apply bg-[hsl(var(--status-rejected-bg))] text-[hsl(var(--status-rejected-foreground))];
+  }
+  .status-info {
+    @apply bg-[hsl(var(--status-info-bg))] text-[hsl(var(--status-info-foreground))];
+  }
+}

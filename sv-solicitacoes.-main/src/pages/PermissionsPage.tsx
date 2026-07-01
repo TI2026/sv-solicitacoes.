@@ -1,0 +1,274 @@
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
+
+import RolesPermissionsTab from '@/modules/permissions/components/RolesPermissionsTab';
+import UsersManagementTab from '@/modules/permissions/components/UsersManagementTab';
+import ApprovalChainsTab from '@/modules/permissions/components/ApprovalChainsTab';
+import MyApprovalsTab from '@/modules/permissions/components/MyApprovalsTab';
+import { Shield, Users, GitBranch, ClipboardCheck, ListChecks, Clock, User, Info, Send } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Loader2 } from 'lucide-react';
+import { useAllApprovalRequests, usePendingFuelRequests } from '@/modules/permissions/hooks/usePermissionsData';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getApproverTypeLabel } from '@/lib/approvalLabels';
+import { REQUEST_TYPE_LABELS } from '@/lib/constants';
+
+function getApprovalLastActivityDate(approval: any) {
+  const timestamps = [
+    approval.created_at,
+    ...(approval.approval_request_steps?.map((step: any) => step.action_at ?? null) || []),
+  ]
+    .filter(Boolean)
+    .map((value) => new Date(value).getTime())
+    .filter((value) => !Number.isNaN(value));
+
+  return new Date(timestamps.length ? Math.max(...timestamps) : Date.now());
+}
+
+function PendingFuelRequestsSection({ requests }: { requests: any[] }) {
+  if (requests.length === 0) return null;
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+        <Send className="w-4 h-4" />
+        Aguardando encaminhamento ({requests.length})
+      </h3>
+      <div className="space-y-2">
+        {requests.map((r: any) => (
+          <Card key={r.id} className="border-l-4 border-l-amber-400">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="text-[10px]">{REQUEST_TYPE_LABELS[r.type] || r.type}</Badge>
+                <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700">Enviado</Badge>
+                <span className="text-[10px] text-muted-foreground">
+                  {r.profiles?.full_name || 'Solicitante'}
+                </span>
+                {r.valor && (
+                  <span className="text-[10px] font-medium">R$ {Number(r.valor).toFixed(2)}</span>
+                )}
+                <span className="text-xs text-muted-foreground ml-auto">
+                  {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: ptBR })}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ApprovalInProgressTab() {
+  const { data: requests, isLoading } = useAllApprovalRequests();
+  const { data: pendingFuel, isLoading: loadingFuel } = usePendingFuelRequests();
+  const [moduleFilter, setModuleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const isReallyActive = (r: any) => !r.ended_at && !!r.current_approver_user_id && String(r.status || '').startsWith('awaiting_step_');
+  const isNotCancelled = (r: any) => r.status !== 'cancelled';
+
+  if (isLoading && loadingFuel) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+
+  const filtered = [...((requests || []).filter((r: any) => {
+    if (!isNotCancelled(r)) return false;
+    if (moduleFilter !== 'all' && r.approval_modules?.code !== moduleFilter) return false;
+    if (statusFilter === 'active' && !isReallyActive(r)) return false;
+    if (statusFilter === 'ended' && isReallyActive(r)) return false;
+    return true;
+  }))].sort((a: any, b: any) => getApprovalLastActivityDate(b).getTime() - getApprovalLastActivityDate(a).getTime());
+
+  const moduleOptions = [...new Set((requests || []).map((r: any) => r.approval_modules?.code).filter(Boolean))];
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-3">
+          <p className="text-xs text-muted-foreground flex items-start gap-1">
+            <Info className="w-3 h-3 mt-0.5 shrink-0" />
+            Visão das aprovações dentro do seu escopo. As ações de aprovar/reprovar/devolver seguem exclusivas do aprovador elegível em "Minhas Aprovações".
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Pending fuel requests awaiting admin forwarding */}
+      <PendingFuelRequestsSection requests={pendingFuel || []} />
+
+      <div className="flex gap-3 flex-wrap">
+        <Select value={moduleFilter} onValueChange={setModuleFilter}>
+          <SelectTrigger className="w-40 text-xs"><SelectValue placeholder="Módulo" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">Todos os módulos</SelectItem>
+            {moduleOptions.map(code => (
+              <SelectItem key={code} value={code} className="text-xs">{code}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-32 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active" className="text-xs">Em andamento</SelectItem>
+            <SelectItem value="ended" className="text-xs">Encerrados</SelectItem>
+            <SelectItem value="all" className="text-xs">Todos</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card><CardContent className="py-10 text-center"><p className="text-sm text-muted-foreground">Nenhuma aprovação encontrada</p></CardContent></Card>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((a: any) => {
+            const isActive = isReallyActive(a);
+            const totalSteps = a.approval_request_steps?.length || 0;
+            const approvedSteps = a.approval_request_steps?.filter((s: any) => s.status === 'approved').length || 0;
+            const currentStep = a.approval_request_steps?.find((s: any) => s.step_order === a.current_step_order);
+            const lastActivityAt = getApprovalLastActivityDate(a);
+            return (
+              <Card key={a.id} className={isActive ? '' : 'opacity-60'}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
+                    <Badge variant="secondary" className="text-xs">{a.approval_modules?.name || 'Módulo'}</Badge>
+                    <Badge variant={isActive ? 'outline' : a.status === 'approved' ? 'default' : 'destructive'} className="text-xs">
+                      {a.status === 'approved' ? 'Aprovado' : a.status === 'rejected' ? 'Recusado' : a.status === 'returned_to_requester' ? 'Devolvido' : a.status === 'returned_for_adjustment' ? 'Devolvido' : `Etapa ${a.current_step_order || '?'}`}
+                    </Badge>
+                    {isActive && a.current_step_order && (
+                      <span className="text-xs text-muted-foreground">{approvedSteps}/{totalSteps} etapas</span>
+                    )}
+                    {a.approval_flows?.name && (
+                      <Badge variant="outline" className="text-xs">{a.approval_flows.name}</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-x-2 gap-y-1 text-sm text-muted-foreground flex-wrap min-w-0">
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span className="font-medium text-foreground/90 truncate max-w-[16rem]">{a.profiles?.full_name || 'Solicitante'}</span>
+                    <span className="hidden sm:inline">·</span>
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span className="shrink-0">{formatDistanceToNow(lastActivityAt, { addSuffix: true, locale: ptBR })}</span>
+                    {isActive && currentStep && (
+                      <>
+                        <span className="hidden sm:inline">·</span>
+                        <span className="truncate max-w-[16rem]">Aprovador: <span className="font-medium text-foreground/90">{currentStep.profiles?.full_name || '—'}</span></span>
+                        {currentStep.approver_rule && (
+                          <Badge variant="outline" className="text-xs">{getApproverTypeLabel(currentStep.approver_rule)}</Badge>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {isActive && (
+                    <div className="flex items-center gap-1 mt-2 flex-wrap">
+                        {[...(a.approval_request_steps || [])]
+                          .sort((x: any, y: any) => x.step_order - y.step_order)
+                        .map((step: any) => (
+                          <Badge
+                            key={step.id}
+                            variant={
+                              step.status === 'approved' ? 'default' :
+                              step.status === 'rejected' ? 'destructive' :
+                              step.status === 'returned' ? 'secondary' :
+                              step.step_order === a.current_step_order ? 'secondary' : 'outline'
+                            }
+                            className="text-[10px]"
+                          >
+                            {step.step_order}. {step.profiles?.full_name || '—'}
+                          </Badge>
+                        ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function PermissionsPage() {
+  const { hasAnyRole, isMaster } = useAuth();
+  // Master e Diretoria têm o mesmo nível de gestão de permissões.
+  const canManageSettings = isMaster || hasAnyRole(['diretoria']);
+
+  // Sincroniza a aba ativa com ?tab=... — permite que o sidebar (e qualquer link
+  // externo) force a abertura de uma aba específica como "minhas-aprovacoes".
+  const [searchParams, setSearchParams] = useSearchParams();
+  const TAB_ALIASES: Record<string, string> = {
+    'minhas-aprovacoes': 'my-approvals',
+    'my-approvals': 'my-approvals',
+    'andamento': 'in-progress',
+    'in-progress': 'in-progress',
+    'roles': 'roles',
+    'perfis': 'roles',
+    'users': 'users',
+    'usuarios': 'users',
+    'chains': 'chains',
+    'aprovadores': 'chains',
+  };
+  const rawTab = searchParams.get('tab') || '';
+  const requestedTab = TAB_ALIASES[rawTab];
+  const fallbackTab = canManageSettings ? 'roles' : 'my-approvals';
+  const activeTab =
+    requestedTab &&
+    (['my-approvals', 'in-progress'].includes(requestedTab) ||
+      (canManageSettings && ['roles', 'users', 'chains'].includes(requestedTab)))
+      ? requestedTab
+      : fallbackTab;
+
+  const handleTabChange = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', value);
+    setSearchParams(next, { replace: true });
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h2 className="text-xl font-bold text-foreground">Permissões e Aprovações</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Gestão de cargos, permissões e cadeia de aprovadores
+        </p>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+        <TabsList className="grid w-full" style={{ gridTemplateColumns: canManageSettings ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
+          {canManageSettings && (
+            <TabsTrigger value="roles" className="gap-2">
+              <Shield className="w-4 h-4" />
+              <span className="hidden sm:inline">Perfis</span>
+            </TabsTrigger>
+          )}
+          {canManageSettings && (
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="w-4 h-4" />
+              <span className="hidden sm:inline">Usuários</span>
+            </TabsTrigger>
+          )}
+          {canManageSettings && (
+            <TabsTrigger value="chains" className="gap-2">
+              <GitBranch className="w-4 h-4" />
+              <span className="hidden sm:inline">Aprovadores</span>
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="in-progress" className="gap-2">
+            <ListChecks className="w-4 h-4" />
+            <span className="hidden sm:inline">Em Andamento</span>
+          </TabsTrigger>
+          <TabsTrigger value="my-approvals" className="gap-2">
+            <ClipboardCheck className="w-4 h-4" />
+            <span className="hidden sm:inline">Minhas Aprovações</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {canManageSettings && <TabsContent value="roles"><RolesPermissionsTab /></TabsContent>}
+        {canManageSettings && <TabsContent value="users"><UsersManagementTab /></TabsContent>}
+        {canManageSettings && <TabsContent value="chains"><ApprovalChainsTab /></TabsContent>}
+        <TabsContent value="in-progress"><ApprovalInProgressTab /></TabsContent>
+        <TabsContent value="my-approvals"><MyApprovalsTab /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
