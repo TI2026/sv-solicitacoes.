@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ExportReportDialog } from '@/components/ExportReportDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePresence } from '@/contexts/PresenceContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,33 +22,12 @@ import { FlowControlPanel } from '@/modules/dashboard/components/FlowControlPane
 export default function DashboardPage() {
   const { user, hasAnyRole, isMaster } = useAuth();
   const navigate = useNavigate();
-  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+  const { onlineUsers } = usePresence();
   const [exportOpen, setExportOpen] = useState(false);
 
   const isRH = hasAnyRole(['diretoria', 'rh']);
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const canSeeFinancials = !!isMaster;
-
-  // Track online presence for master users
-  useEffect(() => {
-    if (!isMaster || !user) return;
-    const channel = supabase.channel('online-users');
-    channel.on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState();
-      const users = Object.values(state).flat().map((p: any) => ({
-        user_id: p.user_id,
-        full_name: p.full_name,
-        email: p.email,
-        avatar_url: p.avatar_url,
-        role: p.role || 'colaborador',
-        current_route: p.current_route || '/',
-      }));
-      const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
-      setOnlineUsers(unique);
-    });
-    channel.subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [isMaster, user]);
 
   useRealtimeSubscription({
     channelName: `dashboard-realtime-${user?.id}`,
