@@ -24,7 +24,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     }
 
     const primaryRole = user.roles?.[0] || 'colaborador';
-    const channel = supabase.channel('online-users', {
+    const channel = supabase.channel(`online-users-${user.id}`, {
       config: { presence: { key: user.id } },
     });
 
@@ -59,18 +59,12 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     channelRef.current = channel;
 
     return () => {
-      const cleanup = async () => {
-        try {
-          if (channelRef.current) {
-            await channelRef.current.untrack();
-            await channelRef.current.unsubscribe();
-            await supabase.removeChannel(channelRef.current);
-          }
-        } catch (error) {
-          console.error("Error during presence cleanup:", error);
-        }
-      };
-      cleanup();
+      try {
+        supabase.removeChannel(channel);
+      } catch (error) {
+        console.error("Error during presence cleanup:", error);
+      }
+      if (channelRef.current === channel) channelRef.current = null;
     };
   }, [user]); 
 
