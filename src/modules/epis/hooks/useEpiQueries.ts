@@ -41,7 +41,7 @@ export function useUpdateEpiItem() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Record<string, any>) => {
-      const { error } = await supabase.from('epi_items').update(updates).eq('id', id);
+      const { error } = await supabase.from('epi_items').update(updates as any).eq('id', id);
       if (error) throw error;
       await supabase.from('audit_logs').insert({ user_id: user!.id, action: 'update', entity_type: 'epi_items', entity_id: id, details: updates });
     },
