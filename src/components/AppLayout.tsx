@@ -189,50 +189,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return location.pathname.startsWith(cleanPath);
   };
 
-  // Supabase Realtime Presence tracking with route info
-  const presenceChannelRef = useRef<any>(null);
-  useEffect(() => {
-    if (!user) return;
-    const presenceChannel = supabase.channel('online-users', {
-      config: { presence: { key: user.id } },
-    });
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {})
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({
-            user_id: user.id,
-            full_name: user.full_name || user.email,
-            email: user.email,
-            avatar_url: user.avatar_url || null,
-            role: primaryRole || 'colaborador',
-            current_route: location.pathname,
-            online_at: new Date().toISOString(),
-          });
-        }
-      });
-    presenceChannelRef.current = presenceChannel;
-    return () => {
-      presenceChannel.untrack();
-      supabase.removeChannel(presenceChannel);
-    };
-  }, [user]);
-
-  // Update presence route on navigation
-  useEffect(() => {
-    if (presenceChannelRef.current && user) {
-      presenceChannelRef.current.track({
-        user_id: user.id,
-        full_name: user.full_name || user.email,
-        email: user.email,
-        avatar_url: user.avatar_url || null,
-        role: primaryRole || 'colaborador',
-        current_route: location.pathname,
-        online_at: new Date().toISOString(),
-      });
-    }
-  }, [location.pathname]);
-
   const markAllRead = async () => {
     if (!user) return;
     await supabase.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('user_id', user.id).eq('read', false);
