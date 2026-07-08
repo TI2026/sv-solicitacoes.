@@ -8,8 +8,9 @@ import { CheckCircle2, DollarSign } from 'lucide-react';
 
 export function FleetPaymentBlock() {
   const {
-    req, reqType, isPending, hasActiveFlow,
-    isAdmin, isFinanceiro, isCompras,
+    req, reqType, isPending,
+    // [Sprint 2 — Onda 2] Fonte canônica substitui: isCompras, isFinanceiro, hasActiveFlow
+    approvalCtx,
     ocNumber, setOcNumber, ocNotes, setOcNotes,
     paymentNotes, setPaymentNotes,
     showOcDialog, setShowOcDialog,
@@ -20,24 +21,27 @@ export function FleetPaymentBlock() {
   if (!req) return null;
 
   const requiresOC = reqType !== 'reembolso'; // Reembolso skips OC
+  // [Sprint 2 — Onda 2] ctx.permissions é a fonte única — zero IF de cargo
+  const canGenerateOC     = approvalCtx?.permissions.generate_oc ?? false;
+  const canConfirmPayment = approvalCtx?.permissions.confirm_payment ?? false;
 
   return (
     <>
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2 mt-4">
-        {req.status === 'aprovado' && !hasActiveFlow && isCompras && requiresOC && (
+        {canGenerateOC && requiresOC && (
           <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2 w-full sm:w-auto">
             Registrar OC e Liberar para Pagamento
           </Button>
         )}
-        
-        {req.status === 'aprovado' && !hasActiveFlow && isFinanceiro && !requiresOC && (
+
+        {canConfirmPayment && !requiresOC && (
           <Button onClick={() => setShowPaymentDialog(true)} disabled={isPending} className="gap-2 w-full sm:w-auto">
             <DollarSign className="w-4 h-4" /> Registrar Pagamento
           </Button>
         )}
 
-        {req.status === 'aguardando_pagamento' && isFinanceiro && (
+        {canConfirmPayment && requiresOC && (
           <Button onClick={() => setShowPaymentDialog(true)} disabled={isPending} className="gap-2 w-full sm:w-auto">
             <CheckCircle2 className="w-4 h-4" /> Confirmar Pagamento
           </Button>

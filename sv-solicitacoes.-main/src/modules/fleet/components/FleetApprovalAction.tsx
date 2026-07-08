@@ -9,8 +9,9 @@ import { CheckCircle, XCircle, RotateCcw, Loader2, AlertTriangle } from 'lucide-
 
 export function FleetApprovalAction() {
   const {
-    req, reqType, isPending, hasActiveFlow, isAdmin,
-    isCurrentFlowApprover, flowAllowsReturn,
+    req, reqType, isPending,
+    // [Sprint 2 — Onda 2] Fonte canônica substitui: isCurrentFlowApprover, flowAllowsReturn, hasActiveFlow, isAdmin
+    approvalCtx,
     reembChecklist, setReembChecklist, reembChecklistComplete,
     handleApprovalAction, showReasonDialog, setShowReasonDialog,
     actionReason, setActionReason
@@ -18,9 +19,17 @@ export function FleetApprovalAction() {
 
   if (!req) return null;
 
+  // [Sprint 2 — Onda 2] ctx.permissions é a única fonte de verdade para exibir botões.
+  const canApprove = approvalCtx?.permissions.approve ?? false;
+  const canReject  = approvalCtx?.permissions.reject  ?? false;
+  const canReturn  = approvalCtx?.permissions.return  ?? false;
+  const isGlobalViewer = approvalCtx?.visibility.mode === 'global';
+  const isInFlow   = approvalCtx?.is_in_flow ?? false;
+  const reasonBlocked = approvalCtx?.meta.reason_blocked;
+
   const handleReasonConfirm = () => {
     if (!showReasonDialog) return;
-    if (hasActiveFlow && isCurrentFlowApprover && req.status === 'em_aprovacao') {
+    if (canApprove) {
       if (showReasonDialog === 'reprovado') {
         handleApprovalAction('reject', actionReason);
       } else if (showReasonDialog === 'retornado') {
@@ -31,8 +40,8 @@ export function FleetApprovalAction() {
 
   return (
     <>
-      {/* Action Buttons for Approver */}
-      {req.status === 'em_aprovacao' && hasActiveFlow && isCurrentFlowApprover && (
+      {/* [Sprint 2 — Onda 2] Botões de ação: ctx.permissions.approve é a fonte de verdade */}
+      {canApprove && (
         <div className="space-y-3 mt-4">
           {reqType === 'reembolso' && (
             <div className="space-y-2 border border-amber-300/60 rounded-lg p-3 bg-amber-50 dark:bg-amber-950/20">
@@ -64,17 +73,21 @@ export function FleetApprovalAction() {
             </div>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => handleApprovalAction('approve')}
-              disabled={isPending || (reqType === 'reembolso' && !reembChecklistComplete)}
-              className="gap-2"
-            >
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Aprovar
-            </Button>
-            <Button onClick={() => setShowReasonDialog('reprovado')} variant="destructive" className="gap-2" disabled={isPending}>
-              <XCircle className="w-4 h-4" /> Reprovar
-            </Button>
-            {flowAllowsReturn && (
+            {canApprove && (
+              <Button
+                onClick={() => handleApprovalAction('approve')}
+                disabled={isPending || (reqType === 'reembolso' && !reembChecklistComplete)}
+                className="gap-2"
+              >
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Aprovar
+              </Button>
+            )}
+            {canReject && (
+              <Button onClick={() => setShowReasonDialog('reprovado')} variant="destructive" className="gap-2" disabled={isPending}>
+                <XCircle className="w-4 h-4" /> Reprovar
+              </Button>
+            )}
+            {canReturn && (
               <Button onClick={() => setShowReasonDialog('retornado')} variant="outline" className="gap-2" disabled={isPending}>
                 <RotateCcw className="w-4 h-4" /> Devolver
               </Button>
@@ -83,8 +96,8 @@ export function FleetApprovalAction() {
         </div>
       )}
 
-      {/* Warning for Admin without flow configured */}
-      {req.status === 'em_aprovacao' && !hasActiveFlow && isAdmin && (
+      {/* Sem fluxo ativo: aviso apenas para quem tem visão global */}
+      {isInFlow && !canApprove && isGlobalViewer && !reasonBlocked && (
         <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 mt-4">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-800 dark:text-amber-400">Sem fluxo de aprovação ativo</AlertTitle>
@@ -95,10 +108,10 @@ export function FleetApprovalAction() {
         </Alert>
       )}
 
-      {/* Info for non-eligible users */}
-      {req.status === 'em_aprovacao' && hasActiveFlow && !isCurrentFlowApprover && isAdmin && (
+      {/* [Sprint 2 — Onda 2] meta.reason_blocked vem pronto do backend — zero IF de cargo */}
+      {isInFlow && !canApprove && reasonBlocked && (
         <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 mt-4">
-          Esta solicitação está em fluxo de aprovação. Apenas o aprovador elegível da etapa atual pode agir.
+          {reasonBlocked}
         </p>
       )}
 

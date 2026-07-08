@@ -78,13 +78,15 @@ export function FleetDetailContent() {
   const { toast } = useToast();
   const {
     id, req, isLoading, attachments, approvalRequest, allApprovalCycles, previousCycles,
-    isOwner, isAdmin, isMaster, reqType, vehicle, hasActiveFlow,
-    canSendToReview, isPending, canMasterDelete, canUpload, hodometro, notaFiscal,
+    reqType, vehicle,
+    canSendToReview, isPending, canUpload, hodometro, notaFiscal,
     uploading, showDeleteDialog, setShowDeleteDialog, deleteReason, setDeleteReason,
     reviewKmReal, setReviewKmReal, reviewKmOk, setReviewKmOk, reviewNfReal, setReviewNfReal,
     reviewNfOk, setReviewNfOk, reviewDivergenceReason, setReviewDivergenceReason,
     previewUrl, setPreviewUrl, previewType, setPreviewType, previewTitle, setPreviewTitle,
-    handleStatusChange, handleUpload, openInlinePreview, softDelete
+    handleStatusChange, handleUpload, openInlinePreview, softDelete,
+    // [Sprint 2 — Onda 2] Fonte canônica
+    approvalCtx,
   } = useFleetDetail();
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
@@ -117,14 +119,16 @@ export function FleetDetailContent() {
         <Button variant="ghost" className="gap-2" onClick={() => navigate('/fleet')}>
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Button>
-        {canMasterDelete && (
+        {/* [Sprint 2 — Onda 2] ctx.permissions.cancel substitui canMasterDelete */}
+        {approvalCtx?.permissions.cancel && (
           <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 gap-2" onClick={() => setShowDeleteDialog(true)}>
             <Trash2 className="w-4 h-4" /> Excluir
           </Button>
         )}
       </div>
 
-      {req?.status === 'retornado' && isOwner && (
+      {/* [Sprint 2 — Onda 2] ctx.permissions.edit + ctx.status substituem isOwner + req.status */}
+      {(approvalCtx?.status === 'returned_to_requester' || req?.status === 'retornado') && approvalCtx?.permissions.edit && (
         <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-800 dark:text-amber-400">Solicitação devolvida para ajuste</AlertTitle>
@@ -240,25 +244,27 @@ export function FleetDetailContent() {
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Ações</h3>
 
-            {isOwner && req.status === 'rascunho' && (
+            {/* [Sprint 3.0] ctx.permissions.edit + ctx.status — solicitante envia/reenvia */}
+            {approvalCtx?.permissions.edit && approvalCtx?.status === 'draft' && (
               <Button onClick={() => handleStatusChange('enviado')} disabled={isPending} className="gap-2 w-full sm:w-auto">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar Solicitação
               </Button>
             )}
 
-            {isOwner && req.status === 'retornado' && (
+            {approvalCtx?.permissions.edit && approvalCtx?.status === 'returned_to_requester' && (
               <Button onClick={() => handleStatusChange('enviado')} disabled={isPending} className="gap-2 w-full sm:w-auto">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Reenviar
               </Button>
             )}
 
-            {isAdmin && reqType === 'diaria' && req.status === 'enviado' && (
+            {/* [Sprint 3.0] allowed_actions — string[] dinâmico via module_action_rules. Motor zero-acoplado. */}
+            {approvalCtx?.permissions.allowed_actions.includes('analyze_travel') && (
               <Button onClick={() => handleStatusChange('em_revisao')} disabled={isPending} className="gap-2">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />} Analisar Diária
               </Button>
             )}
 
-            {isAdmin && reqType === 'abastecimento' && req.status === 'aprovado' && (
+            {approvalCtx?.permissions.allowed_actions.includes('confirm_fuel') && (
               <Button onClick={() => handleStatusChange('aguardando_fotos')} disabled={isPending} className="gap-2">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />} Confirmar Recarga
               </Button>
@@ -276,8 +282,8 @@ export function FleetDetailContent() {
           </CardContent>
         </Card>
 
-        {/* Final review block for Admin (abastecimento) */}
-        {isAdmin && reqType === 'abastecimento' && req.status === 'em_revisao_admin' && (
+        {/* [Sprint 3.0] review_admin via allowed_actions — Motor não sabe o que é Fleet */}
+        {approvalCtx?.permissions.allowed_actions.includes('review_admin') && (
           <Card className="lg:col-span-3 border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/10">
             <CardHeader className="pb-3">
               <CardTitle className="text-base text-amber-800 dark:text-amber-400 flex items-center gap-2">
