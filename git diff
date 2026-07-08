@@ -1,0 +1,11 @@
+* [33mdaf7807[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m chore: generate package-lock.json for dependency management
+* [33m21f7a98[m chore: generate package-lock.json files to lock dependency versions
+* [33m3f88cf5[m feat: implement centralized fleet approval workflow using standardized context and action modules
+* [33mc73daaa[m feat: initialize project structure with modules for admissions, fleet, and EPI management including Supabase integrations
+*   [33m3bb8da3[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fixed presence channel error
+[32m|[m[33m\[m  
+[32m|[m * [33mda3cd96[m Changes
+[32m|[m * [33mdc686f4[m Changes
+[32m|[m * [33mb6c6c2d[m Changes
+[32m|[m * [33m0900c39[m Changes
+[32m|[m * [33m7c34c18[m Changes

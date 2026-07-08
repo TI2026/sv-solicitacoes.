@@ -1,0 +1,134 @@
+ package-lock.json                                  | 11018 [32m+[m[31m-----------------[m
+ .env => sv-solicitacoes.-main/.env                 |     0
+ .gitignore => sv-solicitacoes.-main/.gitignore     |     0
+ .../.lovable}/plan.md                              |     0
+ README.md => sv-solicitacoes.-main/README.md       |     0
+ bun.lock => sv-solicitacoes.-main/bun.lock         |     0
+ bun.lockb => sv-solicitacoes.-main/bun.lockb       |   Bin
+ .../components.json                                |     0
+ .../eslint.config.js                               |     0
+ .../gen_migration.cjs                              |     0
+ .../gen_migration_rbac.cjs                         |     0
+ index.html => sv-solicitacoes.-main/index.html     |     0
+ sv-solicitacoes.-main/package-lock.json            | 11049 [32m+++++++++++++++++++[m
+ package.json => sv-solicitacoes.-main/package.json |     0
+ .../postcss.config.js                              |     0
+ .../public}/favicon.ico                            |   Bin
+ .../public}/images/logo-sv.png                     |   Bin
+ .../public}/placeholder.svg                        |     0
+ .../public}/robots.txt                             |     0
+ {src => sv-solicitacoes.-main/src}/App.css         |     0
+ {src => sv-solicitacoes.-main/src}/App.tsx         |     0
+ .../src}/assets/logo-sv.png                        |   Bin
+ {src => sv-solicitacoes.-main/src}/assets/logo.png |   Bin
+ .../src}/components/AppLayout.tsx                  |     2 [32m+[m
+ .../src}/components/ApprovalStatusBlock.tsx        |     0
+ .../src}/components/DynamicCategorySelect.tsx      |     0
+ .../src}/components/ErrorBoundary.tsx              |     0
+ .../src}/components/ExportReportDialog.tsx         |     0
+ .../src}/components/MaskedPix.tsx                  |     0
+ .../src}/components/MoneyInput.tsx                 |     0
+ .../src}/components/NavLink.tsx                    |     0
+ .../src}/components/StatusBadge.tsx                |     0
+ .../src}/components/StatusTimeline.tsx             |     0
+ .../src}/components/ui/accordion.tsx               |     0
+ .../src}/components/ui/alert-dialog.tsx            |     0
+ .../src}/components/ui/alert.tsx                   |     0
+ .../src}/components/ui/aspect-ratio.tsx            |     0
+ .../src}/components/ui/avatar.tsx                  |     0
+ .../src}/components/ui/badge.tsx                   |     0
+ .../src}/components/ui/breadcrumb.tsx              |     0
+ .../src}/components/ui/button.tsx                  |     0
+ .../src}/components/ui/calendar.tsx                |     0
+ .../src}/components/ui/card.tsx                    |     0
+ .../src}/components/ui/carousel.tsx                |     0
+ .../src}/components/ui/chart.tsx                   |    21 [32m+[m[31m-[m
+ .../src}/components/ui/checkbox.tsx                |     0
+ .../src}/components/ui/collapsible.tsx             |     0
+ .../src}/components/ui/command.tsx                 |     0
+ .../src}/components/ui/context-menu.tsx            |     0
+ .../src}/components/ui/dialog.tsx                  |     0
+ .../src}/components/ui/drawer.tsx                  |     0
+ .../src}/components/ui/dropdown-menu.tsx           |     0
+ .../src}/components/ui/form.tsx                    |     0
+ .../src}/components/ui/hover-card.tsx              |     0
+ .../src}/components/ui/input-otp.tsx               |     0
+ .../src}/components/ui/input.tsx                   |     0
+ .../src}/components/ui/label.tsx                   |     0
+ .../src}/components/ui/menubar.tsx                 |     0
+ .../src}/components/ui/navigation-menu.tsx         |     0
+ .../src}/components/ui/pagination.tsx              |     0
+ .../src}/components/ui/popover.tsx                 |     0
+ .../src}/components/ui/progress.tsx                |     0
+ .../src}/components/ui/radio-group.tsx             |     0
+ .../src}/components/ui/resizable.tsx               |     0
+ .../src}/components/ui/scroll-area.tsx             |     0
+ .../src}/components/ui/select.tsx                  |     0
+ .../src}/components/ui/separator.tsx               |     0
+ .../src}/components/ui/sheet.tsx                   |     0
+ .../src}/components/ui/sidebar.tsx                 |     0
+ .../src}/components/ui/skeleton.tsx                |     0
+ .../src}/components/ui/slider.tsx                  |     0
+ .../src}/components/ui/sonner.tsx                  |     0
+ .../src}/components/ui/switch.tsx                  |     0
+ .../src}/components/ui/table.tsx                   |     0
+ .../src}/components/ui/tabs.tsx                    |     0
+ .../src}/components/ui/textarea.tsx                |     0
+ .../src}/components/ui/toast.tsx                   |     0
+ .../src}/components/ui/toaster.tsx                 |     0
+ .../src}/components/ui/toggle-group.tsx            |     0
+ .../src}/components/ui/toggle.tsx                  |     0
+ .../src}/components/ui/tooltip.tsx                 |     0
+ .../src}/components/ui/use-toast.ts                |     0
+ .../src}/contexts/AuthContext.tsx                  |     0
+ .../src}/contexts/PresenceContext.tsx              |    27 [32m+[m[31m-[m
+ .../src}/hooks/use-mobile.tsx                      |     0
+ .../src}/hooks/use-toast.ts                        |     0
+ .../src}/hooks/useApprovalFlow.ts                  |     0
+ .../src}/hooks/useDynamicCategories.ts             |     0
+ .../src}/hooks/useRealtimeSubscription.ts          |     0
+ .../src}/hooks/useRequestLimits.ts                 |     0
+ {src => sv-solicitacoes.-main/src}/index.css       |     0
+ .../src}/integrations/supabase/client.ts           |     0
+ .../src}/integrations/supabase/types.ts            |     0
+ .../src}/lib/approvalLabels.ts                     |     0
+ .../src}/lib/constants.ts                          |     0
+ .../src}/lib/dateUtils.ts                          |     0
+ .../src}/lib/fileValidation.ts                     |     0
+ .../src}/lib/formatApprovalError.ts                |     0
+ {src => sv-solicitacoes.-main/src}/lib/masks.ts    |     0
+ .../src}/lib/roleGuard.tsx                         |     0
+ .../src}/lib/statusVisuals.tsx                     |     0
+ {src => sv-solicitacoes.-main/src}/lib/utils.ts    |     0
+ {src => sv-solicitacoes.-main/src}/main.tsx        |     0
+ .../admissions/adapters/mapAdmissionListItem.ts    |     0
+ .../components/AdmissionDetailContent.tsx          |     0
+ .../admissions/components/AdmissionProcessCard.tsx |     0
+ .../admissions/components/AdmissionStepper.tsx     |     0
+ .../admissions/components/AdmissionsFiltersBar.tsx |     0
+ .../admissions/components/CargoCombobox.tsx        |     0
+ .../admissions/components/EditAdmissionDialog.tsx  |     0
+ .../admissions/components/ExamAttachmentUpload.tsx |     0
+ .../admissions/components/InterviewDialog.tsx      |     0
+ .../admissions/components/UniformSizesPicker.tsx   |     0
+ .../admissions/components/WelcomePdfGenerator.tsx  |     0
+ .../modules/admissions/constants/cargosList.ts     |     0
+ .../admissions/contexts/AdmissionDetailContext.tsx |     0
+ .../admissions/hooks/useAdmissionQueries.ts        |     0
+ .../src}/modules/admissions/hooks/useCandidates.ts |     0
+ .../src}/modules/admissions/hooks/useDocuments.ts  |     0
+ .../src}/modules/admissions/hooks/useInterviews.ts |     2 [32m+[m[31m-[m
+ .../admissions/pages/AdmissionDetailPage.tsx       |     0
+ .../modules/admissions/pages/AdmissionListPage.tsx |     0
+ .../modules/admissions/pages/AdmissionNewPage.tsx  |     0
+ .../admissions/pages/CandidateDetailPage.tsx       |     4 [32m+[m[31m-[m
+ .../admissions/pages/PublicCandidatePage.tsx       |     0
+ .../admissions/pages/PublicDocumentsPage.tsx       |     0
+ .../admissions/pages/PublicSignaturePage.tsx       |     0
+ .../admissions/utils/admissionPermissions.ts       |     0
+ .../dashboard/components/AdmissionMetricsBlock.tsx |     2 [32m+[m[31m-[m
+ .../dashboard/components/FlowControlPanel.tsx      |     0
+ .../dashboard/components/FuelMetricsBlock.tsx      |     2 [32m+[m[31m-[m
+ .../epis/components/CollaboratorEditDialog.tsx     |     0
+ .../src}/modules/epis/components/PhotoUpload.tsx   |     0
+ .../src}/modules/epis/co
