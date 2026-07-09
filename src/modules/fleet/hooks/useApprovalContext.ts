@@ -54,7 +54,7 @@ export function useApprovalContext(referenceId: string | undefined, moduleCode?:
         throw new EngineContextError('referenceId is required to load ApprovalContext');
       }
 
-      const { data, error } = await supabase.rpc('get_approval_context', {
+      const { data, error } = await (supabase as any).rpc('get_approval_context', {
         p_reference_id: referenceId,
         p_module_code: moduleCode ?? null,
       } as any);

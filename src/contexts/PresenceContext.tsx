@@ -16,7 +16,6 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const channelRef = useRef<any>(null);
-  const presenceTopicRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -24,64 +23,69 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
-      presenceTopicRef.current = null;
       setOnlineUsers([]);
       return;
     }
 
-    const primaryRole = user.roles?.[0] || 'colaborador';
-    const channelTopic = `online-users-${user.id}-${crypto.randomUUID()}`;
-    presenceTopicRef.current = channelTopic;
+    let active = true;
+    const channelTopic = 'online-users';
 
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+    const setupPresence = async () => {
+      const staleChannels = ((supabase as any).getChannels?.() || []).filter(
+        (channel: any) => channel?.topic === `realtime:${channelTopic}` || channel?.topic === channelTopic,
+      );
+      await Promise.all(staleChannels.map((channel: any) => supabase.removeChannel(channel)));
 
-    const channel = supabase.channel(channelTopic, {
-      config: { presence: { key: user.id } },
-    });
+      if (!active) return;
 
-    channelRef.current = channel;
-
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const users = Object.values(state).flat().map((p: any) => ({
-          user_id: p.user_id,
-          full_name: p.full_name,
-          email: p.email,
-          avatar_url: p.avatar_url,
-          role: p.role || 'colaborador',
-          current_route: p.current_route || '/',
-        }));
-        // Remove duplicates if any (based on user_id)
-        const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
-        setOnlineUsers(unique);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user_id: user.id,
-            full_name: user.full_name || user.email,
-            email: user.email,
-            avatar_url: user.avatar_url || null,
-            role: primaryRole,
-            current_route: location.pathname,
-            online_at: new Date().toISOString(),
-          });
-        }
+      const primaryRole = user.roles?.[0] || 'colaborador';
+      const channel = supabase.channel(channelTopic, {
+        config: { presence: { key: user.id } },
       });
 
+      channelRef.current = channel;
+
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState();
+          const users = Object.values(state).flat().map((p: any) => ({
+            user_id: p.user_id,
+            full_name: p.full_name,
+            email: p.email,
+            avatar_url: p.avatar_url,
+            role: p.role || 'colaborador',
+            current_route: p.current_route || '/',
+          }));
+          // Remove duplicates if any (based on user_id)
+          const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
+          setOnlineUsers(unique);
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED' && active) {
+            await channel.track({
+              user_id: user.id,
+              full_name: user.full_name || user.email,
+              email: user.email,
+              avatar_url: user.avatar_url || null,
+              role: primaryRole,
+              current_route: location.pathname,
+              online_at: new Date().toISOString(),
+            });
+          }
+        });
+    };
+
+    setupPresence().catch((error) => console.error('Error setting up presence:', error));
+
     return () => {
+      active = false;
+      const channel = channelRef.current;
+      if (!channel) return;
       if (channelRef.current === channel) {
         supabase.removeChannel(channel);
         channelRef.current = null;
       } else {
         supabase.removeChannel(channel);
-      }
-      if (presenceTopicRef.current === channelTopic) {
-        presenceTopicRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
