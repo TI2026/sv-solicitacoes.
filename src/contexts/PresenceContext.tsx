@@ -16,17 +16,33 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const channelRef = useRef<any>(null);
+  const presenceTopicRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user) {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      presenceTopicRef.current = null;
       setOnlineUsers([]);
       return;
     }
 
     const primaryRole = user.roles?.[0] || 'colaborador';
-    const channel = supabase.channel('online-users', {
+    const channelTopic = `online-users-${user.id}-${crypto.randomUUID()}`;
+    presenceTopicRef.current = channelTopic;
+
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const channel = supabase.channel(channelTopic, {
       config: { presence: { key: user.id } },
     });
+
+    channelRef.current = channel;
 
     channel
       .on('presence', { event: 'sync' }, () => {
@@ -57,21 +73,16 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
-    channelRef.current = channel;
-
     return () => {
-      const cleanup = async () => {
-        try {
-          if (channelRef.current) {
-            await channelRef.current.untrack();
-            await channelRef.current.unsubscribe();
-            await supabase.removeChannel(channelRef.current);
-          }
-        } catch (error) {
-          console.error("Error during presence cleanup:", error);
-        }
-      };
-      cleanup();
+      if (channelRef.current === channel) {
+        supabase.removeChannel(channel);
+        channelRef.current = null;
+      } else {
+        supabase.removeChannel(channel);
+      }
+      if (presenceTopicRef.current === channelTopic) {
+        presenceTopicRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]); // Only recreate channel when user changes
