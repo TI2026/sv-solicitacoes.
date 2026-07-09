@@ -19,59 +19,74 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
       setOnlineUsers([]);
       return;
     }
 
-    const primaryRole = user.roles?.[0] || 'colaborador';
-    const channel = supabase.channel('online-users', {
-      config: { presence: { key: user.id } },
-    });
+    let active = true;
+    const channelTopic = 'online-users';
 
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const users = Object.values(state).flat().map((p: any) => ({
-          user_id: p.user_id,
-          full_name: p.full_name,
-          email: p.email,
-          avatar_url: p.avatar_url,
-          role: p.role || 'colaborador',
-          current_route: p.current_route || '/',
-        }));
-        // Remove duplicates if any (based on user_id)
-        const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
-        setOnlineUsers(unique);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user_id: user.id,
-            full_name: user.full_name || user.email,
-            email: user.email,
-            avatar_url: user.avatar_url || null,
-            role: primaryRole,
-            current_route: location.pathname,
-            online_at: new Date().toISOString(),
-          });
-        }
+    const setupPresence = async () => {
+      const staleChannels = ((supabase as any).getChannels?.() || []).filter(
+        (channel: any) => channel?.topic === `realtime:${channelTopic}` || channel?.topic === channelTopic,
+      );
+      await Promise.all(staleChannels.map((channel: any) => supabase.removeChannel(channel)));
+
+      if (!active) return;
+
+      const primaryRole = user.roles?.[0] || 'colaborador';
+      const channel = supabase.channel(channelTopic, {
+        config: { presence: { key: user.id } },
       });
 
-    channelRef.current = channel;
+      channelRef.current = channel;
+
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState();
+          const users = Object.values(state).flat().map((p: any) => ({
+            user_id: p.user_id,
+            full_name: p.full_name,
+            email: p.email,
+            avatar_url: p.avatar_url,
+            role: p.role || 'colaborador',
+            current_route: p.current_route || '/',
+          }));
+          // Remove duplicates if any (based on user_id)
+          const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
+          setOnlineUsers(unique);
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED' && active) {
+            await channel.track({
+              user_id: user.id,
+              full_name: user.full_name || user.email,
+              email: user.email,
+              avatar_url: user.avatar_url || null,
+              role: primaryRole,
+              current_route: location.pathname,
+              online_at: new Date().toISOString(),
+            });
+          }
+        });
+    };
+
+    setupPresence().catch((error) => console.error('Error setting up presence:', error));
 
     return () => {
-      const cleanup = async () => {
-        try {
-          if (channelRef.current) {
-            await channelRef.current.untrack();
-            await channelRef.current.unsubscribe();
-            await supabase.removeChannel(channelRef.current);
-          }
-        } catch (error) {
-          console.error("Error during presence cleanup:", error);
-        }
-      };
-      cleanup();
+      active = false;
+      const channel = channelRef.current;
+      if (!channel) return;
+      if (channelRef.current === channel) {
+        supabase.removeChannel(channel);
+        channelRef.current = null;
+      } else {
+        supabase.removeChannel(channel);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]); // Only recreate channel when user changes
