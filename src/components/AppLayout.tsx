@@ -189,6 +189,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return location.pathname.startsWith(cleanPath);
   };
 
+
+
   const markAllRead = async () => {
     if (!user) return;
     await supabase.from('notifications').update({ read: true, read_at: new Date().toISOString() }).eq('user_id', user.id).eq('read', false);

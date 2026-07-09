@@ -61,7 +61,7 @@ export function useUpdateAdmissionInterview() {
     mutationFn: async ({ id, admissionId, data }: { id: string; admissionId: string; data: Record<string, any> }) => {
       const { error } = await supabase
         .from('admission_interviews')
-        .update(data as any)
+        .update(data)
         .eq('id', id);
       if (error) throw error;
     },

@@ -24,7 +24,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     }
 
     const primaryRole = user.roles?.[0] || 'colaborador';
-    const channel = supabase.channel(`online-users-${user.id}`, {
+    const channel = supabase.channel('online-users', {
       config: { presence: { key: user.id } },
     });
 
@@ -39,6 +39,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           role: p.role || 'colaborador',
           current_route: p.current_route || '/',
         }));
+        // Remove duplicates if any (based on user_id)
         const unique = Array.from(new Map(users.map(u => [u.user_id, u])).values());
         setOnlineUsers(unique);
       })
@@ -59,20 +60,28 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     channelRef.current = channel;
 
     return () => {
-      try {
-        supabase.removeChannel(channel);
-      } catch (error) {
-        console.error("Error during presence cleanup:", error);
-      }
-      if (channelRef.current === channel) channelRef.current = null;
+      const cleanup = async () => {
+        try {
+          if (channelRef.current) {
+            await channelRef.current.untrack();
+            await channelRef.current.unsubscribe();
+            await supabase.removeChannel(channelRef.current);
+          }
+        } catch (error) {
+          console.error("Error during presence cleanup:", error);
+        }
+      };
+      cleanup();
     };
-  }, [user]); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // Only recreate channel when user changes
 
+  // Update presence route on navigation, only if channel is ready and we have a user
   const previousLocationRef = useRef(location.pathname);
-
   useEffect(() => {
     if (!user || !channelRef.current) return;
     
+    // Only track if route actually changed
     if (previousLocationRef.current === location.pathname) return;
     previousLocationRef.current = location.pathname;
 

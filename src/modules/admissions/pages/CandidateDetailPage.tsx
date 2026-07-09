@@ -92,9 +92,9 @@ export default function CandidateDetailPage() {
   const handleRegistration = async (field: string, value: boolean) => {
     if (!candidateId) return;
     if (!registration) {
-      await supabase.from('system_registrations').insert({ candidate_id: candidateId, [field]: value } as any);
+      await supabase.from('system_registrations').insert({ candidate_id: candidateId, [field]: value });
     } else {
-      await supabase.from('system_registrations').update({ [field]: value } as any).eq('id', registration.id);
+      await supabase.from('system_registrations').update({ [field]: value }).eq('id', registration.id);
     }
     refetchReg();
   };

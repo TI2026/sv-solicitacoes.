@@ -17,6 +17,8 @@ import {
   useApprovalRequestForReference, 
   useApprovalRequestsForReference 
 } from '@/hooks/useApprovalFlow';
+// [Sprint 2 — Onda 1] Contrato canônico do Motor de Aprovação
+import { useApprovalContext, type ApprovalContextData } from '../hooks/useApprovalContext';
 
 interface FleetDetailContextData {
   id: string;
@@ -32,21 +34,16 @@ interface FleetDetailContextData {
   approvalAction: any;
   softDelete: any;
 
-  isOwner: boolean;
-  isAdmin: boolean;
-  isCompras: boolean;
-  isFinanceiro: boolean;
-  isMaster: boolean;
+  // [Sprint 2 — Onda 1] Fonte canônica de permissões e visibilidade.
+  approvalCtx: ApprovalContextData | undefined;
+  approvalCtxLoading: boolean;
+  approvalCtxError: Error | null;
+
   reqType: string;
   vehicle: any;
 
-  hasConfiguredFlow: boolean;
-  isCurrentFlowApprover: boolean;
-  flowAllowsReturn: boolean;
-  hasActiveFlow: boolean;
   canSendToReview: boolean;
   isPending: boolean;
-  canMasterDelete: boolean;
   canUpload: boolean;
   hodometro: any[];
   notaFiscal: any[];
@@ -128,6 +125,14 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const softDelete = useSoftDeleteRequest();
   const approvalAction = useApprovalAction();
 
+  // [Sprint 2 — Onda 1] Fonte canônica — carrega o contexto do Motor para este request.
+  const reqType_raw = (req as any)?.type || 'abastecimento';
+  const {
+    data: approvalCtx,
+    isLoading: approvalCtxLoading,
+    error: approvalCtxError,
+  } = useApprovalContext(id, reqType_raw);
+
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
   const [showReasonDialog, setShowReasonDialog] = useState<string | null>(null);
@@ -163,36 +168,8 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     reembChecklist.categoriaOk;
 
   const isOwner = req?.requester_user_id === user?.id;
-  const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
-  const isCompras = hasAnyRole(['compras', 'diretoria', 'administrativo']);
-  const isFinanceiro = hasAnyRole(['financeiro', 'diretoria', 'administrativo']);
   const reqType = (req as any)?.type || 'abastecimento';
   const vehicle = useVehicleByPlate((req as any)?.placa);
-
-  const { data: hasConfiguredFlow } = useQuery({
-    queryKey: ['approval_flow_exists', reqType],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('approval_modules')
-        .select('id, approval_flows!inner(id, active, approval_flow_steps!inner(id, active))')
-        .eq('code', reqType)
-        .eq('active', true)
-        .eq('approval_flows.active', true)
-        .eq('approval_flows.approval_flow_steps.active', true)
-        .limit(1)
-        .single();
-      return !!data;
-    },
-    enabled: !!reqType,
-    staleTime: 60_000,
-  });
-
-  const isCurrentFlowApprover = approvalRequest
-    ? approvalRequest.current_approver_user_id === user?.id && !approvalRequest.ended_at
-    : false;
-
-  const flowAllowsReturn = approvalRequest?.approval_flows?.allow_return_for_adjustment ?? false;
-  const hasActiveFlow = !!approvalRequest && !approvalRequest.ended_at;
 
   useEffect(() => {
     if (!id) return;
@@ -209,7 +186,6 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const canUpload = isOwner && ['aguardando_fotos', 'retornado'].includes(req?.status);
   const canSendToReview = isOwner && req?.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
   const isPending = statusMutation.isPending || approvalAction.isPending || softDelete.isPending;
-  const canMasterDelete = !!isMaster && !['concluido', 'pago'].includes(req?.status || '');
 
   const handleStatusChange = async (toStatus: string, reason?: string, metadata?: Record<string, any>) => {
     if (!id || statusMutation.isPending) return;
@@ -348,9 +324,11 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     id: id!, req, isLoading, refetch, attachments: attachments || [], refetchAttachments,
     approvalRequest, allApprovalCycles: allApprovalCycles || [], previousCycles,
     statusMutation, approvalAction, softDelete,
-    isOwner, isAdmin, isCompras, isFinanceiro, isMaster, reqType, vehicle,
-    hasConfiguredFlow: !!hasConfiguredFlow, isCurrentFlowApprover, flowAllowsReturn, hasActiveFlow,
-    canSendToReview, isPending, canMasterDelete, canUpload, hodometro, notaFiscal,
+    // [Sprint 2 — Onda 1] Contexto canônico do Motor
+    approvalCtx, approvalCtxLoading, approvalCtxError: approvalCtxError as Error | null,
+    
+    reqType, vehicle,
+    canSendToReview, isPending, canUpload, hodometro, notaFiscal,
     uploading, setUploading, actionReason, setActionReason, showReasonDialog, setShowReasonDialog,
     showDeleteDialog, setShowDeleteDialog, deleteReason, setDeleteReason,
     ocNumber, setOcNumber, ocNotes, setOcNotes, paymentNotes, setPaymentNotes, showOcDialog, setShowOcDialog,
