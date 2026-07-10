@@ -1,5 +1,17 @@
 # Débito Técnico Conhecido
 
+## Status Geral
+
+| Categoria | Status |
+|-----------|--------|
+| Aberto | Sim |
+| Responsável | Sprint 8 |
+| Impacta Produção | Não |
+| Bloqueia MVP | Não |
+
+---
+
+
 Este documento registra os débitos técnicos conhecidos do projeto, suas origens e os sprints responsáveis pela correção.
 
 ---
