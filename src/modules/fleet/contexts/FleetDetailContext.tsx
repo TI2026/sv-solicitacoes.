@@ -178,11 +178,13 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     if (!id) return;
     const channel = supabase
       .channel(`fuel-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fuel_requests', filter: `id=eq.${id}` }, () => { refetch(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fuel_requests', filter: `id=eq.${id}` }, (payload) => { 
+        refreshApprovalData(qc, id); 
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fuel_attachments', filter: `fuel_request_id=eq.${id}` }, () => { refetchAttachments(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [id, refetch, refetchAttachments]);
+  }, [id, qc, refetchAttachments]);
 
   const hodometro = attachments?.filter((a: any) => a.type === 'hodometro') || [];
   const notaFiscal = attachments?.filter((a: any) => a.type === 'nota_fiscal') || [];
@@ -200,7 +202,6 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     await statusMutation.mutateAsync({ requestId: id, toStatus, reason, startApproval });
     // Garantir que o approvalCtx seja invalidado imediatamente após qualquer mudança de status
     refreshApprovalData(qc, id);
-    if (toStatus === 'enviado') refetch();
     setShowReasonDialog(null);
     setActionReason('');
   };
@@ -246,7 +247,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
       setShowOcDialog(false);
       setOcNumber('');
       setOcNotes('');
-      refetch();
+      refreshApprovalData(qc, id);
     } catch (err: any) {
       toast({ title: 'Erro ao registrar OC', description: err.message, variant: 'destructive' });
     }
@@ -267,7 +268,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
       toast({ title: 'Pagamento confirmado!' });
       setShowPaymentDialog(false);
       setPaymentNotes('');
-      refetch();
+      refreshApprovalData(qc, id);
     } catch (err: any) {
       toast({ title: 'Erro ao confirmar pagamento', description: err.message, variant: 'destructive' });
     }

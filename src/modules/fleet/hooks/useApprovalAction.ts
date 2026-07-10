@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { refreshApprovalData } from '@/lib/refreshApprovalData';
 
 /**
  * Calls process_approval_action RPC which now atomically syncs fuel_requests.status.
@@ -29,19 +30,8 @@ export function useApprovalAction() {
       if (result?.error) throw new Error(result.error);
       return result;
     },
-    onSuccess: () => {
-      // Invalidate all relevant queries so lists/dashboard refresh
-      qc.invalidateQueries({ queryKey: ['fuel_requests'] });
-      qc.invalidateQueries({ queryKey: ['fuel_requests_pending'] });
-      qc.invalidateQueries({ queryKey: ['fuel_requests_rejected'] });
-      qc.invalidateQueries({ queryKey: ['fuel_requests_completed'] });
-      qc.invalidateQueries({ queryKey: ['fuel_request'] });
-      qc.invalidateQueries({ queryKey: ['fuel_reviews'] });
-      qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
-      qc.invalidateQueries({ queryKey: ['status_history'] });
-      qc.invalidateQueries({ queryKey: ['approval_request_for'] });
-      qc.invalidateQueries({ queryKey: ['my_approvals'] });
-      qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
+    onSuccess: (_, params) => {
+      refreshApprovalData(qc, params.fuelRequestId);
       toast({ title: 'Ação de aprovação processada!' });
     },
     onError: (err: any) => {
