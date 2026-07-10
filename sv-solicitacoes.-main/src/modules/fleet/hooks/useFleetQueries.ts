@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { refreshApprovalData } from '@/lib/refreshApprovalData';
 
 type FuelStatus = Database['public']['Enums']['fuel_status'];
 const FINAL_STATUSES: FuelStatus[] = ['aprovado', 'concluido', 'encerrado'];
@@ -173,45 +174,36 @@ export function useFuelSetStatus() {
 
   return useMutation({
     mutationFn: async (params: { requestId: string; toStatus: string; reason?: string; startApproval?: { moduleCode: string; requesterUserId: string } }) => {
+      // Envio para aprovação: RPC atômica — valida, cria fluxo e atualiza status em uma transaçãoúnica.
+      // Elimina a race condition da abordagem anterior (duas chamadas separadas).
+      if (params.toStatus === 'em_aprovacao' && params.startApproval) {
+        const { data, error } = await supabase.rpc('submit_fuel_request', {
+          p_request_id:  params.requestId,
+          p_module_code: params.startApproval.moduleCode,
+        } as any);
+        if (error) throw error;
+        const result = data as any;
+        if (result?.code) throw new Error(`${result.code}: ${result.message}`);
+        return result;
+      }
+
+      // Demais transições continuam via fuel_set_status (validações e locks já existentes)
       const { data, error } = await supabase.rpc('fuel_set_status', {
         _request_id: params.requestId,
-        _to_status: params.toStatus as any,
-        _reason: params.reason || null,
+        _to_status:  params.toStatus as any,
+        _reason:     params.reason || null,
       });
       if (error) throw error;
       const result = data as any;
       if (result?.error) throw new Error(result.error);
-
-      // If transitioning to em_aprovacao, try to start approval flow
-      if (params.toStatus === 'em_aprovacao' && params.startApproval) {
-        try {
-          const { data: flowResult } = await supabase.rpc('start_approval_flow', {
-            p_module_code: params.startApproval.moduleCode,
-            p_reference_id: params.requestId,
-            p_requester_user_id: params.startApproval.requesterUserId,
-          });
-          if (flowResult && !(flowResult as any).error) {
-            console.log('Approval flow started:', flowResult);
-          }
-        } catch (e) {
-          console.warn('Approval flow not started (no active flow?):', e);
-        }
-      }
-
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (_, params) => {
+      refreshApprovalData(qc, params.requestId);
+      // Invalidar listas que mostram status: afetadas por qualquer transição
       qc.invalidateQueries({ queryKey: ['fuel_requests'] });
       qc.invalidateQueries({ queryKey: ['fuel_requests_pending'] });
-      qc.invalidateQueries({ queryKey: ['fuel_requests_rejected'] });
-      qc.invalidateQueries({ queryKey: ['fuel_requests_completed'] });
-      qc.invalidateQueries({ queryKey: ['fuel_request'] });
-      qc.invalidateQueries({ queryKey: ['fuel_reviews'] });
-      qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
       qc.invalidateQueries({ queryKey: ['status_history'] });
-      qc.invalidateQueries({ queryKey: ['approval_request_for'] });
-      qc.invalidateQueries({ queryKey: ['my_approvals'] });
-      qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
       toast({ title: 'Status atualizado!' });
     },
     onError: (err: any) => {

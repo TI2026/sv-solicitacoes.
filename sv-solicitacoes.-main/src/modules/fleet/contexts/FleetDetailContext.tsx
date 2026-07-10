@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { refreshApprovalData } from '@/lib/refreshApprovalData';
 import { supabase } from '@/integrations/supabase/client';
 import { validateFileMagicNumber } from '@/lib/fileValidation';
 import { useVehicleByPlate } from '../hooks/useVehicles';
@@ -114,6 +115,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const navigate = useNavigate();
   const { user, hasAnyRole, isMaster } = useAuth();
   const { toast } = useToast();
+  const qc = useQueryClient();
 
   const { data: req, isLoading, refetch } = useFuelRequest(id!);
   const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
@@ -167,7 +169,8 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     reembChecklist.comprovanteOk &&
     reembChecklist.categoriaOk;
 
-  const isOwner = req?.requester_user_id === user?.id;
+  // isOwner removido (Sprint 5): era duplicata de approvalCtx.
+  // Mantido apenas inline nas condições de upload (regra de negócio de UX, não de aprovação).
   const reqType = (req as any)?.type || 'abastecimento';
   const vehicle = useVehicleByPlate((req as any)?.placa);
 
@@ -183,8 +186,10 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
 
   const hodometro = attachments?.filter((a: any) => a.type === 'hodometro') || [];
   const notaFiscal = attachments?.filter((a: any) => a.type === 'nota_fiscal') || [];
-  const canUpload = isOwner && ['aguardando_fotos', 'retornado'].includes(req?.status);
-  const canSendToReview = isOwner && req?.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
+  // canUpload e canSendToReview usam a comparação direta: regras de UX de upload,
+  // não de aprovação. Não dependem do approvalCtx.
+  const canUpload = (req?.requester_user_id === user?.id) && ['aguardando_fotos', 'retornado'].includes(req?.status);
+  const canSendToReview = (req?.requester_user_id === user?.id) && req?.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
   const isPending = statusMutation.isPending || approvalAction.isPending || softDelete.isPending;
 
   const handleStatusChange = async (toStatus: string, reason?: string, metadata?: Record<string, any>) => {
@@ -193,6 +198,8 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
       ? { moduleCode: reqType, requesterUserId: req.requester_user_id }
       : undefined;
     await statusMutation.mutateAsync({ requestId: id, toStatus, reason, startApproval });
+    // Garantir que o approvalCtx seja invalidado imediatamente após qualquer mudança de status
+    refreshApprovalData(qc, id);
     if (toStatus === 'enviado') refetch();
     setShowReasonDialog(null);
     setActionReason('');
@@ -218,6 +225,8 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
       fuelRequestId: id,
       fuelRequestType: reqType,
     });
+    // Garantir que o approvalCtx seja invalidado imediatamente após qualquer ação de aprovação
+    refreshApprovalData(qc, id);
     setShowReasonDialog(null);
     setActionReason('');
   };

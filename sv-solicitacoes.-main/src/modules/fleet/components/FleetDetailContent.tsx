@@ -127,8 +127,8 @@ export function FleetDetailContent() {
         )}
       </div>
 
-      {/* [Sprint 2 — Onda 2] ctx.permissions.edit + ctx.status substituem isOwner + req.status */}
-      {(approvalCtx?.status === 'returned_to_requester' || req?.status === 'retornado') && approvalCtx?.permissions.edit && (
+      {/* [Sprint 5] Fonte única: approvalCtx.status. Removido req?.status === 'retornado' (duplicata). */}
+      {approvalCtx?.status === 'returned_to_requester' && approvalCtx?.permissions.edit && (
         <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-800 dark:text-amber-400">Solicitação devolvida para ajuste</AlertTitle>
@@ -452,7 +452,7 @@ export function FleetDetailContent() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isPending}>Cancelar</Button>
             <Button variant="destructive" onClick={() => {
-                softDelete.mutateAsync({ id: id!, reason: deleteReason }).then(() => {
+                softDelete.mutateAsync({ requestId: id!, reason: deleteReason }).then(() => {
                   toast({ title: 'Excluída com sucesso' }); navigate('/fleet');
                 });
               }} disabled={isPending || deleteReason.trim().length < 5}>Excluir Solicitação</Button>

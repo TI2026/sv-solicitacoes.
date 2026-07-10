@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { refreshApprovalData } from '@/lib/refreshApprovalData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +17,7 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
   navigate: (p: string) => void; isRH: boolean; canSeeFinancials: boolean;
 }) {
   const { user, hasAnyRole } = useAuth();
+  const qc = useQueryClient();
   const isAdminUser = hasAnyRole(['diretoria', 'administrativo']);
 
   const { data: fuelData = [], isLoading: fuelLoading } = useQuery({
@@ -99,6 +102,7 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
           .limit(1)
           .single();
 
+        // Motor é a única via — apenas executa se o usuário for o aprovador atual
         if (ar && ar.current_approver_user_id === user?.id) {
           const { data: result } = await supabase.rpc('process_approval_action', {
             p_approval_request_id: ar.id,
@@ -107,11 +111,8 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
           });
           if ((result as any)?.success) { ok++; } else { fail++; }
         } else {
-          const { data: result } = await supabase.rpc('fuel_set_status', {
-            _request_id: itemId,
-            _to_status: 'aprovado' as any,
-          });
-          if ((result as any)?.success) { ok++; } else { fail++; }
+          // Usuário não é o aprovador atual — registrar falha sem bypass
+          fail++;
         }
       } catch { fail++; }
     }
@@ -119,7 +120,7 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
     setBatchResults({ ok, fail });
     setSelectedIds(new Set());
     setBatchProcessing(false);
-    setTimeout(() => window.location.reload(), 1500);
+    refreshApprovalData(qc); // sem referenceId: invalida my_approvals + fuel_metrics
   };
 
   const handleBatchReject = async () => {
@@ -138,6 +139,7 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
           .limit(1)
           .single();
 
+        // Motor é a única via — apenas executa se o usuário for o aprovador atual
         if (ar && ar.current_approver_user_id === user?.id) {
           const { data: result } = await supabase.rpc('process_approval_action', {
             p_approval_request_id: ar.id,
@@ -146,12 +148,8 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
           });
           if ((result as any)?.success) { ok++; } else { fail++; }
         } else {
-          const { data: result } = await supabase.rpc('fuel_set_status', {
-            _request_id: itemId,
-            _to_status: 'reprovado' as any,
-            _reason: rejectReason.trim(),
-          });
-          if ((result as any)?.success) { ok++; } else { fail++; }
+          // Usuário não é o aprovador atual — registrar falha sem bypass
+          fail++;
         }
       } catch { fail++; }
     }
@@ -161,7 +159,7 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
     setBatchAction(null);
     setRejectReason('');
     setBatchProcessing(false);
-    setTimeout(() => window.location.reload(), 1500);
+    refreshApprovalData(qc); // sem referenceId: invalida my_approvals + fuel_metrics
   };
 
   if (fuelLoading || admLoading) {
