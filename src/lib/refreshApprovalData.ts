@@ -26,9 +26,11 @@ function refreshMetrics(qc: QueryClient) {
 }
 
 /**
- * Orquestrador central de invalidações.
- * Coordena as invalidações divididas por domínio de negócio.
- * Nenhuma query deve ser invalidada diretamente fora daqui (para regras de negócio).
+ * Orquestrador central de sincronização.
+ *
+ * Esta função não deve conter regras de negócio.
+ * Sua única responsabilidade é coordenar
+ * a invalidação de cache dos domínios.
  */
 export function refreshApprovalData(qc: QueryClient, referenceId?: string): void {
   refreshApprovalContext(qc, referenceId);
