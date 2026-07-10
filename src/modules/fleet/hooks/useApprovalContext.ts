@@ -48,7 +48,7 @@ export class EngineContextError extends Error {
 
 export function useApprovalContext(referenceId: string | undefined, moduleCode?: string) {
   return useQuery<ApprovalContextData>({
-    queryKey: ['approval_context', referenceId, moduleCode],
+    queryKey: ['approval_context', referenceId],
     queryFn: async () => {
       if (!referenceId) {
         throw new EngineContextError('referenceId is required to load ApprovalContext');
@@ -73,7 +73,11 @@ export function useApprovalContext(referenceId: string | undefined, moduleCode?:
       return result as ApprovalContextData;
     },
     enabled: !!referenceId,
-    staleTime: 5_000, // context is short-lived — revalidate frequently
-    retry: false,     // never silently retry a context failure
+    // staleTime alto: quem força o refresh é refreshApprovalData() via invalidateQueries.
+    // O polling automático geraria chamadas desnecessárias ao Motor.
+    staleTime: 30_000,
+    gcTime:    60_000,
+    refetchOnWindowFocus: true, // segurança extra ao retornar para a aba
+    retry: false, // nunca re-tentar silenciosamente uma falha de contexto
   });
 }
