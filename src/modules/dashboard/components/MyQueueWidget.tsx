@@ -30,6 +30,7 @@ const MODULE_ROUTE: Record<string, string> = {
   reembolso: '/fleet',
   diaria: '/fleet',
   admissao: '/admissions',
+  compras: '/purchases',
 };
 
 function resolveItemRoute(item: QueueItem): string {

@@ -32,6 +32,7 @@ export interface ActivityItem {
 function resolveRoute(entityType: string, entityId: string): string | null {
   if (entityType === 'fuel_requests') return `/fleet/${entityId}`;
   if (entityType === 'admission_requests') return `/admissions/${entityId}`;
+  if (entityType === 'purchases') return `/purchases/${entityId}`;
   return null;
 }
 

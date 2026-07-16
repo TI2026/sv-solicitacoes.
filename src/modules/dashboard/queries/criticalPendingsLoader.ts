@@ -33,6 +33,20 @@ export interface CriticalPending {
   route: string | null;
 }
 
+const MODULE_ROUTE: Record<string, string> = {
+  abastecimento: '/fleet',
+  reembolso: '/fleet',
+  diaria: '/fleet',
+  admissao: '/admissions',
+  compras: '/purchases',
+};
+
+function resolveRoute(moduleCode: string | null, referenceId: string | null): string | null {
+  if (!referenceId) return null;
+  const base = MODULE_ROUTE[moduleCode || ''] || '/fleet';
+  return `${base}/${referenceId}`;
+}
+
 export async function loadCriticalPendings(): Promise<CriticalPending[]> {
   const results: CriticalPending[] = [];
 
@@ -59,7 +73,7 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
   // 2. Approval requests ativas sem current_approver_user_id
   const { data: noApprover } = await supabase
     .from('approval_requests')
-    .select('id, reference_id, status, created_at, approval_modules(name)')
+    .select('id, reference_id, status, created_at, approval_modules(code, name)')
     .is('ended_at', null)
     .is('current_approver_user_id', null)
     .order('created_at', { ascending: true })
@@ -72,14 +86,14 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
       kind: 'sem_aprovador',
       description: `Fluxo "${(row as any).approval_modules?.name ?? 'desconhecido'}" sem aprovador definido`,
       created_at: row.created_at,
-      route: row.reference_id ? `/fleet/${row.reference_id}` : null,
+      route: resolveRoute((row as any).approval_modules?.code, row.reference_id),
     });
   }
 
   // 3. Approval requests ativas sem current_step_order
   const { data: noStep } = await supabase
     .from('approval_requests')
-    .select('id, reference_id, status, created_at, approval_modules(name)')
+    .select('id, reference_id, status, created_at, approval_modules(code, name)')
     .is('ended_at', null)
     .is('current_step_order', null)
     .not('status', 'in', '("approved","rejected","returned_to_requester")')
@@ -93,14 +107,14 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
       kind: 'sem_etapa',
       description: `Fluxo "${(row as any).approval_modules?.name ?? 'desconhecido'}" travado sem etapa`,
       created_at: row.created_at,
-      route: row.reference_id ? `/fleet/${row.reference_id}` : null,
+      route: resolveRoute((row as any).approval_modules?.code, row.reference_id),
     });
   }
 
   // 4. Inconsistência: status 'em_aprovacao' com ended_at preenchido
   const { data: inconsistent } = await supabase
     .from('approval_requests')
-    .select('id, reference_id, created_at, approval_modules(name)')
+    .select('id, reference_id, created_at, approval_modules(code, name)')
     .eq('status', 'pending_approval')
     .not('ended_at', 'is', null)
     .order('created_at', { ascending: true })
@@ -113,7 +127,7 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
       kind: 'inconsistencia',
       description: `Fluxo "${(row as any).approval_modules?.name ?? 'desconhecido'}" em aprovação mas marcado como encerrado`,
       created_at: row.created_at,
-      route: row.reference_id ? `/fleet/${row.reference_id}` : null,
+      route: resolveRoute((row as any).approval_modules?.code, row.reference_id),
     });
   }
 

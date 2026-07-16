@@ -28,11 +28,23 @@ import { ptBR } from 'date-fns/locale';
 const ENTITY_LABELS: Record<string, string> = {
   fuel_requests: 'Frota',
   admission_requests: 'Admissão',
+  purchases: 'Compras',
+};
+
+const PURCHASE_STATUS_LABELS: Record<string, string> = {
+  rascunho: 'Rascunho',
+  em_aprovacao: 'Em Aprovação',
+  aprovado: 'Aprovado',
+  retornado: 'Devolvido',
+  aguardando_pagamento: 'Aguardando Pagamento',
+  cancelado: 'Cancelado',
+  rejeitado: 'Rejeitado',
 };
 
 function getStatusLabel(entityType: string, status: string): string {
   if (entityType === 'fuel_requests') return FUEL_STATUS_LABELS[status] ?? status;
   if (entityType === 'admission_requests') return ADMISSION_STATUS_LABELS[status] ?? status;
+  if (entityType === 'purchases') return PURCHASE_STATUS_LABELS[status] ?? status;
   return status;
 }
 
