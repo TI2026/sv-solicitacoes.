@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { refreshApprovalData } from '@/lib/refreshApprovalData';
+import { useAuth } from '@/contexts/AuthContext';
+import { loadFuelFluxos, loadAdmFluxos } from '../queries/flowControlLoaders';
+import { useFlowControlBatch } from '../hooks/useFlowControlBatch';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,27 +22,13 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
 
   const { data: fuelData = [], isLoading: fuelLoading } = useQuery({
     queryKey: ['fuel_all_fluxos'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('fuel_requests')
-        .select('id, valor, status, created_at, type, profiles!fuel_requests_requester_user_id_fkey(full_name)')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
+    queryFn: loadFuelFluxos,
     enabled: !!user,
   });
 
   const { data: admData = [], isLoading: admLoading } = useQuery({
     queryKey: ['adm_all_fluxos'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('admission_requests')
-        .select('id, status, cargo_funcao, created_at');
-      if (error) throw error;
-      return data || [];
-    },
+    queryFn: loadAdmFluxos,
     enabled: !!user && isRH,
   });
 
@@ -51,8 +37,8 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchAction, setBatchAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [batchProcessing, setBatchProcessing] = useState(false);
-  const [batchResults, setBatchResults] = useState<{ ok: number; fail: number } | null>(null);
+  
+  const { processBatch, isProcessing: batchProcessing, results: batchResults, clearResults } = useFlowControlBatch(user?.id);
 
   const fuelByStatus = useMemo(() => {
     const groups: Record<string, any[]> = {};
@@ -88,78 +74,16 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
 
   const handleBatchApprove = async () => {
     if (selectedIds.size === 0) return;
-    setBatchProcessing(true);
-    let ok = 0, fail = 0;
-
-    for (const itemId of selectedIds) {
-      try {
-        const { data: ar } = await supabase
-          .from('approval_requests')
-          .select('id, current_approver_user_id, ended_at')
-          .eq('reference_id', itemId)
-          .is('ended_at', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        // Motor é a única via — apenas executa se o usuário for o aprovador atual
-        if (ar && ar.current_approver_user_id === user?.id) {
-          const { data: result } = await supabase.rpc('process_approval_action', {
-            p_approval_request_id: ar.id,
-            p_action: 'approve',
-            p_comments: 'Aprovação em lote',
-          });
-          if ((result as any)?.success) { ok++; } else { fail++; }
-        } else {
-          // Usuário não é o aprovador atual — registrar falha sem bypass
-          fail++;
-        }
-      } catch { fail++; }
-    }
-
-    setBatchResults({ ok, fail });
+    await processBatch(selectedIds, 'approve', 'Aprovação em lote');
     setSelectedIds(new Set());
-    setBatchProcessing(false);
-    refreshApprovalData(qc); // sem referenceId: invalida my_approvals + fuel_metrics
   };
 
   const handleBatchReject = async () => {
     if (selectedIds.size === 0 || !rejectReason.trim()) return;
-    setBatchProcessing(true);
-    let ok = 0, fail = 0;
-
-    for (const itemId of selectedIds) {
-      try {
-        const { data: ar } = await supabase
-          .from('approval_requests')
-          .select('id, current_approver_user_id, ended_at')
-          .eq('reference_id', itemId)
-          .is('ended_at', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        // Motor é a única via — apenas executa se o usuário for o aprovador atual
-        if (ar && ar.current_approver_user_id === user?.id) {
-          const { data: result } = await supabase.rpc('process_approval_action', {
-            p_approval_request_id: ar.id,
-            p_action: 'reject',
-            p_comments: rejectReason.trim(),
-          });
-          if ((result as any)?.success) { ok++; } else { fail++; }
-        } else {
-          // Usuário não é o aprovador atual — registrar falha sem bypass
-          fail++;
-        }
-      } catch { fail++; }
-    }
-
-    setBatchResults({ ok, fail });
+    await processBatch(selectedIds, 'reject', rejectReason.trim());
     setSelectedIds(new Set());
     setBatchAction(null);
     setRejectReason('');
-    setBatchProcessing(false);
-    refreshApprovalData(qc); // sem referenceId: invalida my_approvals + fuel_metrics
   };
 
   if (fuelLoading || admLoading) {
