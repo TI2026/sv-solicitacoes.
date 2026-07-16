@@ -82,6 +82,29 @@ async function fetchAdmissionRequests(userId: string): Promise<MyRequest[]> {
   }));
 }
 
+async function fetchPurchaseRequests(userId: string): Promise<MyRequest[]> {
+  const { data, error } = await supabase
+    .from('purchases')
+    .select('id, status, created_at, estimated_value, description')
+    .eq('requester_user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) throw error;
+
+  return (data || []).map((row: any): MyRequest => ({
+    id: row.id,
+    type: 'compras',
+    module: 'Compras',
+    status: row.status,
+    group: classifyPurchaseStatus(row.status),
+    created_at: row.created_at,
+    valor: row.estimated_value,
+    description: row.description,
+    route: `/purchases/${row.id}`,
+  }));
+}
+
 // ─── Classificadores de grupo ─────────────────────────────────────────────────
 
 function classifyStatus(status: string): RequestGroup {
@@ -98,15 +121,24 @@ function classifyAdmissionStatus(status: string): RequestGroup {
   return 'em_aprovacao';
 }
 
+function classifyPurchaseStatus(status: string): RequestGroup {
+  if (['em_aprovacao', 'aguardando_pagamento'].includes(status)) return 'em_aprovacao';
+  if (['retornado'].includes(status)) return 'devolvida';
+  if (['aprovado'].includes(status)) return 'concluida';
+  if (['cancelado', 'rejeitado'].includes(status)) return 'cancelada';
+  return 'outra';
+}
+
 // ─── Agregador principal ──────────────────────────────────────────────────────
 
 export async function loadMyRequests(userId: string): Promise<MyRequest[]> {
-  const [fuel, admissions] = await Promise.all([
+  const [fuel, admissions, purchases] = await Promise.all([
     fetchFuelRequests(userId),
     fetchAdmissionRequests(userId),
+    fetchPurchaseRequests(userId),
   ]);
 
-  return [...fuel, ...admissions].sort(
+  return [...fuel, ...admissions, ...purchases].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 }

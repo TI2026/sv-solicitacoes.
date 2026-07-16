@@ -24,6 +24,8 @@
  *   recent_activity          → RecentActivityWidget (Central Operacional)
  *   critical_pendings        → CriticalPendingWidget (Central Operacional)
  *   dashboard_metrics        → FuelMetricsBlock / AdmissionMetricsBlock
+ *   purchases                → usePurchases
+ *   purchase                 → usePurchase
  */
 import type { QueryClient } from '@tanstack/react-query';
 
@@ -43,6 +45,13 @@ function refreshFleetDomain(qc: QueryClient, referenceId?: string) {
     qc.invalidateQueries({ queryKey: ['fuel_request', referenceId] });
     qc.invalidateQueries({ queryKey: ['fleet_timeline', referenceId] });
     qc.invalidateQueries({ queryKey: ['diaria_progress', referenceId] });
+  }
+}
+
+function refreshPurchasesDomain(qc: QueryClient, referenceId?: string) {
+  qc.invalidateQueries({ queryKey: ['purchases'] });
+  if (referenceId) {
+    qc.invalidateQueries({ queryKey: ['purchase', referenceId] });
   }
 }
 
@@ -72,6 +81,7 @@ function refreshDashboardWidgets(qc: QueryClient, userId?: string) {
 export function refreshApprovalData(qc: QueryClient, referenceId?: string): void {
   refreshApprovalContext(qc, referenceId);
   refreshFleetDomain(qc, referenceId);
+  refreshPurchasesDomain(qc, referenceId);
   refreshMetrics(qc);
   refreshDashboardWidgets(qc);
 }

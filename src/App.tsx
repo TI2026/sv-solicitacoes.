@@ -43,6 +43,11 @@ import EpiPendingPage from "@/modules/epis/pages/EpiPendingPage";
 import EpiDismissalReportPage from "@/modules/epis/pages/EpiDismissalReportPage";
 import EpiKitRulesPage from "@/modules/epis/pages/EpiKitRulesPage";
 
+// Purchases module
+import PurchaseListPage from "@/modules/purchases/pages/PurchaseListPage";
+import PurchaseFormPage from "@/modules/purchases/pages/PurchaseFormPage";
+import PurchaseDetailPage from "@/modules/purchases/pages/PurchaseDetailPage";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 2, staleTime: 30_000 },
@@ -123,6 +128,11 @@ const AppRoutes = () => (
     <Route path="/epis/pending" element={<ProtectedRoute><EpiPendingPage /></ProtectedRoute>} />
     <Route path="/epis/dismissal-report" element={<ProtectedRoute><EpiDismissalReportPage /></ProtectedRoute>} />
     <Route path="/epis/kit-rules" element={<ProtectedRoute><EpiKitRulesPage /></ProtectedRoute>} />
+
+    {/* Purchases */}
+    <Route path="/purchases" element={<ProtectedRoute><PurchaseListPage /></ProtectedRoute>} />
+    <Route path="/purchases/new" element={<ProtectedRoute><PurchaseFormPage /></ProtectedRoute>} />
+    <Route path="/purchases/:id" element={<ProtectedRoute><PurchaseDetailPage /></ProtectedRoute>} />
 
     {/* Redirects */}
     <Route path="/" element={<Navigate to="/dashboard" replace />} />

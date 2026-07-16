@@ -19,9 +19,9 @@ import { MyRequestsWidget } from '@/modules/dashboard/components/MyRequestsWidge
 import { RecentActivityWidget } from '@/modules/dashboard/components/RecentActivityWidget';
 import { QuickAccessWidget } from '@/modules/dashboard/components/QuickAccessWidget';
 
-// Blocos existentes (mantidos intactos)
 import { FuelMetricsBlock } from '@/modules/dashboard/components/FuelMetricsBlock';
 import { AdmissionMetricsBlock } from '@/modules/dashboard/components/AdmissionMetricsBlock';
+import { PurchaseMetricsBlock } from '@/modules/dashboard/components/PurchaseMetricsBlock';
 import { FlowControlPanel } from '@/modules/dashboard/components/FlowControlPanel';
 
 export default function DashboardPage() {
@@ -47,6 +47,7 @@ export default function DashboardPage() {
       // Métricas globais
       { table: 'fuel_requests',          queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
       { table: 'admission_requests',     queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
+      { table: 'purchases',              queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
       // Fila de aprovação + pendências críticas
       {
         table: 'approval_requests',
@@ -79,7 +80,7 @@ export default function DashboardPage() {
     enabled: !!user,
   });
 
-  const metrics = metricsObj || { fuel: null, admission: null, isError: false };
+  const metrics = metricsObj || { fuel: null, admission: null, purchase: null, isError: false };
 
   if (!user) return <div className="flex h-64 items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
@@ -159,6 +160,7 @@ export default function DashboardPage() {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="w-full sm:w-auto flex-wrap">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="compras">Compras</TabsTrigger>
           {isRH && <TabsTrigger value="admissions">Admissões</TabsTrigger>}
           {isAdmin && (
             <TabsTrigger value="fluxos" className="gap-1">
@@ -174,6 +176,16 @@ export default function DashboardPage() {
             </div>
           ) : (
             <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={canSeeFinancials} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="compras" className="space-y-4 mt-4">
+          {metricsLoading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
+            </div>
+          ) : (
+            <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials={canSeeFinancials} />
           )}
         </TabsContent>
 

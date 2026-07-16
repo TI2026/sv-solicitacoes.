@@ -20,7 +20,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Zap, Fuel, Receipt, CalendarDays, UserPlus, Plus, List } from 'lucide-react';
+import { Zap, Fuel, Receipt, CalendarDays, UserPlus, Plus, List, ShoppingCart } from 'lucide-react';
 
 interface QuickModule {
   key: string;
@@ -71,6 +71,14 @@ export function QuickAccessWidget({ canViewAdmissions }: Props) {
       newRoute: '/admissions/new',
       listRoute: '/admissions',
       show: canViewAdmissions,
+    },
+    {
+      key: 'compras',
+      label: 'Compras',
+      icon: ShoppingCart,
+      newRoute: '/purchases/new',
+      listRoute: '/purchases',
+      show: true,
     },
   ].filter(m => m.show);
 
