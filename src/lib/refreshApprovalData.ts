@@ -1,3 +1,26 @@
+/**
+ * refreshApprovalData.ts
+ *
+ * Orquestrador central de sincronização.
+ *
+ * Esta função não deve conter regras de negócio.
+ * Sua única responsabilidade é coordenar a invalidação de cache dos domínios.
+ *
+ * Todas as invalidações possuem queryKey explícita.
+ * Nenhuma invalidação global (sem queryKey) é permitida.
+ *
+ * Queries invalidadas:
+ *   approval_context         → useApprovalContext
+ *   approval_request_for     → useApprovalRequestForReference
+ *   approval_flow_steps      → useApprovalFlowSteps (ApprovalFlowViewer)
+ *   fleet_timeline           → useFleetTimeline (FleetTimeline)
+ *   diaria_progress          → useDiariaProgress (DiariaProgressBar)
+ *   fuel_request             → useFuelRequest
+ *   fuel_requests            → useFuelRequests (listas)
+ *   fuel_requests_pending    → useFuelRequestsPending
+ *   fuel_metrics             → useFuelMetrics
+ *   my_approvals             → painel de aprovações pendentes
+ */
 import type { QueryClient } from '@tanstack/react-query';
 
 function refreshApprovalContext(qc: QueryClient, referenceId?: string) {
@@ -5,19 +28,17 @@ function refreshApprovalContext(qc: QueryClient, referenceId?: string) {
   if (referenceId) {
     qc.invalidateQueries({ queryKey: ['approval_context', referenceId] });
     qc.invalidateQueries({ queryKey: ['approval_request_for', referenceId] });
-    qc.invalidateQueries({ queryKey: ['approval_flow_steps'] }); // Invalidate all for now, to be safe. Will fix later if needed, but per plan, it's ok for now or we can scope it if we pass approvalRequestId. Actually the plan said "referenceId". Let's just invalidate the prefix which invalidates any approval_flow_steps query.
+    qc.invalidateQueries({ queryKey: ['approval_flow_steps', referenceId] });
   }
 }
 
 function refreshFleetDomain(qc: QueryClient, referenceId?: string) {
   qc.invalidateQueries({ queryKey: ['fuel_requests'] });
   qc.invalidateQueries({ queryKey: ['fuel_requests_pending'] });
-  // status_history: consumed by FleetTimeline (still useEffect-based until Sprint 6B).
-  // Once FleetTimeline migrates to useQuery, fleet_timeline invalidation below replaces this.
-  qc.invalidateQueries({ queryKey: ['status_history'] });
   if (referenceId) {
     qc.invalidateQueries({ queryKey: ['fuel_request', referenceId] });
     qc.invalidateQueries({ queryKey: ['fleet_timeline', referenceId] });
+    qc.invalidateQueries({ queryKey: ['diaria_progress', referenceId] });
   }
 }
 

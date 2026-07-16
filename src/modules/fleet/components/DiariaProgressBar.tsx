@@ -1,6 +1,27 @@
-import { useEffect, useState } from 'react';
+/**
+ * DiariaProgressBar.tsx
+ *
+ * CAMADA: Component
+ *
+ * Responsabilidade única: renderizar o progresso da Diária em 8 etapas.
+ *
+ * Regras obrigatórias desta camada:
+ *  - NUNCA acessar Supabase diretamente.
+ *  - NUNCA gerenciar estado de dados (useState, useEffect de carregamento).
+ *  - NUNCA controlar cache ou invalidações.
+ *
+ * O Realtime é tratado aqui apenas como gatilho de invalidação.
+ * Ele NUNCA busca dados. Quem decide se precisa recarregar é o React Query.
+ *
+ * Padrão arquitetural:
+ *   Component (este arquivo) → useDiariaProgress → loadDiariaStatusDates → Supabase
+ */
+
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Check, Clock, Circle, Loader2 } from 'lucide-react';
+import { useDiariaProgress } from '../hooks/useDiariaProgress';
 
 /**
  * 8-step canonical progression for the Diária workflow.
@@ -23,42 +44,44 @@ interface Props {
 }
 
 export function DiariaProgressBar({ requestId, currentStatus }: Props) {
-  const [dates, setDates] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: dates = {}, isLoading } = useDiariaProgress(requestId);
 
+  // Realtime: APENAS invalida o cache. Nunca busca dados diretamente.
+  // O React Query decide se e quando recarregar com base no staleTime e nos triggers.
   useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      const { data } = await supabase
-        .from('status_history')
-        .select('to_status, created_at')
-        .eq('entity_id', requestId)
-        .eq('entity_type', 'fuel_requests')
-        .eq('module', 'fleet')
-        .order('created_at', { ascending: true });
-      const map: Record<string, string> = {};
-      for (const row of data || []) {
-        if (!map[row.to_status]) map[row.to_status] = row.created_at;
-      }
-      if (mounted) {
-        setDates(map);
-        setLoading(false);
-      }
-    };
-    load();
+    if (!requestId) return;
 
     const channel = supabase
       .channel(`diaria-progress-${requestId}`)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'status_history', filter: `entity_id=eq.${requestId}`,
-      }, () => load())
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'status_history',
+          filter: `entity_id=eq.${requestId}`,
+        },
+        (payload) => {
+          // Validação defensiva: só invalida se o payload pertence ao contexto atual.
+          const record = payload.new as any;
+          if (record?.entity_id !== requestId) return;
+
+          queryClient.invalidateQueries({ queryKey: ['diaria_progress', requestId] });
+        }
+      )
       .subscribe();
-    return () => { mounted = false; supabase.removeChannel(channel); };
-  }, [requestId]);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [requestId, queryClient]);
+
+  // — JSX idêntico ao anterior. Nenhuma alteração visual. —
 
   const isCancelled = ['cancelado', 'reprovado', 'encerrado', 'retornado'].includes(currentStatus);
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>;
   }
 
