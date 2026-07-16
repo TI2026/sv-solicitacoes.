@@ -19,7 +19,11 @@
  *   fuel_requests            → useFuelRequests (listas)
  *   fuel_requests_pending    → useFuelRequestsPending
  *   fuel_metrics             → useFuelMetrics
- *   my_approvals             → painel de aprovações pendentes
+ *   my_approvals             → MyQueueWidget (Central Operacional)
+ *   my_requests              → MyRequestsWidget (Central Operacional)
+ *   recent_activity          → RecentActivityWidget (Central Operacional)
+ *   critical_pendings        → CriticalPendingWidget (Central Operacional)
+ *   dashboard_metrics        → FuelMetricsBlock / AdmissionMetricsBlock
  */
 import type { QueryClient } from '@tanstack/react-query';
 
@@ -44,6 +48,18 @@ function refreshFleetDomain(qc: QueryClient, referenceId?: string) {
 
 function refreshMetrics(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
+  qc.invalidateQueries({ queryKey: ['dashboard_metrics'] });
+}
+
+/**
+ * Invalida os widgets da Central Operacional (Sprint 7+).
+ * Chamado sempre que qualquer ação de aprovação, criação ou mutação ocorre.
+ */
+function refreshDashboardWidgets(qc: QueryClient, userId?: string) {
+  qc.invalidateQueries({ queryKey: ['my_approvals'] });
+  qc.invalidateQueries({ queryKey: ['my_requests'] });
+  qc.invalidateQueries({ queryKey: ['recent_activity'] });
+  qc.invalidateQueries({ queryKey: ['critical_pendings'] });
 }
 
 /**
@@ -57,4 +73,5 @@ export function refreshApprovalData(qc: QueryClient, referenceId?: string): void
   refreshApprovalContext(qc, referenceId);
   refreshFleetDomain(qc, referenceId);
   refreshMetrics(qc);
+  refreshDashboardWidgets(qc);
 }
