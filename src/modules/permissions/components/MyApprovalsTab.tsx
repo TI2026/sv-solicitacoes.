@@ -24,7 +24,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
 function getApprovalLastActivityDate(approval: any) {
   const timestamps = [
     approval.created_at,
-    ...(approval.approval_request_steps?.map((step: any) => step.action_at ?? null) || []),
+    ...(Array.isArray(approval.approval_request_steps) ? approval.approval_request_steps.map((step: any) => step.action_at ?? null) : []),
   ]
     .filter(Boolean)
     .map((value) => new Date(value).getTime())
@@ -48,7 +48,7 @@ export default function MyApprovalsTab() {
   const processAction = useProcessApproval();
   const [actionDialog, setActionDialog] = useState<{ id: string; type: 'reject' | 'return' } | null>(null);
   const [actionReason, setActionReason] = useState('');
-  const sortedApprovals = [...(approvals || [])]
+  const sortedApprovals = [...(Array.isArray(approvals) ? approvals : [])]
     .filter((a: any) => a.status !== 'cancelled')
     .sort(
       (a: any, b: any) => getApprovalLastActivityDate(b).getTime() - getApprovalLastActivityDate(a).getTime(),
@@ -156,7 +156,7 @@ export default function MyApprovalsTab() {
                         </div>
                         {/* Steps timeline */}
                         <div className="flex items-center gap-1 mt-2 flex-wrap">
-                          {[...(a.approval_request_steps || [])]
+                          {[...(Array.isArray(a.approval_request_steps) ? a.approval_request_steps : [])]
                             .sort((x: any, y: any) => x.step_order - y.step_order)
                             .map((step: any) => (
                               <Badge
@@ -208,7 +208,7 @@ export default function MyApprovalsTab() {
 
       {/* Pending fuel requests (mine) */}
       {(() => {
-        const myPendingFuel = (pendingFuel || []).filter((r: any) => r.requester_user_id === user?.id);
+        const myPendingFuel = (Array.isArray(pendingFuel) ? pendingFuel : []).filter((r: any) => r.requester_user_id === user?.id);
         if (myPendingFuel.length === 0) return null;
         return (
           <div>

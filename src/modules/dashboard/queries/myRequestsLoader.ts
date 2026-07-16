@@ -138,7 +138,7 @@ export async function loadMyRequests(userId: string): Promise<MyRequest[]> {
     fetchPurchaseRequests(userId),
   ]);
 
-  return [...fuel, ...admissions, ...purchases].sort(
+  return [...(Array.isArray(fuel) ? fuel : []), ...(Array.isArray(admissions) ? admissions : []), ...(Array.isArray(purchases) ? purchases : [])].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 }

@@ -63,7 +63,7 @@ export async function loadDashboardQueue(userId: string): Promise<{
 
   if (error) throw error;
 
-  const items: QueueItem[] = (data || []).map((row: any) => ({
+  const items: QueueItem[] = (Array.isArray(data) ? data : []).map((row: any) => ({
     id: row.id,
     reference_id: row.reference_id,
     status: row.status,

@@ -21,7 +21,7 @@ import { REQUEST_TYPE_LABELS } from '@/lib/constants';
 function getApprovalLastActivityDate(approval: any) {
   const timestamps = [
     approval.created_at,
-    ...(approval.approval_request_steps?.map((step: any) => step.action_at ?? null) || []),
+    ...(Array.isArray(approval.approval_request_steps) ? approval.approval_request_steps.map((step: any) => step.action_at ?? null) : []),
   ]
     .filter(Boolean)
     .map((value) => new Date(value).getTime())
@@ -73,15 +73,15 @@ function ApprovalInProgressTab() {
 
   if (isLoading && loadingFuel) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
-  const filtered = [...((requests || []).filter((r: any) => {
+  const filtered = [...(Array.isArray(requests) ? requests : []).filter((r: any) => {
     if (!isNotCancelled(r)) return false;
     if (moduleFilter !== 'all' && r.approval_modules?.code !== moduleFilter) return false;
     if (statusFilter === 'active' && !isReallyActive(r)) return false;
     if (statusFilter === 'ended' && isReallyActive(r)) return false;
     return true;
-  }))].sort((a: any, b: any) => getApprovalLastActivityDate(b).getTime() - getApprovalLastActivityDate(a).getTime());
+  })].sort((a: any, b: any) => getApprovalLastActivityDate(b).getTime() - getApprovalLastActivityDate(a).getTime());
 
-  const moduleOptions = [...new Set((requests || []).map((r: any) => r.approval_modules?.code).filter(Boolean))];
+  const moduleOptions = [...new Set((Array.isArray(requests) ? requests : []).map((r: any) => r.approval_modules?.code).filter(Boolean))];
 
   return (
     <div className="space-y-4">
@@ -160,7 +160,7 @@ function ApprovalInProgressTab() {
                   </div>
                   {isActive && (
                     <div className="flex items-center gap-1 mt-2 flex-wrap">
-                        {[...(a.approval_request_steps || [])]
+                        {[...(Array.isArray(a.approval_request_steps) ? a.approval_request_steps : [])]
                           .sort((x: any, y: any) => x.step_order - y.step_order)
                         .map((step: any) => (
                           <Badge
