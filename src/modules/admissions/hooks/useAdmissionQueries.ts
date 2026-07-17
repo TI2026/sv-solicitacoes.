@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { refreshApprovalData } from '@/lib/refreshApprovalData';
 
 export function useAdmissionRequests() {
   return useQuery({
@@ -49,8 +50,8 @@ export function useCreateAdmission() {
       if (error) throw error;
       return data as any;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admission_requests'] });
+    onSuccess: (result) => {
+      refreshApprovalData(qc, result?.id);
       toast({ title: 'Vaga criada com sucesso' });
     },
     onError: (e: any) => toast({ title: 'Erro ao criar vaga', description: e.message, variant: 'destructive' }),
@@ -83,9 +84,7 @@ export function useAdmissionSetStatus() {
       return data;
     },
     onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ['admission_requests'] });
-      qc.invalidateQueries({ queryKey: ['admission_request', vars.requestId] });
-      qc.invalidateQueries({ queryKey: ['admission_list_items'] });
+      refreshApprovalData(qc, vars.requestId);
     },
     onError: (e: any) => toast({ title: 'Erro ao atualizar status', description: e.message, variant: 'destructive' }),
   });

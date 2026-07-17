@@ -26,6 +26,9 @@
  *   dashboard_metrics        → FuelMetricsBlock / AdmissionMetricsBlock
  *   purchases                → usePurchases
  *   purchase                 → usePurchase
+ *   admission_requests       → useAdmissionRequests (lista)
+ *   admission_request        → useAdmissionRequest (detalhe)
+ *   admission_list_items     → useAdmissionListItems (view paginada)
  */
 import type { QueryClient } from '@tanstack/react-query';
 
@@ -52,6 +55,14 @@ function refreshPurchasesDomain(qc: QueryClient, referenceId?: string) {
   qc.invalidateQueries({ queryKey: ['purchases'] });
   if (referenceId) {
     qc.invalidateQueries({ queryKey: ['purchase', referenceId] });
+  }
+}
+
+function refreshAdmissionsDomain(qc: QueryClient, referenceId?: string) {
+  qc.invalidateQueries({ queryKey: ['admission_requests'] });
+  qc.invalidateQueries({ queryKey: ['admission_list_items'] });
+  if (referenceId) {
+    qc.invalidateQueries({ queryKey: ['admission_request', referenceId] });
   }
 }
 
@@ -82,6 +93,7 @@ export function refreshApprovalData(qc: QueryClient, referenceId?: string): void
   refreshApprovalContext(qc, referenceId);
   refreshFleetDomain(qc, referenceId);
   refreshPurchasesDomain(qc, referenceId);
+  refreshAdmissionsDomain(qc, referenceId);
   refreshMetrics(qc);
   refreshDashboardWidgets(qc);
 }
