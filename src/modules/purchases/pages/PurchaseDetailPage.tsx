@@ -11,7 +11,7 @@ export default function PurchaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: purchase, isLoading, isError } = usePurchase(id);
-  const { updatePurchase, submitPurchase, isUpdating, isSubmitting } = usePurchaseMutations();
+  const { updatePurchase, submitPurchase, cancelPurchase, isUpdating, isSubmitting, isCanceling } = usePurchaseMutations();
 
   if (isLoading) {
     return (
@@ -54,6 +54,17 @@ export default function PurchaseDetailPage() {
     }
   };
 
+  const handleCancel = async () => {
+    if (!id) return;
+    try {
+      await cancelPurchase(id);
+      toast.success('Solicitação cancelada com sucesso!');
+      navigate('/purchases');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao cancelar solicitação');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-24 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
@@ -72,10 +83,16 @@ export default function PurchaseDetailPage() {
         </div>
         
         {isEditable && (
-          <Button onClick={handleSubmitFlow} disabled={isSubmitting} className="gap-2">
-            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Enviar para Aprovação
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" className="text-destructive hover:bg-destructive/10" onClick={handleCancel} disabled={isCanceling}>
+              {isCanceling ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Cancelar Solicitação
+            </Button>
+            <Button onClick={handleSubmitFlow} disabled={isSubmitting} className="gap-2">
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Enviar para Aprovação
+            </Button>
+          </div>
         )}
       </div>
 

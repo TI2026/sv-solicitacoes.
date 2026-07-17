@@ -60,12 +60,31 @@ export function usePurchaseMutations() {
     },
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from('purchases')
+        .update({ status: 'cancelado' })
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, id) => {
+      refreshApprovalData(queryClient, id);
+    },
+  });
+
   return {
     createPurchase: createMutation.mutateAsync,
     updatePurchase: updateMutation.mutateAsync,
     submitPurchase: submitMutation.mutateAsync,
+    cancelPurchase: cancelMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isSubmitting: submitMutation.isPending,
+    isCanceling: cancelMutation.isPending,
   };
 }
