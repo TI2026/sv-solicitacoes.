@@ -75,11 +75,15 @@ export function useAdmissionSetStatus() {
       } as any);
       if (error) throw error;
       if (startApproval) {
-        await supabase.rpc('start_approval_flow' as any, {
-          _reference_type: 'admission',
-          _reference_id: requestId,
-          _requester_user_id: startApproval.requesterUserId,
-        } as any);
+        // Tipagem 'as any' mantida na função pois o supabase/types pode não estar 100% atualizado localmente para essa RPC
+        const flowResult = await supabase.rpc('start_approval_flow' as any, {
+          p_module_code: 'admissions',
+          p_reference_id: requestId,
+          p_requester_user_id: startApproval.requesterUserId,
+        });
+        if (flowResult.error) throw flowResult.error;
+        const resultData = flowResult.data as any;
+        if (resultData?.error) throw new Error(resultData.error);
       }
       return data;
     },
