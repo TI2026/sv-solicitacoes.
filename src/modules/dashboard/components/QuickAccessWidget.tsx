@@ -65,7 +65,7 @@ export function QuickAccessWidget({ canViewAdmissions }: Props) {
       show: true,
     },
     {
-      key: 'admissao',
+      key: 'admissions',
       label: 'Admissões',
       icon: UserPlus,
       newRoute: '/admissions/new',

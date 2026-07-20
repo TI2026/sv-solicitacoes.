@@ -77,7 +77,7 @@ export default function MyApprovalsTab() {
   const buildRoute = (a: any) => {
     const code = a.approval_modules?.code as string | undefined;
     if (!code || !a.reference_id) return null;
-    if (code === 'admissao') return `/admissions/${a.reference_id}`;
+    if (code === 'admissions') return `/admissions/${a.reference_id}`;
     if (['abastecimento', 'reembolso', 'diaria'].includes(code)) return `/fleet/${a.reference_id}`;
     return null;
   };

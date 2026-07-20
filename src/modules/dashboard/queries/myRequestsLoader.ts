@@ -16,7 +16,7 @@ export type RequestGroup = 'em_aprovacao' | 'devolvida' | 'concluida' | 'cancela
 
 export interface MyRequest {
   id: string;
-  type: string;           // 'abastecimento' | 'reembolso' | 'diaria' | 'admissao' ...
+  type: string;           // 'abastecimento' | 'reembolso' | 'diaria' | 'admissions' ...
   module: string;         // label human-readable
   status: string;
   group: RequestGroup;
@@ -71,7 +71,7 @@ async function fetchAdmissionRequests(userId: string): Promise<MyRequest[]> {
 
   return (data || []).map((row: any): MyRequest => ({
     id: row.id,
-    type: 'admissao',
+    type: 'admissions',
     module: 'Admissão',
     status: row.status,
     group: classifyAdmissionStatus(row.status),
