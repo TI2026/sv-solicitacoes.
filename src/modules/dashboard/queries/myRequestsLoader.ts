@@ -105,7 +105,30 @@ async function fetchPurchaseRequests(userId: string): Promise<MyRequest[]> {
   }));
 }
 
-// ─── Classificadores de grupo ─────────────────────────────────────────────────
+async function fetchTerminationRequests(userId: string): Promise<MyRequest[]> {
+  const { data, error } = await supabase
+    .from('termination_requests' as any)
+    .select('id, status, created_at, collaborator:collaborators(full_name)')
+    .eq('requester_user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) throw error;
+
+  return (data || []).map((row: any): MyRequest => ({
+    id: row.id,
+    type: 'desligamentos',
+    module: 'Desligamento',
+    status: row.status,
+    group: classifyTerminationStatus(row.status),
+    created_at: row.created_at,
+    valor: null,
+    description: row.collaborator?.full_name ?? null,
+    route: `/desligamentos/${row.id}`,
+  }));
+}
+
+// ─── Classificadores de grupo ──────────────────────────────────────────────────────
 
 function classifyStatus(status: string): RequestGroup {
   if (['em_aprovacao', 'em_revisao', 'em_revisao_admin', 'enviado'].includes(status)) return 'em_aprovacao';
@@ -129,16 +152,27 @@ function classifyPurchaseStatus(status: string): RequestGroup {
   return 'outra';
 }
 
+function classifyTerminationStatus(status: string): RequestGroup {
+  if (['desligamento_concluido', 'aprovado'].includes(status)) return 'concluida';
+  if (['cancelado', 'reprovado'].includes(status)) return 'cancelada';
+  if (['retornado'].includes(status)) return 'devolvida';
+  return 'em_aprovacao';
+}
+
 // ─── Agregador principal ──────────────────────────────────────────────────────
 
 export async function loadMyRequests(userId: string): Promise<MyRequest[]> {
-  const [fuel, admissions, purchases] = await Promise.all([
+  const [fuel, admissions, purchases, terminations] = await Promise.all([
     fetchFuelRequests(userId),
     fetchAdmissionRequests(userId),
     fetchPurchaseRequests(userId),
+    fetchTerminationRequests(userId),
   ]);
 
-  return [...(Array.isArray(fuel) ? fuel : []), ...(Array.isArray(admissions) ? admissions : []), ...(Array.isArray(purchases) ? purchases : [])].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  return [
+    ...(Array.isArray(fuel) ? fuel : []),
+    ...(Array.isArray(admissions) ? admissions : []),
+    ...(Array.isArray(purchases) ? purchases : []),
+    ...(Array.isArray(terminations) ? terminations : []),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }

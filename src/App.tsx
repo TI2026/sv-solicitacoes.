@@ -48,6 +48,11 @@ import PurchaseListPage from "@/modules/purchases/pages/PurchaseListPage";
 import PurchaseFormPage from "@/modules/purchases/pages/PurchaseFormPage";
 import PurchaseDetailPage from "@/modules/purchases/pages/PurchaseDetailPage";
 
+// Desligamentos module
+import TerminationListPage from "@/modules/desligamentos/pages/TerminationListPage";
+import TerminationNewPage from "@/modules/desligamentos/pages/TerminationNewPage";
+import TerminationDetailPage from "@/modules/desligamentos/pages/TerminationDetailPage";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 2, staleTime: 30_000 },
@@ -133,6 +138,11 @@ const AppRoutes = () => (
     <Route path="/purchases" element={<ProtectedRoute><PurchaseListPage /></ProtectedRoute>} />
     <Route path="/purchases/new" element={<ProtectedRoute><PurchaseFormPage /></ProtectedRoute>} />
     <Route path="/purchases/:id" element={<ProtectedRoute><PurchaseDetailPage /></ProtectedRoute>} />
+
+    {/* Desligamentos */}
+    <Route path="/desligamentos" element={<ProtectedRoute><TerminationListPage /></ProtectedRoute>} />
+    <Route path="/desligamentos/new" element={<ProtectedRoute><TerminationNewPage /></ProtectedRoute>} />
+    <Route path="/desligamentos/:id" element={<ProtectedRoute><TerminationDetailPage /></ProtectedRoute>} />
 
     {/* Redirects */}
     <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -39,6 +39,7 @@ const MODULE_ROUTE: Record<string, string> = {
   diaria: '/fleet',
   admissions: '/admissions',
   compras: '/purchases',
+  desligamentos: '/desligamentos',
 };
 
 function resolveRoute(moduleCode: string | null, referenceId: string | null): string | null {

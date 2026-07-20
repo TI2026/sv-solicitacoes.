@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
-import { LayoutDashboard, Shield, LogOut, Bell, Menu, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car, CheckSquare, ShoppingCart } from 'lucide-react';
+import { LayoutDashboard, Shield, LogOut, Bell, Menu, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car, CheckSquare, ShoppingCart, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -161,6 +161,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: true },
         { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
         { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
+        { to: '/desligamentos', label: 'Desligamentos', icon: UserMinus, show: canViewAdmission },
         { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewEpis },
       ],
     },

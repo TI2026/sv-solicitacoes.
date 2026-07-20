@@ -29,6 +29,8 @@
  *   admission_requests       → useAdmissionRequests (lista)
  *   admission_request        → useAdmissionRequest (detalhe)
  *   admission_list_items     → useAdmissionListItems (view paginada)
+ *   termination_requests     → useTerminations (lista)
+ *   termination_request      → useTermination (detalhe)
  */
 import type { QueryClient } from '@tanstack/react-query';
 
@@ -66,6 +68,13 @@ function refreshAdmissionsDomain(qc: QueryClient, referenceId?: string) {
   }
 }
 
+function refreshTerminationsDomain(qc: QueryClient, referenceId?: string) {
+  qc.invalidateQueries({ queryKey: ['termination_requests'] });
+  if (referenceId) {
+    qc.invalidateQueries({ queryKey: ['termination_request', referenceId] });
+  }
+}
+
 function refreshMetrics(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
   qc.invalidateQueries({ queryKey: ['dashboard_metrics'] });
@@ -94,6 +103,7 @@ export function refreshApprovalData(qc: QueryClient, referenceId?: string): void
   refreshFleetDomain(qc, referenceId);
   refreshPurchasesDomain(qc, referenceId);
   refreshAdmissionsDomain(qc, referenceId);
+  refreshTerminationsDomain(qc, referenceId);
   refreshMetrics(qc);
   refreshDashboardWidgets(qc);
 }
