@@ -67,8 +67,8 @@ export default function MaintenancePage() {
       setPreview(null);
       toast({ title: 'Limpeza concluída', description: 'Dados de teste removidos com sucesso.' });
 
-      // Invalidate all queries so dashboard/lists refresh instantly
-      await queryClient.invalidateQueries();
+      // Invalidate specific queries so dashboard/lists refresh
+      await queryClient.invalidateQueries({ queryKey: ['maintenance'] });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
