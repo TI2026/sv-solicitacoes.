@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/contexts/PresenceContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, ListChecks, ShieldAlert, Download, AlertTriangle } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
 import { useState } from 'react';
@@ -156,61 +155,36 @@ export default function DashboardPage() {
       {/* Bloco 4 — Últimas Movimentações */}
       <RecentActivityWidget />
 
-      {/* ── Tabs existentes (métricas + fluxos) — mantidas intactas ──────── */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="w-full sm:w-auto flex-wrap">
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="compras">Compras</TabsTrigger>
-          {isRH && <TabsTrigger value="admissions">Admissões</TabsTrigger>}
-          {isAdmin && (
-            <TabsTrigger value="fluxos" className="gap-1">
-              <ListChecks className="w-3.5 h-3.5" /> Fluxos
-            </TabsTrigger>
-          )}
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4 mt-4">
-          {metricsLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
-            </div>
-          ) : (
+      {/* ── Cockpit de Indicadores por Papel ───────────────────────────────── */}
+      <div className="space-y-6 mt-8">
+        <h2 className="text-lg font-semibold text-foreground border-b pb-2">Visão Operacional</h2>
+        
+        {metricsLoading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
+          </div>
+        ) : (
+          <div className="space-y-6">
             <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={canSeeFinancials} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="compras" className="space-y-4 mt-4">
-          {metricsLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
-            </div>
-          ) : (
             <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials={canSeeFinancials} />
-          )}
-        </TabsContent>
-
-        {isRH && (
-          <TabsContent value="admissions" className="space-y-4 mt-4">
-            {metricsLoading ? (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
-              </div>
-            ) : (
+            
+            {isRH && (
               <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={canSeeFinancials} />
             )}
-          </TabsContent>
+          </div>
         )}
 
         {isAdmin && (
-          <TabsContent value="fluxos" className="space-y-4 mt-4">
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold text-foreground border-b pb-2 mb-4">Gestão de Fluxos</h2>
             <FlowControlPanel
               navigate={navigate}
               isRH={isRH}
               canSeeFinancials={canSeeFinancials}
             />
-          </TabsContent>
+          </div>
         )}
-      </Tabs>
+      </div>
     </div>
   );
 }

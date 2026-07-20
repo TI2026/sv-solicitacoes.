@@ -12,44 +12,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useApprovalModules, useApprovalFlows, useSaveApprovalFlow, useEligibleApprovers, useSectors, useApproverRoles, StepDraft } from '../hooks/usePermissionsData';
 import { supabase } from '@/integrations/supabase/client';
 
-const APPROVER_TYPE_LABELS: Record<string, string> = {
-  usuario_fixo: 'Pessoa (usuário fixo)',
-  responsavel_do_setor_do_solicitante: 'Responsável do setor do solicitante',
-  responsavel_do_setor_especifico: 'Responsável de setor específico',
-  gestor_imediato: 'Gestor imediato',
-  cargo_perfil: 'Cargo / Perfil aprovador',
-};
+import { APPROVER_TYPE_LABELS, APPROVER_TYPE_HELPERS, getDisplayApproverType } from '@/lib/approvalLabels';
 
 const APPROVER_TYPE_ICONS: Record<string, any> = {
-  usuario_fixo: UserCheck,
-  responsavel_do_setor_do_solicitante: Building2,
-  responsavel_do_setor_especifico: Building2,
-  gestor_imediato: Users,
-  cargo_perfil: ShieldCheck,
+  specific_user: UserCheck,
+  sector: Building2,
 };
 
-const APPROVER_TYPE_HELPERS: Record<string, string> = {
-  responsavel_do_setor_do_solicitante: 'O sistema localizará automaticamente o responsável do setor do solicitante.',
-  gestor_imediato: 'O sistema localizará automaticamente o gestor imediato do usuário relacionado.',
-  cargo_perfil: 'Apenas usuários ATIVOS com o cargo selecionado E lotados no MESMO setor do solicitante poderão aprovar esta etapa.',
-};
-
-const DYNAMIC_TYPES = ['responsavel_do_setor_do_solicitante', 'gestor_imediato'];
-
-function parseApproverType(raw: string, roleKey?: string | null): { type: StepDraft['approverType']; roleKey: string | null } {
-  // Legacy rows persisted as "cargo_perfil:<role>" in approver_type.
-  if (raw && raw.startsWith('cargo_perfil:')) {
-    return { type: 'cargo_perfil', roleKey: raw.replace('cargo_perfil:', '') || (roleKey ?? null) };
-  }
-  if (raw === 'cargo_perfil') {
-    return { type: 'cargo_perfil', roleKey: roleKey ?? null };
-  }
-  return { type: (raw as StepDraft['approverType']) || 'usuario_fixo', roleKey: roleKey ?? null };
-}
-
-function getDisplayApproverType(raw: string): string {
-  if (raw && raw.startsWith('cargo_perfil')) return 'cargo_perfil';
-  return raw;
+function parseApproverType(raw: string): { type: StepDraft['approverType'] } {
+  if (raw === 'sector' || raw === 'responsavel_do_setor_especifico') return { type: 'sector' };
+  return { type: 'specific_user' };
 }
 
 export default function ApprovalChainsTab() {
@@ -100,13 +72,13 @@ export default function ApprovalChainsTab() {
       (flow.approval_flow_steps || [])
         .sort((a: any, b: any) => a.step_order - b.step_order)
         .map((s: any) => {
-          const parsed = parseApproverType(s.approver_type || 'usuario_fixo', s.approver_role_key);
+          const parsed = parseApproverType(s.approver_type || 'specific_user');
           return {
             stepOrder: s.step_order,
             approverType: parsed.type,
-            fixedUserId: parsed.type === 'usuario_fixo' ? (s.approver_user_id || null) : null,
-            fixedSectorId: s.fixed_sector_id || null,
-            approverRoleKey: parsed.roleKey,
+            fixedUserId: parsed.type === 'specific_user' ? (s.approver_user_id || null) : null,
+            sectorId: parsed.type === 'sector' ? (s.sector_id || s.fixed_sector_id || null) : null,
+            timeoutHours: s.timeout_hours || null,
           };
         })
     );
@@ -120,7 +92,7 @@ export default function ApprovalChainsTab() {
   };
 
   const addStep = () => {
-    setSteps(prev => [...prev, { stepOrder: prev.length + 1, approverType: 'usuario_fixo', fixedUserId: null, fixedSectorId: null, approverRoleKey: null }]);
+    setSteps(prev => [...prev, { stepOrder: prev.length + 1, approverType: 'specific_user', fixedUserId: null, sectorId: null, timeoutHours: null }]);
   };
 
   const removeStep = (idx: number) => {
@@ -134,30 +106,27 @@ export default function ApprovalChainsTab() {
       // Reset unrelated fields when changing type
       if (patch.approverType && patch.approverType !== s.approverType) {
         updated.fixedUserId = null;
-        updated.fixedSectorId = null;
-        updated.approverRoleKey = null;
+        updated.sectorId = null;
       }
       return updated;
     }));
   };
 
   const isStepValid = (step: StepDraft) => {
-    if (step.approverType === 'usuario_fixo') return !!step.fixedUserId;
-    if (step.approverType === 'responsavel_do_setor_especifico') return !!step.fixedSectorId;
-    if (step.approverType === 'cargo_perfil') return !!step.approverRoleKey && step.approverRoleKey.length > 0 && !step.approverRoleKey.includes(':');
-    return true; // dynamic types are always valid
+    if (step.approverType === 'specific_user') return !!step.fixedUserId;
+    if (step.approverType === 'sector') return !!step.sectorId;
+    return true;
   };
 
   const getStepValidationError = (step: StepDraft, idx: number): string | null => {
-    if (step.approverType === 'usuario_fixo' && !step.fixedUserId) return `Etapa ${idx + 1}: selecione um aprovador`;
-    if (step.approverType === 'responsavel_do_setor_especifico' && !step.fixedSectorId) return `Etapa ${idx + 1}: selecione um setor`;
-    if (step.approverType === 'cargo_perfil' && (!step.approverRoleKey || step.approverRoleKey.length === 0 || step.approverRoleKey.includes(':'))) return `Etapa ${idx + 1}: informe o cargo/perfil aprovador`;
+    if (step.approverType === 'specific_user' && !step.fixedUserId) return `Etapa ${idx + 1}: selecione um aprovador`;
+    if (step.approverType === 'sector' && !step.sectorId) return `Etapa ${idx + 1}: selecione um setor`;
     return null;
   };
 
   const canSave = flowName.trim() && steps.length > 0 && steps.every(isStepValid);
   const validationErrors = !canSave ? steps.map((s, i) => getStepValidationError(s, i)).filter(Boolean) : [];
-  const hasDynamicSteps = steps.some(s => DYNAMIC_TYPES.includes(s.approverType));
+  const hasDynamicSteps = false;
 
   const handleSave = () => {
     if (!canSave) return;
@@ -176,18 +145,14 @@ export default function ApprovalChainsTab() {
   };
 
   const getStepBadgeLabel = (step: any) => {
-    const raw = step.approver_type || 'usuario_fixo';
+    const raw = step.approver_type || 'specific_user';
     const displayType = getDisplayApproverType(raw);
     const label = APPROVER_TYPE_LABELS[displayType] || raw;
-    if (displayType === 'usuario_fixo') {
+    if (displayType === 'specific_user') {
       return `${label}: ${step.profiles?.full_name || 'N/A'}`;
     }
-    if (displayType === 'responsavel_do_setor_especifico') {
+    if (displayType === 'sector') {
       return `${label}: ${step.sectors?.name || 'N/A'}`;
-    }
-    if (displayType === 'cargo_perfil') {
-      const roleKey = step.approver_role_key || (raw.includes(':') ? raw.split(':')[1] : '');
-      return `Cargo: ${roleKey || 'N/A'} (mesmo setor do solicitante)`;
     }
     return label;
   };
@@ -356,16 +321,6 @@ export default function ApprovalChainsTab() {
               </div>
             </div>
 
-            {/* Dynamic types warning banner */}
-            {hasDynamicSteps && (
-              <div className="rounded-lg border border-blue-300 bg-blue-50 p-3 flex gap-2 items-start">
-                <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-800">
-                  Tipos dinâmicos (Gestor Imediato, Responsável do Setor do Solicitante) serão resolvidos automaticamente no momento da abertura de cada solicitação. Certifique-se de que os setores e gestores estejam configurados corretamente.
-                </p>
-              </div>
-            )}
-
             {/* Steps */}
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -401,10 +356,10 @@ export default function ApprovalChainsTab() {
                     </Select>
                   </div>
 
-                  {/* Pessoa (usuario_fixo) */}
-                  {step.approverType === 'usuario_fixo' && (
+                  {/* Pessoa (specific_user) */}
+                  {step.approverType === 'specific_user' && (
                     <div>
-                      <Label className="text-xs">Aprovador</Label>
+                      <Label className="text-xs">Aprovador Específico</Label>
                       <Select
                         value={step.fixedUserId || ''}
                         onValueChange={(v) => updateStep(idx, { fixedUserId: v })}
@@ -421,17 +376,16 @@ export default function ApprovalChainsTab() {
                       {!step.fixedUserId && (
                         <p className="text-xs text-destructive mt-1">Selecione um aprovador</p>
                       )}
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Apenas usuários com perfil aprovador (não-colaborador) são exibidos.</p>
                     </div>
                   )}
 
-                  {/* Setor específico */}
-                  {step.approverType === 'responsavel_do_setor_especifico' && (
+                  {/* Setor */}
+                  {step.approverType === 'sector' && (
                     <div>
                       <Label className="text-xs">Setor</Label>
                       <Select
-                        value={step.fixedSectorId || ''}
-                        onValueChange={(v) => updateStep(idx, { fixedSectorId: v })}
+                        value={step.sectorId || ''}
+                        onValueChange={(v) => updateStep(idx, { sectorId: v })}
                       >
                         <SelectTrigger className="text-xs">
                           <SelectValue placeholder="Selecionar setor" />
@@ -445,41 +399,35 @@ export default function ApprovalChainsTab() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {!step.fixedSectorId && (
+                      {!step.sectorId && (
                         <p className="text-xs text-destructive mt-1">Selecione um setor</p>
                       )}
-                      {step.fixedSectorId && getSectorWarning(step.fixedSectorId) && (
+                      {step.sectorId && getSectorWarning(step.sectorId) && (
                         <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
-                          {getSectorWarning(step.fixedSectorId)}
+                          {getSectorWarning(step.sectorId)}
                         </p>
                       )}
                     </div>
                   )}
 
-                  {/* Cargo / Perfil aprovador */}
-                  {step.approverType === 'cargo_perfil' && (
-                    <div>
-                      <Label className="text-xs">Cargo / Perfil aprovador</Label>
-                      <Select
-                        value={step.approverRoleKey || ''}
-                        onValueChange={(v) => updateStep(idx, { approverRoleKey: v })}
-                      >
-                        <SelectTrigger className="text-xs">
-                          <SelectValue placeholder="Selecionar cargo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {approverRoles?.map((r: any) => (
-                            <SelectItem key={r.key} value={r.key} className="text-xs">
-                              {r.name || r.key}
-                              {r.is_master && ' (Master)'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {!step.approverRoleKey && (
-                        <p className="text-xs text-destructive mt-1">Selecione um cargo</p>
-                      )}
+                  {/* Timeout */}
+                  <div>
+                    <Label className="text-xs">Timeout (em horas) — Opcional</Label>
+                    <Input 
+                      type="number" 
+                      min={1} 
+                      className="text-xs"
+                      placeholder="Ex: 48"
+                      value={step.timeoutHours || ''} 
+                      onChange={(e) => updateStep(idx, { timeoutHours: e.target.value ? parseInt(e.target.value) : null })} 
+                    />
+                  </div>
+                  
+                  {APPROVER_TYPE_HELPERS[step.approverType] && (
+                    <div className="bg-muted p-2 rounded text-[10px] text-muted-foreground flex gap-1.5 items-start mt-2">
+                      <Info className="w-3 h-3 mt-0.5 shrink-0" />
+                      {APPROVER_TYPE_HELPERS[step.approverType]}
                     </div>
                   )}
 

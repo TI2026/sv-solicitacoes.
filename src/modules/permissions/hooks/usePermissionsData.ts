@@ -27,7 +27,7 @@ export function useApprovalFlows() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_flows')
-        .select('*, approval_modules(code, name), approval_flow_steps(*, profiles!approval_flow_steps_approver_user_id_fkey(full_name, email), sectors:fixed_sector_id(id, name))')
+        .select('*, approval_modules(code, name), approval_flow_steps(*, profiles!approval_flow_steps_approver_user_id_fkey(full_name, email), sectors:sector_id(id, name))')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -52,10 +52,10 @@ export function useSectors() {
 
 export interface StepDraft {
   stepOrder: number;
-  approverType: 'usuario_fixo' | 'responsavel_do_setor_do_solicitante' | 'responsavel_do_setor_especifico' | 'gestor_imediato' | 'cargo_perfil';
+  approverType: 'specific_user' | 'sector';
   fixedUserId: string | null;
-  fixedSectorId: string | null;
-  approverRoleKey: string | null;
+  sectorId: string | null;
+  timeoutHours: number | null;
 }
 
 export function useSaveApprovalFlow() {
@@ -157,12 +157,11 @@ export function useSaveApprovalFlow() {
       // Atomic replace via RPC — avoids 409 on (flow_id, step_order) uniqueness
       // and guarantees DELETE + INSERT happen in the same transaction.
       const stepsPayload = params.steps.map((s) => {
-        const resolvedUserId = s.approverType === 'usuario_fixo' ? s.fixedUserId : null;
         return {
           approver_type: s.approverType,
-          approver_user_id: resolvedUserId,
-          fixed_sector_id: s.approverType === 'responsavel_do_setor_especifico' ? s.fixedSectorId : null,
-          approver_role_key: s.approverType === 'cargo_perfil' ? (s.approverRoleKey || null) : null,
+          approver_user_id: s.approverType === 'specific_user' ? s.fixedUserId : null,
+          sector_id: s.approverType === 'sector' ? s.sectorId : null,
+          timeout_hours: s.timeoutHours || null,
         };
       });
 

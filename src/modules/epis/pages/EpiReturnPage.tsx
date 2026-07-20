@@ -173,6 +173,7 @@ export default function EpiReturnPage() {
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border text-left">
                   <th className="py-2 px-3 font-medium text-muted-foreground">Colaborador</th>
+                  <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Matrícula</th>
                   <th className="py-2 px-3 font-medium text-muted-foreground">EPI</th>
                   <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Entrega</th>
                   <th className="py-2 px-3 font-medium text-muted-foreground">Status</th>
@@ -182,6 +183,7 @@ export default function EpiReturnPage() {
                   {filtered.map((d: any) => (
                     <tr key={d.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                       <td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name || '—'}</td>
+                      <td className="py-2.5 px-3 hidden md:table-cell text-muted-foreground font-mono text-xs">{d.collaborator?.matricula || '—'}</td>
                       <td className="py-2.5 px-3">{d.epi_item?.name || '—'}{d.size ? ` (${d.size})` : ''}</td>
                       <td className="py-2.5 px-3 hidden md:table-cell">{new Date(d.delivered_at).toLocaleDateString('pt-BR')}</td>
                       <td className="py-2.5 px-3"><StatusBadge status={d.current_status} label={EPI_DELIVERY_STATUS_LABELS[d.current_status] || d.current_status} /></td>

@@ -14,6 +14,10 @@ import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
 import PermissionsPage from "@/pages/PermissionsPage";
 import SectorsPage from "@/pages/SectorsPage";
+import CollaboratorsPage from "@/pages/CollaboratorsPage";
+import DynamicCategoriesPage from "@/pages/DynamicCategoriesPage";
+import ReportsPage from "@/pages/ReportsPage";
+import ConstructionPage from "@/pages/ConstructionPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
@@ -109,7 +113,19 @@ const AppRoutes = () => (
     {/* Admin-only routes */}
     <Route path="/auditoria" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><AuditLogsPage /></RoleGuard></ProtectedRoute>} />
     <Route path="/setores" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><SectorsPage /></RoleGuard></ProtectedRoute>} />
+    <Route path="/colaboradores" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><CollaboratorsPage /></RoleGuard></ProtectedRoute>} />
     <Route path="/admin/maintenance" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><MaintenancePage /></RoleGuard></ProtectedRoute>} />
+    
+    {/* Cadastros (Dynamic Categories) */}
+    <Route path="/fornecedores" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="supplier" title="Fornecedores" description="Gerencie a lista de fornecedores disponíveis no módulo de compras." /></ProtectedRoute>} />
+    <Route path="/centros-custo" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="cost_center" title="Centros de Custo" description="Gerencie a lista de centros de custo." /></ProtectedRoute>} />
+
+    {/* Relatórios */}
+    <Route path="/relatorios" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><ReportsPage /></RoleGuard></ProtectedRoute>} />
+
+    {/* Modulos futuros (Placeholders) */}
+    <Route path="/reembolsos" element={<ProtectedRoute><ConstructionPage /></ProtectedRoute>} />
+    <Route path="/diarias" element={<ProtectedRoute><ConstructionPage /></ProtectedRoute>} />
 
     {/* Fleet */}
     <Route path="/fleet" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />

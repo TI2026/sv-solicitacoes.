@@ -1,38 +1,19 @@
-/** Centralized labels for approval system (Block 6.6) */
-
 export const APPROVER_TYPE_LABELS: Record<string, string> = {
-  usuario_fixo: 'Usuário fixo',
-  responsavel_do_setor_do_solicitante: 'Responsável do setor do solicitante',
-  responsavel_do_setor_especifico: 'Responsável do setor específico',
-  gestor_imediato: 'Gestor imediato',
-  cargo_perfil: 'Cargo / Perfil aprovador',
+  specific_user: 'Usuário Específico',
+  sector: 'Aprovação por Setor',
 };
 
-export const APPROVAL_STEP_STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendente',
-  approved: 'Aprovado',
-  rejected: 'Recusado',
-  returned: 'Devolvido',
+export const APPROVER_TYPE_HELPERS: Record<string, string> = {
+  specific_user: 'A solicitação será enviada exatamente para este usuário.',
+  sector: 'A solicitação será enviada para o responsável do setor selecionado. Caso não haja responsável ou ele estoure o timeout, a solicitação passará automaticamente para o substituto do mesmo setor.',
 };
 
-export const APPROVAL_REQUEST_STATUS_LABELS: Record<string, string> = {
-  draft: 'Rascunho',
-  pending_approval: 'Pendente de aprovação',
-  awaiting_step_1: 'Aguardando etapa 1',
-  awaiting_step_2: 'Aguardando etapa 2',
-  awaiting_step_3: 'Aguardando etapa 3',
-  approved: 'Aprovado',
-  rejected: 'Recusado',
-  returned_for_adjustment: 'Devolvido para ajuste',
-};
-
-export function getApproverTypeLabel(type: string | null | undefined): string {
-  if (!type) return APPROVER_TYPE_LABELS.usuario_fixo;
-  // Legacy support: any leftover "cargo_perfil:<role>" string still renders as Cargo/Perfil.
-  const normalized = type.startsWith('cargo_perfil') ? 'cargo_perfil' : type;
-  return APPROVER_TYPE_LABELS[normalized] || type;
+export function getDisplayApproverType(raw: string): string {
+  return raw;
 }
 
-export function getStepStatusLabel(status: string): string {
-  return APPROVAL_STEP_STATUS_LABELS[status] || status;
+export function getApproverTypeLabel(raw: string | undefined): string {
+  if (!raw) return APPROVER_TYPE_LABELS.specific_user;
+  const display = getDisplayApproverType(raw);
+  return APPROVER_TYPE_LABELS[display] || raw;
 }

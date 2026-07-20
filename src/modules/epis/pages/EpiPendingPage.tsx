@@ -82,11 +82,12 @@ export default function EpiPendingPage() {
             {pendingReturn.length === 0 ? <p className="text-center py-8 text-muted-foreground">Nenhuma pendência de devolução</p> : (
               <table className="w-full text-sm"><thead><tr className="border-b border-border text-left">
                 <th className="py-2 px-3 font-medium text-muted-foreground">Colaborador</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Matrícula</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground">EPI</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Entrega</th>
               </tr></thead><tbody>
                 {pendingReturn.map(d => (
-                  <tr key={d.id} className="border-b last:border-0"><td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name}</td><td className="py-2.5 px-3">{d.epi_item?.name}</td><td className="py-2.5 px-3 hidden md:table-cell">{new Date(d.delivered_at).toLocaleDateString('pt-BR')}</td></tr>
+                  <tr key={d.id} className="border-b last:border-0"><td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name}</td><td className="py-2.5 px-3 hidden md:table-cell text-muted-foreground font-mono text-xs">{d.collaborator?.matricula || '—'}</td><td className="py-2.5 px-3">{d.epi_item?.name}</td><td className="py-2.5 px-3 hidden md:table-cell">{new Date(d.delivered_at).toLocaleDateString('pt-BR')}</td></tr>
                 ))}
               </tbody></table>
             )}
@@ -98,12 +99,13 @@ export default function EpiPendingPage() {
             {caExpiring.length === 0 ? <p className="text-center py-8 text-muted-foreground">Nenhum CA vencendo nos próximos 90 dias</p> : (
               <table className="w-full text-sm"><thead><tr className="border-b border-border text-left">
                 <th className="py-2 px-3 font-medium text-muted-foreground">Colaborador</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Matrícula</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground">EPI</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground">CA</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground">Validade</th>
               </tr></thead><tbody>
                 {caExpiring.map(d => (
-                  <tr key={d.id} className="border-b last:border-0"><td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name}</td><td className="py-2.5 px-3">{d.epi_item?.name}</td><td className="py-2.5 px-3">{d.epi_item?.ca_number}</td><td className="py-2.5 px-3 text-destructive font-medium">{d.epi_item?.ca_valid_until ? new Date(d.epi_item.ca_valid_until).toLocaleDateString('pt-BR') : '—'}</td></tr>
+                  <tr key={d.id} className="border-b last:border-0"><td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name}</td><td className="py-2.5 px-3 hidden md:table-cell text-muted-foreground font-mono text-xs">{d.collaborator?.matricula || '—'}</td><td className="py-2.5 px-3">{d.epi_item?.name}</td><td className="py-2.5 px-3">{d.epi_item?.ca_number}</td><td className="py-2.5 px-3 text-destructive font-medium">{d.epi_item?.ca_valid_until ? new Date(d.epi_item.ca_valid_until).toLocaleDateString('pt-BR') : '—'}</td></tr>
                 ))}
               </tbody></table>
             )}
@@ -115,12 +117,13 @@ export default function EpiPendingPage() {
             {usefulLifeExpired.length === 0 ? <p className="text-center py-8 text-muted-foreground">Nenhum item com vida útil expirada</p> : (
               <table className="w-full text-sm"><thead><tr className="border-b border-border text-left">
                 <th className="py-2 px-3 font-medium text-muted-foreground">Colaborador</th>
+                <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Matrícula</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground">EPI</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground">Entrega</th>
                 <th className="py-2 px-3 font-medium text-muted-foreground">Vida Útil</th>
               </tr></thead><tbody>
                 {usefulLifeExpired.map(d => (
-                  <tr key={d.id} className="border-b last:border-0"><td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name}</td><td className="py-2.5 px-3">{d.epi_item?.name}</td><td className="py-2.5 px-3">{new Date(d.delivered_at).toLocaleDateString('pt-BR')}</td><td className="py-2.5 px-3 text-orange-600">{d.epi_item?.useful_life_days} dias</td></tr>
+                  <tr key={d.id} className="border-b last:border-0"><td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name}</td><td className="py-2.5 px-3 hidden md:table-cell text-muted-foreground font-mono text-xs">{d.collaborator?.matricula || '—'}</td><td className="py-2.5 px-3">{d.epi_item?.name}</td><td className="py-2.5 px-3">{new Date(d.delivered_at).toLocaleDateString('pt-BR')}</td><td className="py-2.5 px-3 text-orange-600">{d.epi_item?.useful_life_days} dias</td></tr>
                 ))}
               </tbody></table>
             )}

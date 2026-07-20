@@ -12,6 +12,7 @@ import { Loader2, ShoppingCart } from 'lucide-react';
 import { PurchaseAttachment } from '../queries/purchaseLoader';
 import { PurchaseAttachments } from './PurchaseAttachments';
 import { useNavigate } from 'react-router-dom';
+import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 
 const formSchema = z.object({
   category: z.string().min(1, 'A categoria é obrigatória'),
@@ -74,20 +75,13 @@ export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Categoria *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="ti">TI / Tecnologia</SelectItem>
-                            <SelectItem value="escritorio">Material de Escritório</SelectItem>
-                            <SelectItem value="servicos">Serviços Terceirizados</SelectItem>
-                            <SelectItem value="manutencao">Manutenção e Reparos</SelectItem>
-                            <SelectItem value="outros">Outros</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <DynamicCategorySelect
+                          module="compras"
+                          fieldKey="category"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          placeholder="Selecione ou adicione..."
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -153,7 +147,13 @@ export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
                       <FormItem>
                         <FormLabel>Fornecedor (Sugestão)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Nome da empresa (opcional)" {...field} />
+                          <DynamicCategorySelect
+                            module="compras"
+                            fieldKey="supplier"
+                            value={field.value || ''}
+                            onValueChange={field.onChange}
+                            placeholder="Selecione ou adicione (opcional)"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -169,7 +169,13 @@ export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
                       <FormItem>
                         <FormLabel>Centro de Custo (Opcional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Obra, Setor, Projeto..." {...field} />
+                          <DynamicCategorySelect
+                            module="compras"
+                            fieldKey="cost_center"
+                            value={field.value || ''}
+                            onValueChange={field.onChange}
+                            placeholder="Obra, Setor, Projeto..."
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

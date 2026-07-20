@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Plus, Package, Search, Eye, FileDown, Trash2, Wand2 } from 'lucide-react';
-import { useEpiDeliveries, useCreateDelivery, useCollaboratorsWithProfiles, useCreateCollaborator, useEpiItems, useEpiKitRules } from '../hooks/useEpiQueries';
+import { useEpiDeliveries, useCreateDelivery, useCreateCollaborator, useEpiItems, useEpiKitRules } from '../hooks/useEpiQueries';
+import { useCollaborators } from '@/hooks/useCollaborators';
+import { CollaboratorSelect } from '@/components/CollaboratorSelect';
 import { EPI_DELIVERY_STATUS_LABELS, EPI_REASON_LABELS } from '../types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -44,7 +46,7 @@ export default function EpiDeliveryPage() {
   const [search, setSearch] = useState('');
   const [searchParams] = useSearchParams();
   const { data: deliveries, isLoading } = useEpiDeliveries();
-  const { data: collaborators } = useCollaboratorsWithProfiles({ active: true });
+  const { data: collaborators } = useCollaborators({ active: true, includeProfiles: true });
   const { data: epiItems } = useEpiItems({ active: true });
   const { data: sectors } = useSectors();
   const { data: allKitRules } = useEpiKitRules();
@@ -412,6 +414,7 @@ export default function EpiDeliveryPage() {
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border text-left">
                   <th className="py-2 px-3 font-medium text-muted-foreground">Colaborador</th>
+                  <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Matrícula</th>
                   <th className="py-2 px-3 font-medium text-muted-foreground">EPI</th>
                   <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Qtd</th>
                   <th className="py-2 px-3 font-medium text-muted-foreground hidden md:table-cell">Data</th>
@@ -423,6 +426,7 @@ export default function EpiDeliveryPage() {
                   {filtered.map((d: any) => (
                     <tr key={d.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                       <td className="py-2.5 px-3 font-medium">{d.collaborator?.full_name || '—'}</td>
+                      <td className="py-2.5 px-3 hidden md:table-cell text-muted-foreground font-mono text-xs">{d.collaborator?.matricula || '—'}</td>
                       <td className="py-2.5 px-3">{d.epi_item?.name || '—'}{d.size ? ` (${d.size})` : ''}</td>
                       <td className="py-2.5 px-3 hidden md:table-cell">{d.quantity}</td>
                       <td className="py-2.5 px-3 hidden md:table-cell">{new Date(d.delivered_at).toLocaleDateString('pt-BR')}</td>
@@ -449,10 +453,10 @@ export default function EpiDeliveryPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-1.5 md:col-span-1">
                 <Label className="text-xs">Colaborador *</Label>
-                <Select value={collaboratorId} onValueChange={handleCollaboratorChange}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o colaborador" /></SelectTrigger>
-                  <SelectContent>{(collaborators || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.full_name}{c.role_name ? ` — ${c.role_name}` : ''}</SelectItem>)}</SelectContent>
-                </Select>
+                <CollaboratorSelect 
+                  value={collaboratorId}
+                  onChange={handleCollaboratorChange}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Setor</Label>

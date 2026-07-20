@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
-import { LayoutDashboard, Shield, LogOut, Bell, Menu, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car, CheckSquare, ShoppingCart, UserMinus } from 'lucide-react';
+import { LayoutDashboard, Shield, LogOut, Bell, Menu, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car, CheckSquare, ShoppingCart, UserMinus, GitBranch, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -21,6 +21,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Controle local da expansão do submenu de EPIs (independente da rota ativa,
   // permite fechar mesmo estando em /epis).
   const [epiMenuOpen, setEpiMenuOpen] = useState<boolean>(() => location.pathname.startsWith('/epis'));
+
+  // Lazy Timeout Check (Sprint 13)
+  useEffect(() => {
+    if (user) {
+      supabase.rpc('check_and_escalate_timeouts').then(({ data, error }) => {
+        if (!error && data && data > 0) {
+          queryClient.invalidateQueries({ queryKey: ['my_approvals'] });
+        }
+      });
+    }
+  }, [user, queryClient]);
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.id],
@@ -139,37 +150,59 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       label: 'Geral',
       items: [
         { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
-        {
-          to: '/fleet?filter=minhas',
-          label: 'Frota',
-          icon: Fuel,
-          show: true,
-          badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' as const } : null,
-        },
-        {
-          to: '/permissoes?tab=minhas-aprovacoes',
-          label: 'Minhas Aprovações',
-          icon: CheckSquare,
-          show: isApprovalUser,
-          badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' as const } : null,
-        },
       ],
     },
     {
       label: 'Operacional',
       items: [
+        {
+          to: '/fleet?filter=minhas',
+          label: 'Abastecimento',
+          icon: Fuel,
+          show: true,
+          badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' as const } : null,
+        },
+        { to: '/reembolsos', label: 'Reembolso', icon: FileText, show: true },
+        { to: '/diarias', label: 'Diárias', icon: FileText, show: true },
         { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: true },
-        { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
         { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
         { to: '/desligamentos', label: 'Desligamentos', icon: UserMinus, show: canViewAdmission },
         { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewEpis },
       ],
     },
     {
-      label: 'Sistema',
+      label: 'Aprovações',
       items: [
+        {
+          to: '/permissoes?tab=minhas-aprovacoes',
+          label: 'Pendentes',
+          icon: CheckSquare,
+          show: isApprovalUser,
+          badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' as const } : null,
+        },
+        { to: '/permissoes?tab=fluxos', label: 'Fluxos (Engine)', icon: GitBranch, show: canManage },
+      ],
+    },
+    {
+      label: 'Cadastros',
+      items: [
+        { to: '/colaboradores', label: 'Colaboradores', icon: Users, show: canManage },
         { to: '/setores', label: 'Setores', icon: Building2, show: canViewSectors },
-        { to: '/permissoes', label: 'Permissões', icon: Lock, show: canManage },
+        { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
+        { to: '/fornecedores', label: 'Fornecedores', icon: Building2, show: true },
+        { to: '/centros-custo', label: 'Centros de Custo', icon: Building2, show: true },
+      ],
+    },
+    {
+      label: 'Relatórios',
+      items: [
+        { to: '/relatorios', label: 'Gerais', icon: ClipboardList, show: canManage },
+      ],
+    },
+    {
+      label: 'Configurações',
+      items: [
+        { to: '/permissoes', label: 'Permissões & Cargos', icon: Lock, show: canManage },
         { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
       ],
     },

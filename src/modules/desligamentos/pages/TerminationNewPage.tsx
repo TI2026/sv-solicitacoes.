@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCreateTermination, useTerminationSetStatus } from '../hooks/useTerminationQueries';
-import { useCollaborators } from '@/modules/epis/hooks/useEpiQueries';
+import { useCollaborators } from '@/hooks/useCollaborators';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CollaboratorSelect } from '@/components/CollaboratorSelect';
 import { ArrowLeft, Loader2, Send, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -115,18 +116,10 @@ export default function TerminationNewPage() {
           {/* Colaborador */}
           <div className="space-y-2">
             <Label htmlFor="collaborator_id">Colaborador *</Label>
-            <Select value={collaboratorId} onValueChange={setCollaboratorId}>
-              <SelectTrigger id="collaborator_id">
-                <SelectValue placeholder="Selecione o colaborador" />
-              </SelectTrigger>
-              <SelectContent>
-                {(collaborators as any[]).map((c: any) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.full_name}{c.role_name ? ` — ${c.role_name}` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CollaboratorSelect 
+              value={collaboratorId}
+              onChange={setCollaboratorId}
+            />
           </div>
 
           {/* Dados auto-preenchidos do colaborador */}
