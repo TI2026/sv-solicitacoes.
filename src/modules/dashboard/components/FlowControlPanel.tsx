@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { loadFuelFluxos, loadAdmFluxos } from '../queries/flowControlLoaders';
 import { useFlowControlBatch } from '../hooks/useFlowControlBatch';
