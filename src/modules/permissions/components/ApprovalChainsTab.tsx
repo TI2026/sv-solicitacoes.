@@ -203,7 +203,9 @@ export default function ApprovalChainsTab() {
                       Editar fluxo
                     </Button>
                   ) : (
-                    <span className="text-xs text-muted-foreground italic">Fluxo não configurado no backend</span>
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => openNewFlow(mod.id)}>
+                      <Plus className="w-3.5 h-3.5" /> Configurar fluxo
+                    </Button>
                   )}
                 </div>
               </div>
