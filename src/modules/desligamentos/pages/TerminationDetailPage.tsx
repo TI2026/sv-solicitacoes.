@@ -3,9 +3,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTermination, useTerminationSetStatus } from '../hooks/useTerminationQueries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, UserMinus, Building2, Calendar, Briefcase, User, Hash, Clock } from 'lucide-react';
+import { ArrowLeft, UserMinus, Building2, Calendar, Briefcase, User, Hash, Clock, CheckCircle2 } from 'lucide-react';
+import { StatusBadge } from '@/components/StatusBadge';
+import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
+import { StatusTimeline } from '@/components/StatusTimeline';
+import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
@@ -15,16 +18,6 @@ const STATUS_LABELS: Record<string, string> = {
   retornado: 'Devolvido',
   desligamento_concluido: 'Concluído',
   cancelado: 'Cancelado',
-};
-
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  rascunho: 'outline',
-  em_aprovacao: 'secondary',
-  aprovado: 'default',
-  reprovado: 'destructive',
-  retornado: 'secondary',
-  desligamento_concluido: 'default',
-  cancelado: 'destructive',
 };
 
 const TIPO_LABELS: Record<string, string> = {
@@ -59,10 +52,12 @@ export default function TerminationDetailPage() {
   const { data: item, isLoading } = useTermination(id!);
   const setStatusMutation = useTerminationSetStatus();
   const canManage = hasAnyRole(['diretoria', 'administrativo', 'rh']);
+  const { data: approvalRequest } = useApprovalRequestForReference(id);
+  const { data: previousCycles = [] } = useApprovalRequestsForReference(id);
 
   if (isLoading) {
     return (
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div className="max-w-7xl mx-auto space-y-4">
         <Skeleton className="h-9 w-24" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -71,7 +66,7 @@ export default function TerminationDetailPage() {
 
   if (!item) {
     return (
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div className="max-w-7xl mx-auto space-y-4">
         <Button variant="ghost" className="gap-2" onClick={() => navigate('/desligamentos')}>
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Button>
@@ -102,12 +97,14 @@ export default function TerminationDetailPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
       <Button variant="ghost" className="gap-2" onClick={() => navigate('/desligamentos')}>
         <ArrowLeft className="w-4 h-4" /> Voltar
       </Button>
 
-      <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
@@ -119,9 +116,7 @@ export default function TerminationDetailPage() {
                 {TIPO_LABELS[item.tipo_desligamento] ?? item.tipo_desligamento}
               </p>
             </div>
-            <Badge variant={STATUS_VARIANTS[item.status] ?? 'outline'}>
-              {STATUS_LABELS[item.status] ?? item.status}
-            </Badge>
+            <StatusBadge status={item.status} label={STATUS_LABELS[item.status] ?? item.status} />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -183,7 +178,34 @@ export default function TerminationDetailPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+          </Card>
+        </div>
+
+        <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+          {approvalRequest && (
+            <ApprovalStatusBlock
+              approvalRequest={approvalRequest}
+              previousCycles={previousCycles}
+            />
+          )}
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+                Histórico
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <StatusTimeline
+                entityId={item.id}
+                entityType="termination_requests"
+                module="desligamentos"
+                statusLabels={STATUS_LABELS}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
