@@ -17,8 +17,6 @@ import PermissionsPage from "@/pages/PermissionsPage";
 import SectorsPage from "@/pages/SectorsPage";
 import CollaboratorsPage from "@/pages/CollaboratorsPage";
 import DynamicCategoriesPage from "@/pages/DynamicCategoriesPage";
-import ReportsPage from "@/pages/ReportsPage";
-import ConstructionPage from "@/pages/ConstructionPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
@@ -125,9 +123,6 @@ const AppRoutes = () => (
     <Route path="/categorias" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="category" title="Categorias" description="Gerencie a lista de categorias do módulo de compras." /></ProtectedRoute>} />
     <Route path="/fornecedores" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="supplier" title="Fornecedores" description="Gerencie a lista de fornecedores disponíveis no módulo de compras." /></ProtectedRoute>} />
     <Route path="/centros-custo" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="cost_center" title="Centros de Custo" description="Gerencie a lista de centros de custo." /></ProtectedRoute>} />
-
-    {/* Relatórios */}
-    <Route path="/relatorios" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><ReportsPage /></RoleGuard></ProtectedRoute>} />
 
     {/* Diárias e Reembolsos */}
     <Route path="/reembolsos" element={<ProtectedRoute><ReembolsosListPage /></ProtectedRoute>} />

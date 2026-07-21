@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useRequestLimits, useUpsertRequestLimit, useDeleteRequestLimit } from '@/hooks/useRequestLimits';
 
 import { REQUEST_TYPE_LABELS } from '@/lib/constants';
-import { Settings, Plus, Pencil, Trash2, Loader2, Gauge } from 'lucide-react';
+import { Settings, Plus, Pencil, Trash2, Loader2, Gauge, GitBranch, Shield, CheckSquare, ArrowRight } from 'lucide-react';
 
 const ROLE_DISPLAY_LABELS: Record<string, string> = {
   diretoria: 'Diretoria',
@@ -40,10 +41,48 @@ export default function SettingsPage() {
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
           <Settings className="w-5 h-5" /> Configurações
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Configurações do sistema</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Central de configurações do sistema</p>
       </div>
 
-      <RequestLimitsSection />
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Governança e Aprovações
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            { to: '/permissoes?tab=chains', icon: GitBranch, title: 'Fluxos de Aprovação', desc: 'Configurar cadeias de aprovadores por módulo.' },
+            { to: '/permissoes?tab=roles', icon: Shield, title: 'Permissões', desc: 'Perfis, usuários e escopo de acesso.' },
+            { to: '/auditoria', icon: CheckSquare, title: 'Auditoria', desc: 'Registro completo de ações críticas.' },
+          ].map(item => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="group border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors flex items-start gap-3"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">
+                    {item.title}
+                    <ArrowRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Configurações Gerais
+        </h2>
+        <RequestLimitsSection />
+      </section>
     </div>
   );
 }

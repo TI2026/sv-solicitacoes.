@@ -45,6 +45,20 @@ export default function ApprovalChainsTab() {
   const [notifyNext, setNotifyNext] = useState(true);
   const [steps, setSteps] = useState<StepDraft[]>([]);
 
+  const openNewFlow = (moduleId: string) => {
+    setEditModuleId(moduleId);
+    setEditFlowId(undefined);
+    setEditFlowInUse(false);
+    setFlowName('');
+    setApprovalType('sequential');
+    setRequireReason(true);
+    setAllowReturn(false);
+    setReturnMode('requester');
+    setNotifyNext(true);
+    setSteps([]);
+    setDialogOpen(true);
+  };
+
   const openEditFlow = async (flow: any) => {
     setEditModuleId(flow.module_id);
     setEditFlowId(flow.id);
@@ -189,7 +203,9 @@ export default function ApprovalChainsTab() {
                       Editar fluxo
                     </Button>
                   ) : (
-                    <span className="text-xs text-muted-foreground italic">Fluxo não configurado no backend</span>
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => openNewFlow(mod.id)}>
+                      <Plus className="w-3.5 h-3.5" /> Configurar fluxo
+                    </Button>
                   )}
                 </div>
               </div>

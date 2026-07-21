@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/contexts/PresenceContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { Loader2, ShieldAlert, Download, ArrowUp, AlertTriangle, Clock, CheckCircle2, DollarSign } from 'lucide-react';
+import { Loader2, ShieldAlert, Download, ArrowUp, AlertTriangle, Clock, CheckCircle2, DollarSign, Users, Activity } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -90,6 +90,13 @@ export default function DashboardPage() {
   // Visão Geral — KPIs consolidados a partir das métricas existentes
   const overviewKpis = [
     {
+      label: 'Total de Solicitações',
+      value: (metrics?.fuel?.total ?? 0) + (metrics?.purchase?.total ?? 0) + (metrics?.admission?.total ?? 0),
+      icon: Activity,
+      tone: 'text-primary',
+      bg: 'bg-primary/10',
+    },
+    {
       label: 'Aguardando Aprovação',
       value: (metrics?.fuel?.pendentes ?? 0) + (metrics?.purchase?.em_aprovacao ?? 0),
       icon: Clock,
@@ -116,6 +123,13 @@ export default function DashboardPage() {
       icon: AlertTriangle,
       tone: 'text-orange-600',
       bg: 'bg-orange-50',
+    },
+    {
+      label: 'Usuários Ativos Agora',
+      value: onlineUsers?.length ?? 0,
+      icon: Users,
+      tone: 'text-fuchsia-600',
+      bg: 'bg-fuchsia-50',
     },
   ];
 
@@ -191,7 +205,7 @@ export default function DashboardPage() {
             {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
             {overviewKpis.map(k => {
               const Icon = k.icon;
               return (
