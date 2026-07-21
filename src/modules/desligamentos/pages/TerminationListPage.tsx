@@ -1,13 +1,14 @@
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useTerminations, useTerminationSetStatus } from '../hooks/useTerminationQueries';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, UserMinus, Building2, Calendar, Briefcase } from 'lucide-react';
+import { PlusCircle, UserMinus, Building2, Calendar, Briefcase, XCircle } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
+import { StatusBadge } from '@/components/StatusBadge';
+import { QuickActionButton } from '@/components/QuickActionButton';
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
@@ -17,16 +18,6 @@ const STATUS_LABELS: Record<string, string> = {
   retornado: 'Devolvido',
   desligamento_concluido: 'Concluído',
   cancelado: 'Cancelado',
-};
-
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  rascunho: 'outline',
-  em_aprovacao: 'secondary',
-  aprovado: 'default',
-  reprovado: 'destructive',
-  retornado: 'secondary',
-  desligamento_concluido: 'default',
-  cancelado: 'destructive',
 };
 
 const TIPO_LABELS: Record<string, string> = {
@@ -66,21 +57,19 @@ export default function TerminationListPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <UserMinus className="w-6 h-6 text-primary" /> Desligamentos
-          </h1>
-          <p className="text-sm text-muted-foreground">Gestão de processos de desligamento de colaboradores</p>
-        </div>
-        {canCreate && (
-          <Button asChild>
+      <PageHeader
+        icon={UserMinus}
+        title="Desligamentos"
+        subtitle="Gestão de processos de desligamento de colaboradores"
+        actions={canCreate ? (
+          <Button asChild className="gap-2">
             <Link to="/desligamentos/new">
-              <PlusCircle className="w-4 h-4 mr-2" /> Novo Desligamento
+              <PlusCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Novo Desligamento</span>
             </Link>
           </Button>
-        )}
-      </div>
+        ) : null}
+      />
 
       {isLoading ? (
         <div className="space-y-3">
@@ -109,13 +98,14 @@ export default function TerminationListPage() {
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-foreground truncate">
                         {item.collaborator?.full_name ?? '—'}
                       </span>
-                      <Badge variant={STATUS_VARIANTS[item.status] ?? 'outline'}>
-                        {STATUS_LABELS[item.status] ?? item.status}
-                      </Badge>
+                      <StatusBadge
+                        status={item.status}
+                        label={STATUS_LABELS[item.status] ?? item.status}
+                      />
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                       {item.collaborator?.role_name && (
@@ -142,14 +132,12 @@ export default function TerminationListPage() {
                     </p>
                   </div>
                   {item.status === 'rascunho' && canCreate && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive shrink-0"
+                    <QuickActionButton
+                      label="Cancelar"
+                      icon={XCircle}
+                      tone="danger"
                       onClick={(e) => { e.stopPropagation(); handleCancel(item.id); }}
-                    >
-                      Cancelar
-                    </Button>
+                    />
                   )}
                 </div>
               </CardContent>
