@@ -12,7 +12,7 @@ export function usePurchaseMutations() {
     mutationFn: async (data: Partial<PurchaseRequest>) => {
       if (!user) throw new Error('Usuário não autenticado');
       
-      const { data: result, error } = await supabase
+      const { data: result, error } = await (supabase as any)
         .from('purchases')
         .insert([{ ...data, requester_user_id: user.id }])
         .select()
@@ -28,7 +28,7 @@ export function usePurchaseMutations() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<PurchaseRequest> }) => {
-      const { data: result, error } = await supabase
+      const { data: result, error } = await (supabase as any)
         .from('purchases')
         .update(data)
         .eq('id', id)
@@ -45,15 +45,16 @@ export function usePurchaseMutations() {
 
   const submitMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase.rpc('submit_purchase_request', {
+      const { data, error } = await (supabase as any).rpc('submit_purchase_request', {
         p_request_id: id
       });
       
       if (error) throw error;
-      if (data && data.code) {
-        throw new Error(data.message || 'Erro ao enviar para aprovação');
+      const result = data as any;
+      if (result && result.code) {
+        throw new Error(result.message || 'Erro ao enviar para aprovação');
       }
-      return data;
+      return result;
     },
     onSuccess: (_, id) => {
       refreshApprovalData(queryClient, id);
@@ -62,7 +63,7 @@ export function usePurchaseMutations() {
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('purchases')
         .update({ status: 'cancelado' })
         .eq('id', id)

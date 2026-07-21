@@ -23,7 +23,7 @@ export function useCollaborators(filters?: { active?: boolean; sector_id?: strin
       const { data: collabs, error } = await q;
       if (error) throw error;
       
-      let finalData = (collabs || []) as Collaborator[];
+      let finalData = (collabs || []) as unknown as Collaborator[];
 
       if (filters?.includeProfiles) {
         const { data: profiles, error: profError } = await supabase
