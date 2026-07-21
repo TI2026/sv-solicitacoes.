@@ -132,19 +132,18 @@ export default function AdmissionListPage() {
           {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-36 rounded-lg" />)}
         </div>
       ) : !items || items.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <UserPlus className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">
-              {filters.status || filters.search || filters.priority || filters.obra
-                ? 'Nenhum resultado para os filtros selecionados'
-                : 'Nenhuma solicitação de admissão'}
-            </p>
-            {canCreate && !filters.status && (
-              <Button variant="outline" className="mt-4" onClick={() => navigate('/admissions/new')}>Criar Primeira</Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={UserPlus}
+          title={filters.status || filters.search || filters.priority || filters.obra
+            ? 'Nenhum resultado para os filtros selecionados'
+            : 'Nenhuma solicitação de admissão'}
+          description={filters.status || filters.search || filters.priority || filters.obra
+            ? 'Tente ajustar os filtros para ampliar a busca.'
+            : 'Novas solicitações de admissão aparecerão aqui.'}
+          action={canCreate && !filters.status ? (
+            <Button variant="outline" onClick={() => navigate('/admissions/new')}>Criar Primeira</Button>
+          ) : null}
+        />
       ) : viewMode === 'cards' ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {items.map((item) => (
