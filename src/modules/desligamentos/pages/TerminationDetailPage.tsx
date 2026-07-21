@@ -8,6 +8,7 @@ import { ArrowLeft, UserMinus, Building2, Calendar, Briefcase, User, Hash, Clock
 import { StatusBadge } from '@/components/StatusBadge';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { StatusTimeline } from '@/components/StatusTimeline';
+import { FinalReviewChecklist } from '@/components/FinalReviewChecklist';
 import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -161,11 +162,6 @@ export default function TerminationDetailPage() {
                   Enviar para Aprovação
                 </Button>
               )}
-              {item.status === 'aprovado' && (
-                <Button onClick={handleConclude} disabled={setStatusMutation.isPending}>
-                  Concluir Desligamento
-                </Button>
-              )}
               {['rascunho', 'retornado', 'aprovado'].includes(item.status) && (
                 <Button
                   variant="destructive"
@@ -176,6 +172,28 @@ export default function TerminationDetailPage() {
                 </Button>
               )}
             </div>
+          )}
+
+          {canManage && item.status === 'aprovado' && (
+            <FinalReviewChecklist
+              description="Confirme os itens de RH antes de concluir o desligamento."
+              items={[
+                { id: 'docs', label: 'Documentos rescisórios preparados', hint: 'TRCT, aviso prévio e homologação quando aplicável.' },
+                { id: 'epis', label: 'EPIs e materiais devolvidos', hint: 'Confira o relatório de devolução do colaborador.' },
+                { id: 'acessos', label: 'Acessos revogados', hint: 'Sistemas, e-mail, crachá e chaves.' },
+                { id: 'pagto', label: 'Verbas rescisórias validadas', hint: 'Cálculo conferido pelo financeiro.' },
+              ]}
+            >
+              {(allChecked) => (
+                <Button
+                  onClick={handleConclude}
+                  disabled={!allChecked || setStatusMutation.isPending}
+                  className="w-full sm:w-auto"
+                >
+                  Concluir Desligamento
+                </Button>
+              )}
+            </FinalReviewChecklist>
           )}
         </CardContent>
           </Card>
