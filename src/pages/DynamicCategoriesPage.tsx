@@ -11,9 +11,10 @@ interface Props {
   fieldKey: string;
   title: string;
   description: string;
+  isTab?: boolean;
 }
 
-export default function DynamicCategoriesPage({ module, fieldKey, title, description }: Props) {
+export default function DynamicCategoriesPage({ module, fieldKey, title, description, isTab }: Props) {
   const [search, setSearch] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const { hasRole } = useAuth();
@@ -33,17 +34,19 @@ export default function DynamicCategoriesPage({ module, fieldKey, title, descrip
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-24 animate-fade-in">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Tag className="w-6 h-6 text-primary" /> {title}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {description}
-          </p>
+    <div className={`animate-fade-in ${isTab ? 'space-y-4' : 'space-y-6 max-w-5xl mx-auto pb-24'}`}>
+      {!isTab && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Tag className="w-6 h-6 text-primary" /> {title}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {description}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {canManage && (

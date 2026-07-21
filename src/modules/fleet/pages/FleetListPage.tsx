@@ -180,12 +180,13 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
   );
 }
 
-export default function FleetListPage() {
+export default function FleetListPage({ requestType }: { requestType?: string }) {
   const { user, hasAnyRole } = useAuth();
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const canSeeDiaria = hasAnyRole(['diretoria', 'administrativo']);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('abastecimento');
+  const initialTab = requestType || 'abastecimento';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'aprovadas' | 'concluidos'>('pendentes');
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const softDelete = useSoftDeleteRequest();
@@ -198,6 +199,12 @@ export default function FleetListPage() {
       setActiveTab('abastecimento');
     }
   }, [activeTab, canSeeDiaria]);
+
+  useEffect(() => {
+    if (requestType) {
+      setActiveTab(requestType);
+    }
+  }, [requestType]);
 
   const [page, setPage] = useState(1);
 
@@ -240,21 +247,23 @@ export default function FleetListPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => {
-        setActiveTab(v); setSubFilter('pendentes'); setPage(1);
+        if (!requestType) { setActiveTab(v); setSubFilter('pendentes'); setPage(1); }
       }} className="w-full">
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="abastecimento" className="gap-1.5">
-            <Fuel className="w-3.5 h-3.5" /> Abastecimento
-          </TabsTrigger>
-          <TabsTrigger value="reembolso" className="gap-1.5">
-            <Receipt className="w-3.5 h-3.5" /> Reembolso
-          </TabsTrigger>
-          {canSeeDiaria && (
-            <TabsTrigger value="diaria" className="gap-1.5">
-              <Briefcase className="w-3.5 h-3.5" /> Diária
+        {!requestType && (
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="abastecimento" className="gap-1.5">
+              <Fuel className="w-3.5 h-3.5" /> Abastecimento
             </TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="reembolso" className="gap-1.5">
+              <Receipt className="w-3.5 h-3.5" /> Reembolso
+            </TabsTrigger>
+            {canSeeDiaria && (
+              <TabsTrigger value="diaria" className="gap-1.5">
+                <Briefcase className="w-3.5 h-3.5" /> Diária
+              </TabsTrigger>
+            )}
+          </TabsList>
+        )}
 
         <TabsContent value="abastecimento" className="space-y-3 mt-3">
           <InfoCard title="Como funciona o Abastecimento?">

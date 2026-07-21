@@ -309,13 +309,16 @@ export default function ApprovalChainsTab() {
                 <p className="text-xs text-muted-foreground italic">Nenhuma etapa configurada no backend para este fluxo.</p>
               )}
               {steps.map((step, idx) => (
-                <div key={idx} className="border border-border rounded-lg p-3 mb-2 space-y-2 relative bg-card">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="shrink-0 bg-background">Etapa {step.stepOrder}</Badge>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold">{step.name || `Etapa ${step.stepOrder}`}</span>
-                      {step.description && <span className="text-xs text-muted-foreground">{step.description}</span>}
+                <div key={idx} className="border border-border rounded-lg p-3 mb-2 space-y-2 relative bg-card shadow-sm opacity-100">
+                  <div className="flex items-center justify-between mb-2 pb-2 border-b">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="shrink-0">Etapa {step.stepOrder}</Badge>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-foreground">{step.name || `Etapa ${step.stepOrder}`}</span>
+                        {step.description && <span className="text-xs text-muted-foreground">{step.description}</span>}
+                      </div>
                     </div>
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground">Obrigatória</Badge>
                   </div>
 
                   <div>
@@ -402,17 +405,10 @@ export default function ApprovalChainsTab() {
                   </div>
                   
                   {APPROVER_TYPE_HELPERS[step.approverType] && (
-                    <div className="bg-muted p-2 rounded text-[10px] text-muted-foreground flex gap-1.5 items-start mt-2">
-                      <Info className="w-3 h-3 mt-0.5 shrink-0" />
-                      {APPROVER_TYPE_HELPERS[step.approverType]}
+                    <div className="bg-muted p-2.5 rounded-md text-[11px] text-muted-foreground flex gap-2 items-start mt-3">
+                      <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary/70" />
+                      <span>{APPROVER_TYPE_HELPERS[step.approverType]}</span>
                     </div>
-                  )}
-
-                  {APPROVER_TYPE_HELPERS[step.approverType] && (
-                    <p className="text-xs text-muted-foreground flex items-start gap-1">
-                      <Info className="w-3 h-3 mt-0.5 shrink-0" />
-                      {APPROVER_TYPE_HELPERS[step.approverType]}
-                    </p>
                   )}
                 </div>
               ))}

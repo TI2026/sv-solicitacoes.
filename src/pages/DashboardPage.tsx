@@ -127,35 +127,25 @@ export default function DashboardPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          BLOCOS DA CENTRAL OPERACIONAL — Ordem por prioridade operacional:
-          1. O que exige ação imediata (Fila)
-          2. Anomalias que precisam de atenção (Pendências Críticas)
-          3. Visão do próprio usuário (Minhas Solicitações)
-          4. O que aconteceu no sistema (Atividades Recentes)
-          5. Atalhos de navegação (Acesso Rápido)
-          6. Indicadores e fluxos de controle (abaixo nas Tabs)
+          BLOCOS DA CENTRAL OPERACIONAL — Ordem conforme RC2.1:
+          1. Visão Geral (RecentActivityWidget)
+          2. Minhas Solicitações (MyRequestsWidget)
+          3. Minha Fila (MyQueueWidget)
+          4. Indicadores (Cockpit de Indicadores)
+          5. Atalhos (QuickAccessWidget)
+          6. Pendências (CriticalPendingWidget)
       ══════════════════════════════════════════════════════════════════════ */}
 
-      {/* Bloco 1 — Minha Fila (apenas para aprovadores) */}
-      {isApprovalUser && <MyQueueWidget userId={user.id} />}
-
-      {/* Bloco 2 — Pendências Críticas (gestores e supervisores) */}
-      <CriticalPendingWidget canManage={canManage} />
-
-      {/* Blocos 3 e 5 — Minhas Solicitações + Acesso Rápido (grid responsivo) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <MyRequestsWidget userId={user.id} />
-        </div>
-        <div>
-          <QuickAccessWidget canViewAdmissions={canViewAdmissions} />
-        </div>
-      </div>
-
-      {/* Bloco 4 — Últimas Movimentações */}
+      {/* 1. Visão Geral */}
       <RecentActivityWidget />
 
-      {/* ── Cockpit de Indicadores por Papel ───────────────────────────────── */}
+      {/* 2. Minhas Solicitações */}
+      <MyRequestsWidget userId={user.id} />
+
+      {/* 3. Minha Fila */}
+      {isApprovalUser && <MyQueueWidget userId={user.id} />}
+
+      {/* 4. Indicadores */}
       <div className="space-y-6 mt-8">
         <h2 className="text-lg font-semibold text-foreground border-b pb-2">Visão Operacional</h2>
         
@@ -184,6 +174,18 @@ export default function DashboardPage() {
             />
           </div>
         )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        {/* 5. Atalhos */}
+        <div>
+          <QuickAccessWidget canViewAdmissions={canViewAdmissions} />
+        </div>
+
+        {/* 6. Pendências */}
+        <div>
+          <CriticalPendingWidget canManage={canManage} />
+        </div>
       </div>
     </div>
   );

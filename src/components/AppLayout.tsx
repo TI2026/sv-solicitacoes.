@@ -147,52 +147,52 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const rawNavGroups: NavGroup[] = [
     {
-      label: 'Geral',
+      label: 'Dashboard',
       items: [
         { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
+        { to: '/dashboard#fila', label: 'Pendências', icon: AlertTriangle, show: isApprovalUser, badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' as const } : null },
       ],
     },
     {
       label: 'Operacional',
       items: [
         {
-          to: '/fleet?filter=minhas',
+          to: '/fleet',
           label: 'Abastecimento',
           icon: Fuel,
           show: true,
           badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' as const } : null,
         },
-        { to: '/reembolsos', label: 'Reembolso', icon: FileText, show: true },
         { to: '/diarias', label: 'Diárias', icon: FileText, show: true },
+        { to: '/reembolsos', label: 'Reembolsos', icon: FileText, show: true },
         { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: true },
         { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
-        { to: '/desligamentos', label: 'Desligamentos', icon: UserMinus, show: canViewAdmission },
-        { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewEpis },
+        { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
       ],
     },
     {
       label: 'Cadastros',
       items: [
         { to: '/colaboradores', label: 'Colaboradores', icon: Users, show: canManage },
+        { to: '/desligamentos', label: 'Desligamentos', icon: UserMinus, show: canViewAdmission },
         { to: '/setores', label: 'Setores', icon: Building2, show: canViewSectors },
-        { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
-        { to: '/categorias', label: 'Categorias', icon: Package, show: true },
-        { to: '/fornecedores', label: 'Fornecedores', icon: Building2, show: true },
-        { to: '/centros-custo', label: 'Centros de custo', icon: Building2, show: true },
-      ],
-    },
-    {
-      label: 'Relatórios',
-      items: [
-        { to: '/relatorios', label: 'Gerais', icon: ClipboardList, show: canManage },
+        { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewEpis },
       ],
     },
     {
       label: 'Configurações',
       items: [
-        { to: '/permissoes', label: 'Permissões e Fluxos', icon: Settings2, show: canManage },
-        { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
-        { to: '/perfil', label: 'Meu Perfil', icon: Settings2, show: true },
+        { to: '/permissoes', label: 'Fluxos', icon: GitBranch, show: canManage },
+        { to: '/permissoes', label: 'Permissões', icon: Shield, show: canManage },
+        { to: '/auditoria', label: 'Auditoria', icon: CheckSquare, show: canManage },
+        { to: '/perfil', label: 'Perfil', icon: Settings2, show: true },
+        { to: '/configuracoes', label: 'Gerais', icon: Settings2, show: canManage },
+      ],
+    },
+    {
+      label: 'Relatórios',
+      items: [
+        { to: '/relatorios', label: 'Relatórios', icon: ClipboardList, show: canManage },
       ],
     },
   ];
