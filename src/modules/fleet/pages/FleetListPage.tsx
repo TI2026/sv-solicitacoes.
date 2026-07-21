@@ -199,11 +199,10 @@ export default function FleetListPage({ requestType }: { requestType?: string })
     }
   }, [requestType]);
 
-  const [page, setPage] = useState(1);
-
-  const { data: abastRes, isLoading: abastLoading } = useFuelRequests(user?.id, isAdmin, 'abastecimento', page);
-  const { data: reembolsoRes, isLoading: reembolsoLoading } = useFuelRequests(user?.id, isAdmin, 'reembolso', page);
-  const { data: diariaRes, isLoading: diariaLoading } = useFuelRequests(canSeeDiaria ? user?.id : undefined, canSeeDiaria ? isAdmin : false, canSeeDiaria ? 'diaria' : undefined, page);
+  // Sem paginação manual (RC Final — Onda B): busca ampla, filtragem via tabs/subfilter.
+  const { data: abastRes, isLoading: abastLoading } = useFuelRequests(user?.id, isAdmin, 'abastecimento', 1, 200);
+  const { data: reembolsoRes, isLoading: reembolsoLoading } = useFuelRequests(user?.id, isAdmin, 'reembolso', 1, 200);
+  const { data: diariaRes, isLoading: diariaLoading } = useFuelRequests(canSeeDiaria ? user?.id : undefined, canSeeDiaria ? isAdmin : false, canSeeDiaria ? 'diaria' : undefined, 1, 200);
   const abastGroups = useMemo(() => groupRequests(abastRes?.data), [abastRes]);
   const reembolsoGroups = useMemo(() => groupRequests(reembolsoRes?.data), [reembolsoRes]);
   const diariaGroups = useMemo(() => groupDiariaRequests(diariaRes?.data), [diariaRes]);
@@ -237,7 +236,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
       />
 
       <Tabs value={activeTab} onValueChange={(v) => {
-        if (!requestType) { setActiveTab(v); setSubFilter('pendentes'); setPage(1); }
+        if (!requestType) { setActiveTab(v); setSubFilter('pendentes'); }
       }} className="w-full">
         {!requestType && (
           <TabsList className="w-full sm:w-auto">
@@ -353,12 +352,6 @@ export default function FleetListPage({ requestType }: { requestType?: string })
           </TabsContent>
         )}
       </Tabs>
-
-      <div className="flex justify-between items-center mt-4 p-4 border-t border-border bg-card rounded-b-lg">
-        <Button variant="outline" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
-        <span className="text-sm text-muted-foreground">Página {page}</span>
-        <Button variant="outline" onClick={() => setPage(p => p + 1)}>Próxima</Button>
-      </div>
 
       {/* Delete confirmation dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
