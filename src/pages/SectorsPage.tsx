@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -125,7 +126,13 @@ export default function SectorsPage() {
       </div>
 
       <div className="space-y-3">
-        {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhum setor encontrado</p>}
+        {filtered.length === 0 && (
+          <EmptyState
+            icon={Building2}
+            title="Nenhum setor encontrado"
+            description="Ajuste os filtros ou cadastre um novo setor."
+          />
+        )}
         {filtered.map((s: any) => (
           <Card key={s.id}>
             <CardContent className="p-4">

@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useCollaborators } from '@/hooks/useCollaborators';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Users } from 'lucide-react';
+import { Loader2, Search, Users, UserX } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { CollaboratorDetailPanel } from './CollaboratorDetailPanel';
+import { EmptyState } from '@/components/EmptyState';
 
 export default function CollaboratorsPage() {
   const [search, setSearch] = useState('');
@@ -51,7 +52,12 @@ export default function CollaboratorsPage() {
           {isLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
           ) : filtered.length === 0 ? (
-            <p className="text-center py-12 text-muted-foreground">Nenhum colaborador encontrado</p>
+            <EmptyState
+              icon={UserX}
+              title="Nenhum colaborador encontrado"
+              description={search ? 'Ajuste os filtros ou tente outro termo de busca.' : 'Ainda não há colaboradores cadastrados no sistema.'}
+              className="border-none shadow-none"
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
