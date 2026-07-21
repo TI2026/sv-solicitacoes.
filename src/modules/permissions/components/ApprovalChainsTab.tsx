@@ -45,6 +45,20 @@ export default function ApprovalChainsTab() {
   const [notifyNext, setNotifyNext] = useState(true);
   const [steps, setSteps] = useState<StepDraft[]>([]);
 
+  const openNewFlow = (moduleId: string) => {
+    setEditModuleId(moduleId);
+    setEditFlowId(undefined);
+    setEditFlowInUse(false);
+    setFlowName('');
+    setApprovalType('sequential');
+    setRequireReason(true);
+    setAllowReturn(false);
+    setReturnMode('requester');
+    setNotifyNext(true);
+    setSteps([]);
+    setDialogOpen(true);
+  };
+
   const openEditFlow = async (flow: any) => {
     setEditModuleId(flow.module_id);
     setEditFlowId(flow.id);
