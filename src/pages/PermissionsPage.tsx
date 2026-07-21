@@ -234,7 +234,7 @@ export default function PermissionsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList className="grid w-full" style={{ gridTemplateColumns: canManageSettings ? 'repeat(5, 1fr)' : 'repeat(2, 1fr)' }}>
+        <TabsList className="grid w-full" style={{ gridTemplateColumns: canManageSettings ? 'repeat(4, 1fr)' : 'repeat(1, 1fr)' }}>
           {canManageSettings && (
             <TabsTrigger value="roles" className="gap-2">
               <Shield className="w-4 h-4" />
@@ -253,10 +253,6 @@ export default function PermissionsPage() {
               <span className="hidden sm:inline">Aprovadores</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="in-progress" className="gap-2">
-            <ListChecks className="w-4 h-4" />
-            <span className="hidden sm:inline">Em Andamento</span>
-          </TabsTrigger>
           <TabsTrigger value="my-approvals" className="gap-2">
             <ClipboardCheck className="w-4 h-4" />
             <span className="hidden sm:inline">Minhas Aprovações</span>
@@ -266,7 +262,6 @@ export default function PermissionsPage() {
         {canManageSettings && <TabsContent value="roles"><RolesPermissionsTab /></TabsContent>}
         {canManageSettings && <TabsContent value="users"><UsersManagementTab /></TabsContent>}
         {canManageSettings && <TabsContent value="chains"><ApprovalChainsTab /></TabsContent>}
-        <TabsContent value="in-progress"><ApprovalInProgressTab /></TabsContent>
         <TabsContent value="my-approvals"><MyApprovalsTab /></TabsContent>
       </Tabs>
     </div>
