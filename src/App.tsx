@@ -23,6 +23,9 @@ import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
+import DiariasListPage from "@/modules/diarias/pages/DiariasListPage";
+import ReembolsosListPage from "@/modules/reembolsos/pages/ReembolsosListPage";
+
 // Fleet module
 import FleetListPage from "@/modules/fleet/pages/FleetListPage";
 import FleetNewPage from "@/modules/fleet/pages/FleetNewPage";
@@ -117,15 +120,16 @@ const AppRoutes = () => (
     <Route path="/admin/maintenance" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><MaintenancePage /></RoleGuard></ProtectedRoute>} />
     
     {/* Cadastros (Dynamic Categories) */}
+    <Route path="/categorias" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="category" title="Categorias" description="Gerencie a lista de categorias do módulo de compras." /></ProtectedRoute>} />
     <Route path="/fornecedores" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="supplier" title="Fornecedores" description="Gerencie a lista de fornecedores disponíveis no módulo de compras." /></ProtectedRoute>} />
     <Route path="/centros-custo" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="cost_center" title="Centros de Custo" description="Gerencie a lista de centros de custo." /></ProtectedRoute>} />
 
     {/* Relatórios */}
     <Route path="/relatorios" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><ReportsPage /></RoleGuard></ProtectedRoute>} />
 
-    {/* Modulos futuros (Placeholders) */}
-    <Route path="/reembolsos" element={<ProtectedRoute><ConstructionPage /></ProtectedRoute>} />
-    <Route path="/diarias" element={<ProtectedRoute><ConstructionPage /></ProtectedRoute>} />
+    {/* Diárias e Reembolsos */}
+    <Route path="/reembolsos" element={<ProtectedRoute><ReembolsosListPage /></ProtectedRoute>} />
+    <Route path="/diarias" element={<ProtectedRoute><DiariasListPage /></ProtectedRoute>} />
 
     {/* Fleet */}
     <Route path="/fleet" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />

@@ -51,11 +51,15 @@ export function useSectors() {
 }
 
 export interface StepDraft {
+  id?: string;
   stepOrder: number;
+  name?: string;
+  description?: string;
   approverType: 'specific_user' | 'sector';
   fixedUserId: string | null;
   sectorId: string | null;
   timeoutHours: number | null;
+  isRequired?: boolean;
 }
 
 export function useSaveApprovalFlow() {
@@ -158,6 +162,8 @@ export function useSaveApprovalFlow() {
       // and guarantees DELETE + INSERT happen in the same transaction.
       const stepsPayload = params.steps.map((s) => {
         return {
+          name: s.name,
+          description: s.description,
           approver_type: s.approverType,
           approver_user_id: s.approverType === 'specific_user' ? s.fixedUserId : null,
           sector_id: s.approverType === 'sector' ? s.sectorId : null,

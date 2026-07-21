@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Loader2, Search, Users } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
+import { CollaboratorDetailPanel } from './CollaboratorDetailPanel';
 
 export default function CollaboratorsPage() {
   const [search, setSearch] = useState('');
+  const [selectedCollaborator, setSelectedCollaborator] = useState<any>(null);
   const { data: collaborators, isLoading } = useCollaborators({ includeProfiles: true });
 
   const filtered = (collaborators || []).filter(c => {
@@ -65,7 +67,11 @@ export default function CollaboratorsPage() {
                 </thead>
                 <tbody>
                   {filtered.map(c => (
-                    <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <tr 
+                      key={c.id} 
+                      className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer"
+                      onClick={() => setSelectedCollaborator(c)}
+                    >
                       <td className="py-2.5 px-3 font-medium">
                         {c.full_name}
                         {c._isProfileOnly && <span className="ml-2 text-[10px] text-muted-foreground border px-1 rounded bg-muted/50">Perfil</span>}
@@ -97,6 +103,12 @@ export default function CollaboratorsPage() {
           )}
         </CardContent>
       </Card>
+      
+      <CollaboratorDetailPanel
+        collaborator={selectedCollaborator}
+        open={!!selectedCollaborator}
+        onOpenChange={(open) => !open && setSelectedCollaborator(null)}
+      />
     </div>
   );
 }

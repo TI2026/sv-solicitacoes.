@@ -45,20 +45,6 @@ export default function ApprovalChainsTab() {
   const [notifyNext, setNotifyNext] = useState(true);
   const [steps, setSteps] = useState<StepDraft[]>([]);
 
-  const openNewFlow = (moduleId: string) => {
-    setEditModuleId(moduleId);
-    setEditFlowId(undefined);
-    setEditFlowInUse(false);
-    setFlowName('');
-    setApprovalType('sequential');
-    setRequireReason(true);
-    setAllowReturn(false);
-    setReturnMode('requester');
-    setNotifyNext(true);
-    setSteps([]);
-    setDialogOpen(true);
-  };
-
   const openEditFlow = async (flow: any) => {
     setEditModuleId(flow.module_id);
     setEditFlowId(flow.id);
@@ -71,18 +57,22 @@ export default function ApprovalChainsTab() {
     setSteps(
       (flow.approval_flow_steps || [])
         .sort((a: any, b: any) => a.step_order - b.step_order)
+        .filter((s: any) => s.active !== false) // hide inactive steps
         .map((s: any) => {
           const parsed = parseApproverType(s.approver_type || 'specific_user');
           return {
+            id: s.id,
+            name: s.name,
+            description: s.description,
             stepOrder: s.step_order,
             approverType: parsed.type,
             fixedUserId: parsed.type === 'specific_user' ? (s.approver_user_id || null) : null,
             sectorId: parsed.type === 'sector' ? (s.sector_id || s.fixed_sector_id || null) : null,
             timeoutHours: s.timeout_hours || null,
+            isRequired: s.is_required,
           };
         })
     );
-    // Check if flow has been used
     const { count } = await supabase
       .from('approval_requests')
       .select('id', { count: 'exact', head: true })
@@ -91,19 +81,10 @@ export default function ApprovalChainsTab() {
     setDialogOpen(true);
   };
 
-  const addStep = () => {
-    setSteps(prev => [...prev, { stepOrder: prev.length + 1, approverType: 'specific_user', fixedUserId: null, sectorId: null, timeoutHours: null }]);
-  };
-
-  const removeStep = (idx: number) => {
-    setSteps(prev => prev.filter((_, i) => i !== idx).map((s, i) => ({ ...s, stepOrder: i + 1 })));
-  };
-
   const updateStep = (idx: number, patch: Partial<StepDraft>) => {
     setSteps(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const updated = { ...s, ...patch };
-      // Reset unrelated fields when changing type
       if (patch.approverType && patch.approverType !== s.approverType) {
         updated.fixedUserId = null;
         updated.sectorId = null;
@@ -208,9 +189,7 @@ export default function ApprovalChainsTab() {
                       Editar fluxo
                     </Button>
                   ) : (
-                    <Button size="sm" onClick={() => openNewFlow(mod.id)} className="gap-1">
-                      <Plus className="w-4 h-4" /> Criar fluxo
-                    </Button>
+                    <span className="text-xs text-muted-foreground italic">Fluxo não configurado no backend</span>
                   )}
                 </div>
               </div>
@@ -324,21 +303,19 @@ export default function ApprovalChainsTab() {
             {/* Steps */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Etapas de Aprovação</Label>
-                <Button variant="outline" size="sm" onClick={addStep} className="gap-1">
-                  <Plus className="w-3 h-3" /> Adicionar etapa
-                </Button>
+                <Label>Etapas de Aprovação (Configuração Fixa do Módulo)</Label>
               </div>
               {steps.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">Adicione ao menos uma etapa de aprovação</p>
+                <p className="text-xs text-muted-foreground italic">Nenhuma etapa configurada no backend para este fluxo.</p>
               )}
               {steps.map((step, idx) => (
-                <div key={idx} className="border border-border rounded-lg p-3 mb-2 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="shrink-0">Etapa {step.stepOrder}</Badge>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeStep(idx)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                <div key={idx} className="border border-border rounded-lg p-3 mb-2 space-y-2 relative bg-card">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="shrink-0 bg-background">Etapa {step.stepOrder}</Badge>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold">{step.name || `Etapa ${step.stepOrder}`}</span>
+                      {step.description && <span className="text-xs text-muted-foreground">{step.description}</span>}
+                    </div>
                   </div>
 
                   <div>

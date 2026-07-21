@@ -27,8 +27,8 @@ import { ptBR } from 'date-fns/locale';
 
 const MODULE_ROUTE: Record<string, string> = {
   abastecimento: '/fleet',
-  reembolso: '/fleet',
-  diaria: '/fleet',
+  reembolso: '/reembolsos',
+  diaria: '/diarias',
   admissions: '/admissions',
   compras: '/purchases',
 };

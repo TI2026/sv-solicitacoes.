@@ -33,7 +33,7 @@ export default function TerminationNewPage() {
   const statusMutation = useTerminationSetStatus();
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: collaborators = [] } = useCollaborators({ active: true });
+  const { data: collaborators = [] } = useCollaborators({ active: true, includeProfiles: true });
 
   const [collaboratorId, setCollaboratorId] = useState('');
   const [selectedCollab, setSelectedCollab] = useState<any>(null);
@@ -119,6 +119,7 @@ export default function TerminationNewPage() {
             <CollaboratorSelect 
               value={collaboratorId}
               onChange={setCollaboratorId}
+              includeProfiles={true}
             />
           </div>
 

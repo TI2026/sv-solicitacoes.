@@ -14,6 +14,7 @@ interface CollaboratorSelectProps {
   className?: string;
   placeholder?: string;
   sectorId?: string; // Optional filter by sector
+  includeProfiles?: boolean;
 }
 
 export function CollaboratorSelect({
@@ -22,10 +23,11 @@ export function CollaboratorSelect({
   disabled,
   className,
   placeholder = 'Selecione um colaborador...',
-  sectorId
+  sectorId,
+  includeProfiles
 }: CollaboratorSelectProps) {
   const [open, setOpen] = React.useState(false);
-  const { data: collaborators, isLoading } = useCollaborators({ active: true, sector_id: sectorId });
+  const { data: collaborators, isLoading } = useCollaborators({ active: true, sector_id: sectorId, includeProfiles });
 
   const selectedCollab = React.useMemo(() => 
     collaborators?.find((c) => c.id === value),

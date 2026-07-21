@@ -171,26 +171,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       ],
     },
     {
-      label: 'Aprovações',
-      items: [
-        {
-          to: '/permissoes?tab=minhas-aprovacoes',
-          label: 'Pendentes',
-          icon: CheckSquare,
-          show: isApprovalUser,
-          badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' as const } : null,
-        },
-        { to: '/permissoes?tab=fluxos', label: 'Fluxos (Engine)', icon: GitBranch, show: canManage },
-      ],
-    },
-    {
       label: 'Cadastros',
       items: [
         { to: '/colaboradores', label: 'Colaboradores', icon: Users, show: canManage },
         { to: '/setores', label: 'Setores', icon: Building2, show: canViewSectors },
         { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
+        { to: '/categorias', label: 'Categorias', icon: Package, show: true },
         { to: '/fornecedores', label: 'Fornecedores', icon: Building2, show: true },
-        { to: '/centros-custo', label: 'Centros de Custo', icon: Building2, show: true },
+        { to: '/centros-custo', label: 'Centros de custo', icon: Building2, show: true },
       ],
     },
     {
@@ -202,8 +190,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     {
       label: 'Configurações',
       items: [
-        { to: '/permissoes', label: 'Permissões & Cargos', icon: Lock, show: canManage },
+        { to: '/permissoes', label: 'Permissões e Fluxos', icon: Settings2, show: canManage },
         { to: '/auditoria', label: 'Auditoria', icon: Shield, show: canManage },
+        { to: '/perfil', label: 'Meu Perfil', icon: Settings2, show: true },
       ],
     },
   ];
