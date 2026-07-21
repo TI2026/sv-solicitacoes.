@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { MyQueueWidget } from '@/modules/dashboard/components/MyQueueWidget';
 import { CriticalPendingWidget } from '@/modules/dashboard/components/CriticalPendingWidget';
+import { ApprovalInProgressTab } from '@/pages/PermissionsPage';
 
 export default function PendingRequestsPage() {
   const { user, hasAnyRole } = useAuth();
@@ -50,6 +51,15 @@ export default function PendingRequestsPage() {
         </h2>
         <CriticalPendingWidget canManage={canManage} />
       </section>
+
+      {isApprovalUser && (
+        <section aria-labelledby="pend-andamento" className="space-y-3">
+          <h2 id="pend-andamento" className="text-lg font-semibold text-foreground border-b pb-2">
+            Em Andamento
+          </h2>
+          <ApprovalInProgressTab />
+        </section>
+      )}
     </div>
   );
 }
