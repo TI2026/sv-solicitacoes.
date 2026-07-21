@@ -10,11 +10,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 // Widgets da Central Operacional (Sprint 7)
 import { MyRequestsWidget } from '@/modules/dashboard/components/MyRequestsWidget';
 import { RecentActivityWidget } from '@/modules/dashboard/components/RecentActivityWidget';
 import { QuickAccessWidget } from '@/modules/dashboard/components/QuickAccessWidget';
+import { MyQueueWidget } from '@/modules/dashboard/components/MyQueueWidget';
+import { CriticalPendingWidget } from '@/modules/dashboard/components/CriticalPendingWidget';
 
 import { FuelMetricsBlock } from '@/modules/dashboard/components/FuelMetricsBlock';
 import { AdmissionMetricsBlock } from '@/modules/dashboard/components/AdmissionMetricsBlock';
@@ -134,7 +137,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-10 animate-fade-in pb-16">
+    <div className="space-y-6 animate-fade-in pb-16">
 
       {/* ── Cabeçalho ──────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
@@ -175,96 +178,145 @@ export default function DashboardPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          DASHBOARD — Estrutura RC Final (Sprint 13):
-          Minhas Solicitações + Acesso Rápido → Visão Geral →
-          Indicadores por módulo → Controle de Fluxos → Atividades Recentes
+          DASHBOARD ENTERPRISE — RC Final:
+          5 abas executivas (Geral · Operacional · Financeiro · Aprovações · Indicadores)
       ══════════════════════════════════════════════════════════════════════ */}
+      <Tabs defaultValue="geral" className="w-full">
+        <TabsList className="w-full flex flex-wrap justify-start h-auto gap-1 bg-muted/50 p-1">
+          <TabsTrigger value="geral" className="flex-1 min-w-[110px]">Geral</TabsTrigger>
+          <TabsTrigger value="operacional" className="flex-1 min-w-[110px]">Operacional</TabsTrigger>
+          {canSeeFinancials && (
+            <TabsTrigger value="financeiro" className="flex-1 min-w-[110px]">Financeiro</TabsTrigger>
+          )}
+          <TabsTrigger value="aprovacoes" className="flex-1 min-w-[110px]">Aprovações</TabsTrigger>
+          <TabsTrigger value="indicadores" className="flex-1 min-w-[110px]">Indicadores</TabsTrigger>
+        </TabsList>
 
-      {/* Área 1 — Minhas Solicitações (destaque) + Acesso Rápido */}
-      <section aria-labelledby="dash-minhas" className="space-y-3">
-        <h2 id="dash-minhas" className="text-lg font-semibold text-foreground border-b pb-2">
-          Minhas Solicitações
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <MyRequestsWidget userId={user.id} />
-          </div>
-          <div className="lg:col-span-1">
-            <QuickAccessWidget canViewAdmissions={canViewAdmissions} />
-          </div>
-        </div>
-      </section>
-
-      {/* Área 2 — Visão Geral (painel executivo) */}
-      <section aria-labelledby="dash-visao" className="space-y-3">
-        <h2 id="dash-visao" className="text-lg font-semibold text-foreground border-b pb-2">
-          Visão Geral
-        </h2>
-        {metricsLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-            {overviewKpis.map(k => {
-              const Icon = k.icon;
-              return (
-                <div key={k.label} className="border rounded-lg p-4 bg-card flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg ${k.bg} flex items-center justify-center shrink-0`}>
-                    <Icon className={`w-5 h-5 ${k.tone}`} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground truncate">{k.label}</p>
-                    <p className="text-2xl font-bold text-foreground leading-tight">{k.value}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Área 3 — Indicadores por módulo */}
-      <section aria-labelledby="dash-indicadores" className="space-y-4">
-        <h2 id="dash-indicadores" className="text-lg font-semibold text-foreground border-b pb-2">
-          Indicadores por módulo
-        </h2>
-        {metricsLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={canSeeFinancials} />
-            <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials={canSeeFinancials} />
-            {isRH && (
-              <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={canSeeFinancials} />
+        {/* ─── GERAL ─────────────────────────────────────────────────────── */}
+        <TabsContent value="geral" className="space-y-6 mt-6">
+          {/* Visão Geral */}
+          <section aria-labelledby="dash-visao" className="space-y-3">
+            <h2 id="dash-visao" className="text-lg font-semibold text-foreground border-b pb-2">
+              Visão Geral
+            </h2>
+            {metricsLoading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                {overviewKpis.map(k => {
+                  const Icon = k.icon;
+                  return (
+                    <div key={k.label} className="border rounded-lg p-4 bg-card flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg ${k.bg} flex items-center justify-center shrink-0`}>
+                        <Icon className={`w-5 h-5 ${k.tone}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground truncate">{k.label}</p>
+                        <p className="text-2xl font-bold text-foreground leading-tight">{k.value}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
+          </section>
+
+          {/* Acesso rápido + Minhas solicitações */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 space-y-3">
+              <h2 className="text-lg font-semibold text-foreground border-b pb-2">Minhas Solicitações</h2>
+              <MyRequestsWidget userId={user.id} />
+            </div>
+            <div className="lg:col-span-1 space-y-3">
+              <h2 className="text-lg font-semibold text-foreground border-b pb-2">Acesso Rápido</h2>
+              <QuickAccessWidget canViewAdmissions={canViewAdmissions} />
+            </div>
           </div>
+        </TabsContent>
+
+        {/* ─── OPERACIONAL ───────────────────────────────────────────────── */}
+        <TabsContent value="operacional" className="space-y-6 mt-6">
+          {metricsLoading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={false} />
+              <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials={false} />
+              {isRH && (
+                <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={false} />
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ─── FINANCEIRO (Master apenas) ────────────────────────────────── */}
+        {canSeeFinancials && (
+          <TabsContent value="financeiro" className="space-y-6 mt-6">
+            {metricsLoading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials />
+                <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials />
+                {isRH && (
+                  <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials />
+                )}
+              </div>
+            )}
+          </TabsContent>
         )}
-      </section>
 
-      {/* Área 4 — Controle de Fluxos (administradores) */}
-      {isAdmin && (
-        <section aria-labelledby="dash-fluxos" className="space-y-3">
-          <h2 id="dash-fluxos" className="text-lg font-semibold text-foreground border-b pb-2">
-            Controle de Fluxos
-          </h2>
-          <FlowControlPanel
-            navigate={navigate}
-            isRH={isRH}
-            canSeeFinancials={canSeeFinancials}
-          />
-        </section>
-      )}
+        {/* ─── APROVAÇÕES ────────────────────────────────────────────────── */}
+        <TabsContent value="aprovacoes" className="space-y-6 mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-foreground border-b pb-2">Minha Fila</h2>
+              <MyQueueWidget />
+            </div>
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-foreground border-b pb-2">Pendências Críticas</h2>
+              <CriticalPendingWidget />
+            </div>
+          </div>
+          {isAdmin && (
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold text-foreground border-b pb-2">Controle de Fluxos</h2>
+              <FlowControlPanel
+                navigate={navigate}
+                isRH={isRH}
+                canSeeFinancials={canSeeFinancials}
+              />
+            </section>
+          )}
+        </TabsContent>
 
-      {/* Área 5 — Atividades Recentes */}
-      <section aria-labelledby="dash-atividades" className="space-y-3">
-        <h2 id="dash-atividades" className="text-lg font-semibold text-foreground border-b pb-2">
-          Atividades Recentes
-        </h2>
-        <RecentActivityWidget />
-      </section>
+        {/* ─── INDICADORES ───────────────────────────────────────────────── */}
+        <TabsContent value="indicadores" className="space-y-6 mt-6">
+          {metricsLoading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={canSeeFinancials} />
+              <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials={canSeeFinancials} />
+              {isRH && (
+                <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={canSeeFinancials} />
+              )}
+            </div>
+          )}
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold text-foreground border-b pb-2">Atividades Recentes</h2>
+            <RecentActivityWidget />
+          </section>
+        </TabsContent>
+      </Tabs>
 
       {/* Voltar ao topo */}
       {showTop && (
