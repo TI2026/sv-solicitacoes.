@@ -213,7 +213,7 @@ export default function PermissionsPage() {
   const fallbackTab = canManageSettings ? 'roles' : 'my-approvals';
   const activeTab =
     requestedTab &&
-    (['my-approvals', 'in-progress'].includes(requestedTab) ||
+    (['my-approvals'].includes(requestedTab) ||
       (canManageSettings && ['roles', 'users', 'chains'].includes(requestedTab)))
       ? requestedTab
       : fallbackTab;
