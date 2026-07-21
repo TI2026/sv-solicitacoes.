@@ -7,57 +7,60 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
 import AppLayout from "@/components/AppLayout";
 import { RoleGuard } from "@/lib/roleGuard";
-import LoginPage from "@/pages/LoginPage";
-import DashboardPage from "@/pages/DashboardPage";
-import PendingRequestsPage from "@/pages/PendingRequestsPage";
-import AuditLogsPage from "@/pages/AuditLogsPage";
-import ProfilePage from "@/pages/ProfilePage";
-import SettingsPage from "@/pages/SettingsPage";
-import PermissionsPage from "@/pages/PermissionsPage";
-import SectorsPage from "@/pages/SectorsPage";
-import CollaboratorsPage from "@/pages/CollaboratorsPage";
-import DynamicCategoriesPage from "@/pages/DynamicCategoriesPage";
-import MaintenancePage from "@/pages/MaintenancePage";
-import ResetPasswordPage from "@/pages/ResetPasswordPage";
-import NotFound from "./pages/NotFound";
+import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
-import DiariasListPage from "@/modules/diarias/pages/DiariasListPage";
-import ReembolsosListPage from "@/modules/reembolsos/pages/ReembolsosListPage";
+// Lazy-loaded route pages — enables code splitting and reduces initial bundle
+const LoginPage = lazy(() => import("@/pages/LoginPage"));
+const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
+const PendingRequestsPage = lazy(() => import("@/pages/PendingRequestsPage"));
+const AuditLogsPage = lazy(() => import("@/pages/AuditLogsPage"));
+const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
+const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
+const PermissionsPage = lazy(() => import("@/pages/PermissionsPage"));
+const SectorsPage = lazy(() => import("@/pages/SectorsPage"));
+const CollaboratorsPage = lazy(() => import("@/pages/CollaboratorsPage"));
+const DynamicCategoriesPage = lazy(() => import("@/pages/DynamicCategoriesPage"));
+const MaintenancePage = lazy(() => import("@/pages/MaintenancePage"));
+const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+const DiariasListPage = lazy(() => import("@/modules/diarias/pages/DiariasListPage"));
+const ReembolsosListPage = lazy(() => import("@/modules/reembolsos/pages/ReembolsosListPage"));
 
 // Fleet module
-import FleetListPage from "@/modules/fleet/pages/FleetListPage";
-import FleetNewPage from "@/modules/fleet/pages/FleetNewPage";
-import FleetDetailPage from "@/modules/fleet/pages/FleetDetailPage";
-import VehiclesAdminPage from "@/modules/fleet/pages/VehiclesAdminPage";
+const FleetListPage = lazy(() => import("@/modules/fleet/pages/FleetListPage"));
+const FleetNewPage = lazy(() => import("@/modules/fleet/pages/FleetNewPage"));
+const FleetDetailPage = lazy(() => import("@/modules/fleet/pages/FleetDetailPage"));
+const VehiclesAdminPage = lazy(() => import("@/modules/fleet/pages/VehiclesAdminPage"));
 
 // Admissions module
-import AdmissionListPage from "@/modules/admissions/pages/AdmissionListPage";
-import AdmissionNewPage from "@/modules/admissions/pages/AdmissionNewPage";
-import AdmissionDetailPage from "@/modules/admissions/pages/AdmissionDetailPage";
-import CandidateDetailPage from "@/modules/admissions/pages/CandidateDetailPage";
-import PublicCandidatePage from "@/modules/admissions/pages/PublicCandidatePage";
-import PublicDocumentsPage from "@/modules/admissions/pages/PublicDocumentsPage";
-import PublicSignaturePage from "@/modules/admissions/pages/PublicSignaturePage";
+const AdmissionListPage = lazy(() => import("@/modules/admissions/pages/AdmissionListPage"));
+const AdmissionNewPage = lazy(() => import("@/modules/admissions/pages/AdmissionNewPage"));
+const AdmissionDetailPage = lazy(() => import("@/modules/admissions/pages/AdmissionDetailPage"));
+const CandidateDetailPage = lazy(() => import("@/modules/admissions/pages/CandidateDetailPage"));
+const PublicCandidatePage = lazy(() => import("@/modules/admissions/pages/PublicCandidatePage"));
+const PublicDocumentsPage = lazy(() => import("@/modules/admissions/pages/PublicDocumentsPage"));
+const PublicSignaturePage = lazy(() => import("@/modules/admissions/pages/PublicSignaturePage"));
 
 // EPI module
-import EpiCatalogPage from "@/modules/epis/pages/EpiCatalogPage";
-import EpiDeliveryPage from "@/modules/epis/pages/EpiDeliveryPage";
-import EpiReturnPage from "@/modules/epis/pages/EpiReturnPage";
-import EpiHistoryPage from "@/modules/epis/pages/EpiHistoryPage";
-import EpiPendingPage from "@/modules/epis/pages/EpiPendingPage";
-import EpiDismissalReportPage from "@/modules/epis/pages/EpiDismissalReportPage";
-import EpiKitRulesPage from "@/modules/epis/pages/EpiKitRulesPage";
+const EpiCatalogPage = lazy(() => import("@/modules/epis/pages/EpiCatalogPage"));
+const EpiDeliveryPage = lazy(() => import("@/modules/epis/pages/EpiDeliveryPage"));
+const EpiReturnPage = lazy(() => import("@/modules/epis/pages/EpiReturnPage"));
+const EpiHistoryPage = lazy(() => import("@/modules/epis/pages/EpiHistoryPage"));
+const EpiPendingPage = lazy(() => import("@/modules/epis/pages/EpiPendingPage"));
+const EpiDismissalReportPage = lazy(() => import("@/modules/epis/pages/EpiDismissalReportPage"));
+const EpiKitRulesPage = lazy(() => import("@/modules/epis/pages/EpiKitRulesPage"));
 
 // Purchases module
-import PurchaseListPage from "@/modules/purchases/pages/PurchaseListPage";
-import PurchaseFormPage from "@/modules/purchases/pages/PurchaseFormPage";
-import PurchaseDetailPage from "@/modules/purchases/pages/PurchaseDetailPage";
+const PurchaseListPage = lazy(() => import("@/modules/purchases/pages/PurchaseListPage"));
+const PurchaseFormPage = lazy(() => import("@/modules/purchases/pages/PurchaseFormPage"));
+const PurchaseDetailPage = lazy(() => import("@/modules/purchases/pages/PurchaseDetailPage"));
 
 // Desligamentos module
-import TerminationListPage from "@/modules/desligamentos/pages/TerminationListPage";
-import TerminationNewPage from "@/modules/desligamentos/pages/TerminationNewPage";
-import TerminationDetailPage from "@/modules/desligamentos/pages/TerminationDetailPage";
+const TerminationListPage = lazy(() => import("@/modules/desligamentos/pages/TerminationListPage"));
+const TerminationNewPage = lazy(() => import("@/modules/desligamentos/pages/TerminationNewPage"));
+const TerminationDetailPage = lazy(() => import("@/modules/desligamentos/pages/TerminationDetailPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -98,6 +101,7 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 }
 
 const AppRoutes = () => (
+  <Suspense fallback={<LoadingScreen />}>
   <Routes>
     {/* Public */}
     <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
@@ -167,6 +171,7 @@ const AppRoutes = () => (
     <Route path="/solicitacao/:id" element={<Navigate to="/fleet" replace />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
+  </Suspense>
 );
 
 const App = () => (
