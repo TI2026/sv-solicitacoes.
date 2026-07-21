@@ -17,6 +17,7 @@ import { canEditAdmission, canAdvanceAdmission, canDeleteAdmission, getNextStatu
 import { useAdmissionSetStatus } from '../hooks/useAdmissionQueries';
 import { PageHeader } from '@/components/PageHeader';
 import { FiltersBar } from '@/components/FiltersBar';
+import { EmptyState } from '@/components/EmptyState';
 
 const PAGE_SIZE = 20;
 
