@@ -9,6 +9,7 @@ import AppLayout from "@/components/AppLayout";
 import { RoleGuard } from "@/lib/roleGuard";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
+import PendingRequestsPage from "@/pages/PendingRequestsPage";
 import AuditLogsPage from "@/pages/AuditLogsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
@@ -109,6 +110,7 @@ const AppRoutes = () => (
 
     {/* Protected */}
     <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+    <Route path="/pendencias" element={<ProtectedRoute><PendingRequestsPage /></ProtectedRoute>} />
     <Route path="/perfil" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
     <Route path="/configuracoes" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
     <Route path="/permissoes" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><PermissionsPage /></RoleGuard></ProtectedRoute>} />

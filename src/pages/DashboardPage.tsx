@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/contexts/PresenceContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { Loader2, ShieldAlert, Download, AlertTriangle, ArrowUp } from 'lucide-react';
+import { Loader2, ShieldAlert, Download, ArrowUp, AlertTriangle, Clock, CheckCircle2, DollarSign } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,8 +12,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
 // Widgets da Central Operacional (Sprint 7)
-import { MyQueueWidget } from '@/modules/dashboard/components/MyQueueWidget';
-import { CriticalPendingWidget } from '@/modules/dashboard/components/CriticalPendingWidget';
 import { MyRequestsWidget } from '@/modules/dashboard/components/MyRequestsWidget';
 import { RecentActivityWidget } from '@/modules/dashboard/components/RecentActivityWidget';
 import { QuickAccessWidget } from '@/modules/dashboard/components/QuickAccessWidget';
@@ -39,11 +37,8 @@ export default function DashboardPage() {
   // Permissões derivadas do perfil
   const isRH = hasAnyRole(['diretoria', 'rh']);
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
-  const canManage = hasAnyRole(['diretoria', 'administrativo', 'supervisor']);
   const canSeeFinancials = !!isMaster;
   const canViewAdmissions = hasAnyRole(['diretoria', 'rh', 'administrativo']);
-  // Aprovador = qualquer papel que não seja somente colaborador
-  const isApprovalUser = !!user && user.roles.some(r => r !== 'colaborador');
 
   // ─── Realtime — invalida todos os widgets reativos ────────────────────────
   useRealtimeSubscription({
@@ -92,6 +87,38 @@ export default function DashboardPage() {
 
   const primaryRole = user.roles[0];
 
+  // Visão Geral — KPIs consolidados a partir das métricas existentes
+  const overviewKpis = [
+    {
+      label: 'Aguardando Aprovação',
+      value: (metrics?.fuel?.pendentes ?? 0) + (metrics?.purchase?.em_aprovacao ?? 0),
+      icon: Clock,
+      tone: 'text-amber-600',
+      bg: 'bg-amber-50',
+    },
+    {
+      label: 'Aprovados',
+      value: (metrics?.fuel?.aprovados ?? 0) + (metrics?.purchase?.aprovados ?? 0),
+      icon: CheckCircle2,
+      tone: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+    },
+    {
+      label: 'Aguardando Pagamento',
+      value: metrics?.fuel?.aguardando_pagamento ?? 0,
+      icon: DollarSign,
+      tone: 'text-blue-600',
+      bg: 'bg-blue-50',
+    },
+    {
+      label: 'Devolvidas / Em Revisão',
+      value: metrics?.fuel?.em_revisao_admin ?? 0,
+      icon: AlertTriangle,
+      tone: 'text-orange-600',
+      bg: 'bg-orange-50',
+    },
+  ];
+
   return (
     <div className="space-y-10 animate-fade-in pb-16">
 
@@ -134,57 +161,59 @@ export default function DashboardPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          DASHBOARD — Estrutura RC 2.2:
-          Atalhos → Visão Geral → Minha Fila → Minhas Solicitações →
-          Pendências → Indicadores
+          DASHBOARD — Estrutura RC Final (Sprint 13):
+          Minhas Solicitações + Acesso Rápido → Visão Geral →
+          Indicadores por módulo → Controle de Fluxos → Atividades Recentes
       ══════════════════════════════════════════════════════════════════════ */}
 
-      {/* Atalhos (topo) */}
-      <section aria-labelledby="dash-atalhos" className="space-y-3">
-        <h2 id="dash-atalhos" className="text-lg font-semibold text-foreground border-b pb-2">
-          Atalhos
-        </h2>
-        <QuickAccessWidget canViewAdmissions={canViewAdmissions} />
-      </section>
-
-      {/* Visão Geral */}
-      <section aria-labelledby="dash-visao" className="space-y-3">
-        <h2 id="dash-visao" className="text-lg font-semibold text-foreground border-b pb-2">
-          Visão Geral
-        </h2>
-        <RecentActivityWidget />
-      </section>
-
-      {/* Minha Fila */}
-      {isApprovalUser && (
-        <section aria-labelledby="dash-fila" className="space-y-3">
-          <h2 id="dash-fila" className="text-lg font-semibold text-foreground border-b pb-2">
-            Minha Fila
-          </h2>
-          <MyQueueWidget userId={user.id} />
-        </section>
-      )}
-
-      {/* Minhas Solicitações */}
+      {/* Área 1 — Minhas Solicitações (destaque) + Acesso Rápido */}
       <section aria-labelledby="dash-minhas" className="space-y-3">
         <h2 id="dash-minhas" className="text-lg font-semibold text-foreground border-b pb-2">
           Minhas Solicitações
         </h2>
-        <MyRequestsWidget userId={user.id} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            <MyRequestsWidget userId={user.id} />
+          </div>
+          <div className="lg:col-span-1">
+            <QuickAccessWidget canViewAdmissions={canViewAdmissions} />
+          </div>
+        </div>
       </section>
 
-      {/* Pendências */}
-      <section aria-labelledby="dash-pendencias" className="space-y-3">
-        <h2 id="dash-pendencias" className="text-lg font-semibold text-foreground border-b pb-2">
-          Pendências
+      {/* Área 2 — Visão Geral (painel executivo) */}
+      <section aria-labelledby="dash-visao" className="space-y-3">
+        <h2 id="dash-visao" className="text-lg font-semibold text-foreground border-b pb-2">
+          Visão Geral
         </h2>
-        <CriticalPendingWidget canManage={canManage} />
+        {metricsLoading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {overviewKpis.map(k => {
+              const Icon = k.icon;
+              return (
+                <div key={k.label} className="border rounded-lg p-4 bg-card flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg ${k.bg} flex items-center justify-center shrink-0`}>
+                    <Icon className={`w-5 h-5 ${k.tone}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground truncate">{k.label}</p>
+                    <p className="text-2xl font-bold text-foreground leading-tight">{k.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* Indicadores */}
+      {/* Área 3 — Indicadores por módulo */}
       <section aria-labelledby="dash-indicadores" className="space-y-4">
         <h2 id="dash-indicadores" className="text-lg font-semibold text-foreground border-b pb-2">
-          Indicadores
+          Indicadores por módulo
         </h2>
         {metricsLoading ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -199,17 +228,28 @@ export default function DashboardPage() {
             )}
           </div>
         )}
+      </section>
 
-        {isAdmin && (
-          <div className="pt-4">
-            <h3 className="text-base font-semibold text-foreground mb-3">Gestão de Fluxos</h3>
-            <FlowControlPanel
-              navigate={navigate}
-              isRH={isRH}
-              canSeeFinancials={canSeeFinancials}
-            />
-          </div>
-        )}
+      {/* Área 4 — Controle de Fluxos (administradores) */}
+      {isAdmin && (
+        <section aria-labelledby="dash-fluxos" className="space-y-3">
+          <h2 id="dash-fluxos" className="text-lg font-semibold text-foreground border-b pb-2">
+            Controle de Fluxos
+          </h2>
+          <FlowControlPanel
+            navigate={navigate}
+            isRH={isRH}
+            canSeeFinancials={canSeeFinancials}
+          />
+        </section>
+      )}
+
+      {/* Área 5 — Atividades Recentes */}
+      <section aria-labelledby="dash-atividades" className="space-y-3">
+        <h2 id="dash-atividades" className="text-lg font-semibold text-foreground border-b pb-2">
+          Atividades Recentes
+        </h2>
+        <RecentActivityWidget />
       </section>
 
       {/* Voltar ao topo */}

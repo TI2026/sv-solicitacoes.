@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLE_LABELS } from '@/types';
-import { LayoutDashboard, Shield, LogOut, Bell, Menu, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car, CheckSquare, ShoppingCart, UserMinus, GitBranch, Users } from 'lucide-react';
+import { LayoutDashboard, Shield, LogOut, Bell, Menu, X, Fuel, UserPlus, Lock, Building2, HardHat, ChevronDown, Package, Undo2, ClipboardList, AlertTriangle, FileText, Settings2, CheckCircle2, XCircle, ArrowRightLeft, Info, Car, CheckSquare, ShoppingCart, UserMinus, GitBranch, Users, CalendarDays, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -150,7 +150,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       label: 'Dashboard',
       items: [
         { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
-        { to: '/dashboard#fila', label: 'Pendências', icon: AlertTriangle, show: isApprovalUser, badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' as const } : null },
+        { to: '/pendencias', label: 'Pendências', icon: AlertTriangle, show: isApprovalUser, badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' as const } : null },
       ],
     },
     {
@@ -163,11 +163,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           show: true,
           badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' as const } : null,
         },
-        { to: '/diarias', label: 'Diárias', icon: FileText, show: true },
-        { to: '/reembolsos', label: 'Reembolsos', icon: FileText, show: true },
+        { to: '/diarias', label: 'Diárias', icon: CalendarDays, show: true },
+        { to: '/reembolsos', label: 'Reembolsos', icon: Receipt, show: true },
         { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: true },
         { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
-        { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
       ],
     },
     {
@@ -175,6 +174,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       items: [
         { to: '/colaboradores', label: 'Colaboradores', icon: Users, show: canManage },
         { to: '/desligamentos', label: 'Desligamentos', icon: UserMinus, show: canViewAdmission },
+        { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
         { to: '/setores', label: 'Setores', icon: Building2, show: canViewSectors },
         { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewEpis },
       ],
@@ -185,8 +185,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         { to: '/permissoes', label: 'Fluxos', icon: GitBranch, show: canManage },
         { to: '/permissoes', label: 'Permissões', icon: Shield, show: canManage },
         { to: '/auditoria', label: 'Auditoria', icon: CheckSquare, show: canManage },
-        { to: '/perfil', label: 'Perfil', icon: Settings2, show: true },
-        { to: '/configuracoes', label: 'Gerais', icon: Settings2, show: canManage },
+        { to: '/configuracoes', label: 'Configurações Gerais', icon: Settings2, show: canManage },
       ],
     },
     {
