@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/PageHeader';
+import { QuickActionButton } from '@/components/QuickActionButton';
 
 const REJECTED_STATUSES = new Set(['reprovado']);
 const COMPLETED_STATUSES = new Set(['aprovado', 'concluido', 'encerrado']);
@@ -150,22 +151,13 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
               {(() => {
                 const action = getQuickAction(req, userId, roles);
                 if (!action) return null;
-                const Icon = action.icon;
-                const toneCls =
-                  action.tone === 'danger'
-                    ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 animate-pulse'
-                    : action.tone === 'warning'
-                      ? 'bg-amber-500 text-white hover:bg-amber-600'
-                      : 'bg-primary text-primary-foreground hover:bg-primary/90';
                 return (
-                  <Button
-                    size="sm"
-                    className={`shrink-0 gap-1.5 ${toneCls}`}
+                  <QuickActionButton
+                    label={action.label}
+                    icon={action.icon}
+                    tone={action.tone}
                     onClick={(e) => { e.preventDefault(); navigate(`/fleet/${req.id}`); }}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{action.label}</span>
-                  </Button>
+                  />
                 );
               })()}
               {canDelete && (
