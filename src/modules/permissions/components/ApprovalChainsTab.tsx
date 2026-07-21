@@ -76,13 +76,10 @@ export default function ApprovalChainsTab() {
           const parsed = parseApproverType(s.approver_type || 'specific_user');
           return {
             id: s.id,
-            name: s.name,
-            description: s.description,
             stepOrder: s.step_order,
             approverType: parsed.type,
             fixedUserId: parsed.type === 'specific_user' ? (s.approver_user_id || null) : null,
-            sectorId: parsed.type === 'sector' ? (s.sector_id || s.fixed_sector_id || null) : null,
-            timeoutHours: s.timeout_hours || null,
+            sectorId: parsed.type === 'sector' ? (s.fixed_sector_id || null) : null,
             isRequired: s.is_required,
           };
         })
@@ -330,8 +327,7 @@ export default function ApprovalChainsTab() {
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="shrink-0">Etapa {step.stepOrder}</Badge>
                       <div className="flex flex-col">
-                        <span className="text-sm font-bold text-foreground">{step.name || `Etapa ${step.stepOrder}`}</span>
-                        {step.description && <span className="text-xs text-muted-foreground">{step.description}</span>}
+                        <span className="text-sm font-bold text-foreground">{`Etapa ${step.stepOrder}`}</span>
                       </div>
                     </div>
                     <Badge variant="outline" className="text-[10px] text-muted-foreground">Obrigatória</Badge>
@@ -407,19 +403,6 @@ export default function ApprovalChainsTab() {
                     </div>
                   )}
 
-                  {/* Timeout */}
-                  <div>
-                    <Label className="text-xs">Timeout (em horas) — Opcional</Label>
-                    <Input 
-                      type="number" 
-                      min={1} 
-                      className="text-xs"
-                      placeholder="Ex: 48"
-                      value={step.timeoutHours || ''} 
-                      onChange={(e) => updateStep(idx, { timeoutHours: e.target.value ? parseInt(e.target.value) : null })} 
-                    />
-                  </div>
-                  
                   {APPROVER_TYPE_HELPERS[step.approverType] && (
                     <div className="bg-muted p-2.5 rounded-md text-[11px] text-muted-foreground flex gap-2 items-start mt-3">
                       <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary/70" />
