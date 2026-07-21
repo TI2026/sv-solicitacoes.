@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ADMISSION_STATUS_LABELS, PRIORITY_LABELS, getPriorityVariant } from '@/lib/constants';
-import { Pencil, MapPin, User, Calendar, Users, Trash2, Loader2 } from 'lucide-react';
+import { Pencil, MapPin, User, Calendar, Users, Trash2, Loader2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { QuickActionButton } from '@/components/QuickActionButton';
 import type { AdmissionListItem } from '../adapters/mapAdmissionListItem';
 
 interface Props {
@@ -102,6 +103,15 @@ export function AdmissionProcessCard({ item, canEdit, canAdvance, canDelete, nex
             {/* Right: Actions */}
             <TooltipProvider delayDuration={200}>
               <div className="flex flex-col gap-1 shrink-0">
+                {canAdvance && nextStatusLabel && (
+                  <QuickActionButton
+                    label={nextStatusLabel}
+                    icon={ArrowRight}
+                    tone="primary"
+                    onClick={(e) => { e.stopPropagation(); onAdvance(item.id); }}
+                    hideLabelOnMobile={false}
+                  />
+                )}
                 {canEdit && (
                   <Tooltip>
                     <TooltipTrigger asChild>
