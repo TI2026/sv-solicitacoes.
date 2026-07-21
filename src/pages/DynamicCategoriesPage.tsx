@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { EmptyState } from '@/components/EmptyState';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Plus, Search, Trash2, Tag } from 'lucide-react';
