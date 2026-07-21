@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { PurchaseFilters } from '../queries/purchaseLoader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DynamicCategoriesPage from '@/pages/DynamicCategoriesPage';
+import { PageHeader } from '@/components/PageHeader';
+import { FiltersBar } from '@/components/FiltersBar';
 
 export default function PurchaseListPage() {
   const navigate = useNavigate();
@@ -26,22 +28,17 @@ export default function PurchaseListPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-24 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <ShoppingCart className="w-6 h-6 text-primary" />
-            Compras
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gerencie e acompanhe solicitações de compras.
-          </p>
-        </div>
-        
-        <Button onClick={() => navigate('/purchases/new')} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Nova Solicitação
-        </Button>
-      </div>
+      <PageHeader
+        icon={ShoppingCart}
+        title="Compras"
+        subtitle="Gerencie e acompanhe solicitações de compras."
+        actions={(
+          <Button onClick={() => navigate('/purchases/new')} className="gap-2">
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Nova Solicitação</span>
+          </Button>
+        )}
+      />
 
       <Tabs defaultValue="solicitacoes" className="w-full">
         <TabsList className="w-full sm:w-auto mb-6">
@@ -57,7 +54,7 @@ export default function PurchaseListPage() {
         <TabsContent value="solicitacoes" className="space-y-6">
 
       {/* Barra de Filtros */}
-      <div className="bg-card border rounded-lg p-4 flex flex-col md:flex-row gap-4 items-end">
+      <FiltersBar>
         <div className="space-y-1 flex-1 min-w-[200px]">
           <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
             <Filter className="w-3 h-3" /> Status
@@ -118,7 +115,7 @@ export default function PurchaseListPage() {
         <Button variant="outline" size="icon" onClick={() => refetch()} title="Recarregar">
           <RefreshCcw className="w-4 h-4" />
         </Button>
-      </div>
+      </FiltersBar>
 
       <PurchaseList purchases={purchases} isLoading={isLoading} />
         </TabsContent>

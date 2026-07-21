@@ -13,6 +13,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { PageHeader } from '@/components/PageHeader';
 
 const REJECTED_STATUSES = new Set(['reprovado']);
 const COMPLETED_STATUSES = new Set(['aprovado', 'concluido', 'encerrado']);
@@ -231,20 +232,17 @@ export default function FleetListPage({ requestType }: { requestType?: string })
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Solicitações</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {isAdmin ? 'Todas as solicitações' : 'Suas solicitações'}
-          </p>
-        </div>
-        {(activeTab !== 'diaria' || canCreateDiaria) && (
+      <PageHeader
+        icon={Fuel}
+        title="Solicitações"
+        subtitle={isAdmin ? 'Todas as solicitações' : 'Suas solicitações'}
+        actions={(activeTab !== 'diaria' || canCreateDiaria) ? (
           <Button onClick={() => navigate(`/fleet/new?type=${activeTab}`)} className="gap-2">
             <PlusCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Nova</span>
           </Button>
-        )}
-      </div>
+        ) : null}
+      />
 
       <Tabs value={activeTab} onValueChange={(v) => {
         if (!requestType) { setActiveTab(v); setSubFilter('pendentes'); setPage(1); }
