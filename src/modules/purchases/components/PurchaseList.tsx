@@ -8,6 +8,7 @@ import { ChevronRight, ShoppingCart, Send, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { QuickActionButton } from '@/components/QuickActionButton';
+import { EmptyState } from '@/components/EmptyState';
 
 const PURCHASE_STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
