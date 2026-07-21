@@ -4,8 +4,10 @@ import { PurchaseRequest } from '../queries/purchaseLoader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronRight, ShoppingCart, Send, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { QuickActionButton } from '@/components/QuickActionButton';
 
 const PURCHASE_STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
@@ -24,6 +26,7 @@ interface Props {
 
 export function PurchaseList({ purchases, isLoading }: Props) {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -46,8 +49,9 @@ export function PurchaseList({ purchases, isLoading }: Props) {
   if (purchases.length === 0) {
     return (
       <Card>
-        <CardContent className="p-12 text-center text-muted-foreground">
-          Nenhuma solicitação de compra encontrada.
+        <CardContent className="py-12 text-center">
+          <ShoppingCart className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+          <p className="text-sm text-muted-foreground">Nenhuma solicitação de compra encontrada.</p>
         </CardContent>
       </Card>
     );
@@ -55,13 +59,21 @@ export function PurchaseList({ purchases, isLoading }: Props) {
 
   return (
     <div className="space-y-3">
-      {purchases.map(purchase => (
-        <button
-          key={purchase.id}
-          onClick={() => navigate(`/purchases/${purchase.id}`)}
-          className="w-full text-left bg-card hover:bg-muted/50 border rounded-lg p-4 transition-colors group flex flex-col md:flex-row md:items-center gap-4"
-        >
-          <div className="flex-1 min-w-0">
+      {purchases.map(purchase => {
+        const isOwner = purchase.requester_user_id === user?.id;
+        const quickAction =
+          isOwner && purchase.status === 'rascunho'
+            ? { label: 'Enviar', icon: Send, tone: 'primary' as const }
+            : isOwner && purchase.status === 'retornado'
+              ? { label: 'Ajustar e reenviar', icon: RotateCcw, tone: 'warning' as const }
+              : null;
+        return (
+          <div
+            key={purchase.id}
+            onClick={() => navigate(`/purchases/${purchase.id}`)}
+            className="w-full text-left bg-card hover:bg-muted/50 border rounded-lg p-4 transition-colors group flex flex-col md:flex-row md:items-center gap-4 cursor-pointer"
+          >
+            <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1">
               <span className="font-semibold text-foreground truncate">
                 {purchase.description}
@@ -83,14 +95,24 @@ export function PurchaseList({ purchases, isLoading }: Props) {
               <span className="hidden md:inline text-border">•</span>
               <span>Criado em {format(new Date(purchase.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
             </div>
+            </div>
+
+            {quickAction ? (
+              <QuickActionButton
+                label={quickAction.label}
+                icon={quickAction.icon}
+                tone={quickAction.tone}
+                onClick={(e) => { e.stopPropagation(); navigate(`/purchases/${purchase.id}`); }}
+              />
+            ) : (
+              <div className="hidden md:flex items-center text-muted-foreground group-hover:text-primary transition-colors shrink-0">
+                <span className="text-sm mr-2">Ver detalhes</span>
+                <ChevronRight className="w-5 h-5" />
+              </div>
+            )}
           </div>
-          
-          <div className="hidden md:flex items-center text-muted-foreground group-hover:text-primary transition-colors shrink-0">
-            <span className="text-sm mr-2">Ver detalhes</span>
-            <ChevronRight className="w-5 h-5" />
-          </div>
-        </button>
-      ))}
+        );
+      })}
     </div>
   );
 }
