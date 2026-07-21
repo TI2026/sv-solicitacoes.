@@ -17,7 +17,6 @@ import PermissionsPage from "@/pages/PermissionsPage";
 import SectorsPage from "@/pages/SectorsPage";
 import CollaboratorsPage from "@/pages/CollaboratorsPage";
 import DynamicCategoriesPage from "@/pages/DynamicCategoriesPage";
-import ConstructionPage from "@/pages/ConstructionPage";
 import MaintenancePage from "@/pages/MaintenancePage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
