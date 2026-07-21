@@ -96,7 +96,14 @@ export default function DynamicCategoriesPage({ module, fieldKey, title, descrip
               {isLoading ? (
                 <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
               ) : filtered.length === 0 ? (
-                <p className="text-center py-12 text-muted-foreground">Nenhum item encontrado.</p>
+                <div className="py-8 px-4">
+                  <EmptyState
+                    icon={Search}
+                    title="Nenhum item encontrado"
+                    description={search ? 'Nenhum resultado para a busca atual.' : 'Adicione o primeiro item desta categoria.'}
+                    className="border-none shadow-none"
+                  />
+                </div>
               ) : (
                 <div className="divide-y divide-border">
                   {filtered.map(c => (
