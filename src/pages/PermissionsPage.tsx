@@ -63,7 +63,7 @@ function PendingFuelRequestsSection({ requests }: { requests: any[] }) {
   );
 }
 
-function ApprovalInProgressTab() {
+export function ApprovalInProgressTab() {
   const { data: requests, isLoading } = useAllApprovalRequests();
   const { data: pendingFuel, isLoading: loadingFuel } = usePendingFuelRequests();
   const [moduleFilter, setModuleFilter] = useState('all');
