@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { AppRole } from '@/types';
+import { toBackendApproverType } from '@/lib/approvalLabels';
 
 export * from './usePermissionsSession';
 export * from './usePermissionsAdmin';
@@ -27,7 +28,7 @@ export function useApprovalFlows() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_flows')
-        .select('*, approval_modules(code, name), approval_flow_steps(*, profiles!approval_flow_steps_approver_user_id_fkey(full_name, email), sectors:sector_id(id, name))')
+        .select('*, approval_modules(code, name), approval_flow_steps(*, profiles!approval_flow_steps_approver_user_id_fkey(full_name, email), sectors:fixed_sector_id(id, name))')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -53,12 +54,9 @@ export function useSectors() {
 export interface StepDraft {
   id?: string;
   stepOrder: number;
-  name?: string;
-  description?: string;
   approverType: 'specific_user' | 'sector';
   fixedUserId: string | null;
   sectorId: string | null;
-  timeoutHours: number | null;
   isRequired?: boolean;
 }
 
@@ -159,18 +157,15 @@ export function useSaveApprovalFlow() {
       }
 
       // Atomic replace via RPC — avoids 409 on (flow_id, step_order) uniqueness
-      // and guarantees DELETE + INSERT happen in the same transaction.
-      const stepsPayload = params.steps.map((s) => {
-        return {
-          name: s.name,
-          description: s.description,
-          approver_type: s.approverType,
-          approver_user_id: s.approverType === 'specific_user' ? s.fixedUserId : null,
-          sector_id: s.approverType === 'sector' ? s.sectorId : null,
-          timeout_hours: s.timeoutHours || null,
-          is_required: s.isRequired,
-        };
-      });
+      // e garante DELETE + INSERT na mesma transação. Payload alinhado ao
+      // schema real de `approval_flow_steps` (sem name/description/timeout_hours;
+      // setor via `fixed_sector_id`; approver_type usa o enum do backend).
+      const stepsPayload = params.steps.map((s) => ({
+        approver_type: toBackendApproverType(s.approverType),
+        approver_user_id: s.approverType === 'specific_user' ? s.fixedUserId : null,
+        fixed_sector_id: s.approverType === 'sector' ? s.sectorId : null,
+        is_required: s.isRequired,
+      }));
 
       const { data: replaceResult, error: replaceErr } = await supabase.rpc(
         'replace_approval_flow_steps',
