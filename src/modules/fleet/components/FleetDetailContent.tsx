@@ -96,7 +96,7 @@ export function FleetDetailContent() {
     if (reviewKmOk && reviewNfOk) {
       handleStatusChange('aprovado', 'KM e NF conferidos.');
     } else {
-      let parts = [];
+      const parts = [];
       if (!reviewKmOk) parts.push(`KM real: ${reviewKmReal}`);
       if (!reviewNfOk) parts.push(`NF real: R$ ${reviewNfReal}`);
       const notes = `${parts.join(' | ')}. Justificativa: ${reviewDivergenceReason}`;

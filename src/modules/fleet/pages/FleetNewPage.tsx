@@ -121,7 +121,7 @@ export default function FleetNewPage() {
       if (d.hours) setHours(d.hours);
       if (d.dailyValueFormatted) setDailyValueFormatted(d.dailyValueFormatted);
       if (d.dailyValueNum) setDailyValueNum(d.dailyValueNum);
-    } catch {}
+    } catch { /* ignore */ }
     setShowSessionDraft(false);
   };
 

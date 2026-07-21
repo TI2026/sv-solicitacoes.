@@ -168,6 +168,7 @@ export function useSaveApprovalFlow() {
           approver_user_id: s.approverType === 'specific_user' ? s.fixedUserId : null,
           sector_id: s.approverType === 'sector' ? s.sectorId : null,
           timeout_hours: s.timeoutHours || null,
+          is_required: s.isRequired,
         };
       });
 

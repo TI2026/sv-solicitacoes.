@@ -18,8 +18,8 @@ async function resizeImage(file: File, maxSize = 512): Promise<Blob> {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      let w = img.width;
-      let h = img.height;
+      const w = img.width;
+      const h = img.height;
       const min = Math.min(w, h);
       const sx = (w - min) / 2;
       const sy = (h - min) / 2;

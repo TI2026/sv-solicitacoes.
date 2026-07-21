@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     }
 
     // For SIGNATURE type, list admin-uploaded files
-    let filesToSign: Array<{ name: string; url: string; size: number }> = [];
+    const filesToSign: Array<{ name: string; url: string; size: number }> = [];
     if (link.link_type === 'SIGNATURE') {
       const { data: files } = await supabase.storage
         .from('admissions')

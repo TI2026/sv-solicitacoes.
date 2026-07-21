@@ -337,14 +337,14 @@ export default function EpiDeliveryPage() {
       doc.setFont('helvetica', 'bold');
       doc.text('Assinatura do Colaborador:', margin, y);
       y += 3;
-      try { doc.addImage(sigEmployee, 'PNG', margin, y, 60, 24); } catch {}
+      try { doc.addImage(sigEmployee, 'PNG', margin, y, 60, 24); } catch { /* ignore */ }
       y += 28;
     }
     if (sigResponsible) {
       doc.setFont('helvetica', 'bold');
       doc.text('Assinatura do Responsável:', margin, y);
       y += 3;
-      try { doc.addImage(sigResponsible, 'PNG', margin, y, 60, 24); } catch {}
+      try { doc.addImage(sigResponsible, 'PNG', margin, y, 60, 24); } catch { /* ignore */ }
       y += 28;
     }
 
