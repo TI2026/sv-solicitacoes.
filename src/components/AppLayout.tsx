@@ -182,16 +182,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     {
       label: 'Configurações',
       items: [
-        { to: '/permissoes', label: 'Fluxos', icon: GitBranch, show: canManage },
-        { to: '/permissoes', label: 'Permissões', icon: Shield, show: canManage },
+        { to: '/permissoes?tab=chains', label: 'Fluxos', icon: GitBranch, show: canManage },
+        { to: '/permissoes?tab=roles', label: 'Permissões', icon: Shield, show: canManage },
         { to: '/auditoria', label: 'Auditoria', icon: CheckSquare, show: canManage },
         { to: '/configuracoes', label: 'Configurações Gerais', icon: Settings2, show: canManage },
-      ],
-    },
-    {
-      label: 'Relatórios',
-      items: [
-        { to: '/relatorios', label: 'Relatórios', icon: ClipboardList, show: canManage },
       ],
     },
   ];
@@ -204,10 +198,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 
   const isActive = (path: string) => {
-    const cleanPath = path.split('?')[0];
+    const [cleanPath, query] = path.split('?');
     if (cleanPath === '/fleet') {
       // só ativa em /fleet exato (não em /fleet/vehicles-admin)
       return location.pathname === '/fleet';
+    }
+    // Para /permissoes, dois links convivem (Fluxos e Permissões) —
+    // diferencie pela query ?tab= para evitar destaque duplo.
+    if (cleanPath === '/permissoes' && query) {
+      const currentTab = new URLSearchParams(location.search).get('tab') || 'roles';
+      const targetTab = new URLSearchParams(query).get('tab') || 'roles';
+      return location.pathname.startsWith('/permissoes') && currentTab === targetTab;
     }
     return location.pathname.startsWith(cleanPath);
   };
