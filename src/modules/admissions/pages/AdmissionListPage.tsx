@@ -15,6 +15,8 @@ import { AdmissionsFiltersBar, type AdmissionsFilters } from '../components/Admi
 import { mapAdmissionListItem, type AdmissionListItem } from '../adapters/mapAdmissionListItem';
 import { canEditAdmission, canAdvanceAdmission, canDeleteAdmission, getNextStatus, getNextStatusLabel } from '../utils/admissionPermissions';
 import { useAdmissionSetStatus } from '../hooks/useAdmissionQueries';
+import { PageHeader } from '@/components/PageHeader';
+import { FiltersBar } from '@/components/FiltersBar';
 
 const PAGE_SIZE = 20;
 
@@ -97,30 +99,33 @@ export default function AdmissionListPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Admissões</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Processos de admissão</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center border rounded-lg overflow-hidden">
-            <Button variant={viewMode === 'cards' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 rounded-none" onClick={() => setViewMode('cards')}>
-              <LayoutGrid className="w-4 h-4" />
-            </Button>
-            <Button variant={viewMode === 'table' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 rounded-none" onClick={() => setViewMode('table')}>
-              <List className="w-4 h-4" />
-            </Button>
-          </div>
-          {canCreate && (
-            <Button onClick={() => navigate('/admissions/new')} className="gap-2">
-              <PlusCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Nova Admissão</span>
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        icon={UserPlus}
+        title="Admissões"
+        subtitle="Processos de admissão"
+        actions={(
+          <>
+            <div className="hidden sm:flex items-center border rounded-lg overflow-hidden">
+              <Button variant={viewMode === 'cards' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 rounded-none" onClick={() => setViewMode('cards')}>
+                <LayoutGrid className="w-4 h-4" />
+              </Button>
+              <Button variant={viewMode === 'table' ? 'default' : 'ghost'} size="icon" className="h-8 w-8 rounded-none" onClick={() => setViewMode('table')}>
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
+            {canCreate && (
+              <Button onClick={() => navigate('/admissions/new')} className="gap-2">
+                <PlusCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">Nova Admissão</span>
+              </Button>
+            )}
+          </>
+        )}
+      />
 
-      <AdmissionsFiltersBar filters={filters} onChange={f => { setFilters(f); setPage(0); }} obrasDisponiveis={obras} />
+      <FiltersBar>
+        <AdmissionsFiltersBar filters={filters} onChange={f => { setFilters(f); setPage(0); }} obrasDisponiveis={obras} />
+      </FiltersBar>
 
       {isLoading ? (
         <div className="space-y-3">
