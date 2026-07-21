@@ -4,9 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/contexts/PresenceContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { Loader2, ListChecks, ShieldAlert, Download, AlertTriangle } from 'lucide-react';
+import { Loader2, ShieldAlert, Download, AlertTriangle, ArrowUp } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,13 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { onlineUsers } = usePresence();
   const [exportOpen, setExportOpen] = useState(false);
+  const [showTop, setShowTop] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setShowTop(window.scrollY > 400);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // Permissões derivadas do perfil
   const isRH = hasAnyRole(['diretoria', 'rh']);
@@ -86,7 +93,7 @@ export default function DashboardPage() {
   const primaryRole = user.roles[0];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-10 animate-fade-in pb-16">
 
       {/* ── Cabeçalho ──────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
@@ -127,28 +134,58 @@ export default function DashboardPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          BLOCOS DA CENTRAL OPERACIONAL — Ordem conforme RC2.1:
-          1. Visão Geral (RecentActivityWidget)
-          2. Minhas Solicitações (MyRequestsWidget)
-          3. Minha Fila (MyQueueWidget)
-          4. Indicadores (Cockpit de Indicadores)
-          5. Atalhos (QuickAccessWidget)
-          6. Pendências (CriticalPendingWidget)
+          DASHBOARD — Estrutura RC 2.2:
+          Atalhos → Visão Geral → Minha Fila → Minhas Solicitações →
+          Pendências → Indicadores
       ══════════════════════════════════════════════════════════════════════ */}
 
-      {/* 1. Visão Geral */}
-      <RecentActivityWidget />
+      {/* Atalhos (topo) */}
+      <section aria-labelledby="dash-atalhos" className="space-y-3">
+        <h2 id="dash-atalhos" className="text-lg font-semibold text-foreground border-b pb-2">
+          Atalhos
+        </h2>
+        <QuickAccessWidget canViewAdmissions={canViewAdmissions} />
+      </section>
 
-      {/* 2. Minhas Solicitações */}
-      <MyRequestsWidget userId={user.id} />
+      {/* Visão Geral */}
+      <section aria-labelledby="dash-visao" className="space-y-3">
+        <h2 id="dash-visao" className="text-lg font-semibold text-foreground border-b pb-2">
+          Visão Geral
+        </h2>
+        <RecentActivityWidget />
+      </section>
 
-      {/* 3. Minha Fila */}
-      {isApprovalUser && <MyQueueWidget userId={user.id} />}
+      {/* Minha Fila */}
+      {isApprovalUser && (
+        <section aria-labelledby="dash-fila" className="space-y-3">
+          <h2 id="dash-fila" className="text-lg font-semibold text-foreground border-b pb-2">
+            Minha Fila
+          </h2>
+          <MyQueueWidget userId={user.id} />
+        </section>
+      )}
 
-      {/* 4. Indicadores */}
-      <div className="space-y-6 mt-8">
-        <h2 className="text-lg font-semibold text-foreground border-b pb-2">Visão Operacional</h2>
-        
+      {/* Minhas Solicitações */}
+      <section aria-labelledby="dash-minhas" className="space-y-3">
+        <h2 id="dash-minhas" className="text-lg font-semibold text-foreground border-b pb-2">
+          Minhas Solicitações
+        </h2>
+        <MyRequestsWidget userId={user.id} />
+      </section>
+
+      {/* Pendências */}
+      <section aria-labelledby="dash-pendencias" className="space-y-3">
+        <h2 id="dash-pendencias" className="text-lg font-semibold text-foreground border-b pb-2">
+          Pendências
+        </h2>
+        <CriticalPendingWidget canManage={canManage} />
+      </section>
+
+      {/* Indicadores */}
+      <section aria-labelledby="dash-indicadores" className="space-y-4">
+        <h2 id="dash-indicadores" className="text-lg font-semibold text-foreground border-b pb-2">
+          Indicadores
+        </h2>
         {metricsLoading ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-lg" />)}
@@ -157,7 +194,6 @@ export default function DashboardPage() {
           <div className="space-y-6">
             <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={canSeeFinancials} />
             <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials={canSeeFinancials} />
-            
             {isRH && (
               <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={canSeeFinancials} />
             )}
@@ -165,8 +201,8 @@ export default function DashboardPage() {
         )}
 
         {isAdmin && (
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold text-foreground border-b pb-2 mb-4">Gestão de Fluxos</h2>
+          <div className="pt-4">
+            <h3 className="text-base font-semibold text-foreground mb-3">Gestão de Fluxos</h3>
             <FlowControlPanel
               navigate={navigate}
               isRH={isRH}
@@ -174,19 +210,20 @@ export default function DashboardPage() {
             />
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-        {/* 5. Atalhos */}
-        <div>
-          <QuickAccessWidget canViewAdmissions={canViewAdmissions} />
-        </div>
-
-        {/* 6. Pendências */}
-        <div>
-          <CriticalPendingWidget canManage={canManage} />
-        </div>
-      </div>
+      {/* Voltar ao topo */}
+      {showTop && (
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-6 right-6 z-40 rounded-full shadow-lg h-11 w-11"
+          aria-label="Voltar ao topo"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
+      )}
     </div>
   );
 }
