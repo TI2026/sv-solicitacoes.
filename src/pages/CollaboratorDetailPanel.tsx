@@ -69,7 +69,7 @@ export function CollaboratorDetailPanel({ collaborator, open, onOpenChange }: Co
   const { data: historyData, isLoading: loadingHistory } = useQuery({
     queryKey: ['collab_history', profileId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('status_history')
         .select('*')
         .eq('actor_user_id', profileId)

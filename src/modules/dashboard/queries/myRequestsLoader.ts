@@ -83,7 +83,7 @@ async function fetchAdmissionRequests(userId: string): Promise<MyRequest[]> {
 }
 
 async function fetchPurchaseRequests(userId: string): Promise<MyRequest[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('purchases')
     .select('id, status, created_at, estimated_value, description')
     .eq('requester_user_id', userId)

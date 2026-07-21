@@ -177,7 +177,7 @@ export function useFuelSetStatus() {
       // Envio para aprovação: RPC atômica — valida, cria fluxo e atualiza status em uma transaçãoúnica.
       // Elimina a race condition da abordagem anterior (duas chamadas separadas).
       if (params.toStatus === 'em_aprovacao' && params.startApproval) {
-        const { data, error } = await supabase.rpc('submit_fuel_request', {
+        const { data, error } = await (supabase as any).rpc('submit_fuel_request', {
           p_request_id:  params.requestId,
           p_module_code: params.startApproval.moduleCode,
         } as any);

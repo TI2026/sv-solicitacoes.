@@ -37,7 +37,7 @@ export interface PurchaseFilters {
 }
 
 export async function loadPurchases(filters?: PurchaseFilters): Promise<PurchaseRequest[]> {
-  let query = supabase
+  let query = (supabase as any)
     .from('purchases')
     .select('*')
     .order('created_at', { ascending: false });
@@ -63,7 +63,7 @@ export async function loadPurchases(filters?: PurchaseFilters): Promise<Purchase
 }
 
 export async function loadPurchase(id: string): Promise<PurchaseRequest> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('purchases')
     .select('*')
     .eq('id', id)

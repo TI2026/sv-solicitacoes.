@@ -25,8 +25,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Lazy Timeout Check (Sprint 13)
   useEffect(() => {
     if (user) {
-      supabase.rpc('check_and_escalate_timeouts').then(({ data, error }) => {
-        if (!error && data && data > 0) {
+      (supabase as any).rpc('check_and_escalate_timeouts').then(({ data, error }: any) => {
+        if (!error && data && Number(data) > 0) {
           queryClient.invalidateQueries({ queryKey: ['my_approvals'] });
         }
       });
