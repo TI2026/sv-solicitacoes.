@@ -92,10 +92,13 @@ export function AdmissionDetailContent() {
   if (!req) return <p className="text-center py-12 text-muted-foreground">Não encontrada</p>;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
+    <div className="max-w-7xl mx-auto space-y-4 animate-fade-in">
       <Button variant="ghost" className="gap-2" onClick={() => navigate('/admissions')}>
         <ArrowLeft className="w-4 h-4" /> Voltar
       </Button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 space-y-4">
 
       {/* Header */}
       <Card>
@@ -528,6 +531,19 @@ export function AdmissionDetailContent() {
         </Card>
       )}
 
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-4 h-fit">
+          {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Histórico</h3>
+              <StatusTimeline entityId={id!} entityType="admission_requests" module="admissions" statusLabels={ADMISSION_STATUS_LABELS} />
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+
       {/* Add/Edit candidate dialog */}
       <Dialog open={showAddCandidate} onOpenChange={(open) => { if (!open) { setShowAddCandidate(false); setEditCandidateId(null); setCandidateForm({ nome: '', cpf: '', telefone: '', email: '', cidade: '' }); } }}>
         <DialogContent>
@@ -574,14 +590,6 @@ export function AdmissionDetailContent() {
         />
       )}
 
-      {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
-
-      <Card>
-        <CardContent className="p-4">
-          <h3 className="text-sm font-semibold text-foreground mb-3">Histórico</h3>
-          <StatusTimeline entityId={id!} entityType="admission_requests" module="admissions" statusLabels={ADMISSION_STATUS_LABELS} />
-        </CardContent>
-      </Card>
     </div>
   );
 }
