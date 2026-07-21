@@ -125,7 +125,13 @@ export default function SectorsPage() {
       </div>
 
       <div className="space-y-3">
-        {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhum setor encontrado</p>}
+        {filtered.length === 0 && (
+          <EmptyState
+            icon={Building2}
+            title="Nenhum setor encontrado"
+            description="Ajuste os filtros ou cadastre um novo setor."
+          />
+        )}
         {filtered.map((s: any) => (
           <Card key={s.id}>
             <CardContent className="p-4">
