@@ -11,17 +11,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // [P0-04] Correção: Blindagem de Edge Functions (Cron/Service) — IP-PLAN Onda 3
+    // Only service-role callers (edge triggers / cron / internal RPCs) may inject notifications.
+    // The anon/publishable key is public — never accept it as auth here.
     const authHeader = req.headers.get('Authorization');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (authHeader !== `Bearer ${serviceKey}`) {
+
+    if (!serviceKey || authHeader !== `Bearer ${serviceKey}`) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { user_ids, subject, body, metadata, idempotency_key } = await req.json();
 
-    if (!user_ids || !subject || !body) {
+    if (!Array.isArray(user_ids) || user_ids.length === 0 || !subject || !body) {
       return new Response(JSON.stringify({ error: 'Parâmetros obrigatórios' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -29,7 +30,6 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
     // Idempotency check
