@@ -48,12 +48,11 @@ export function PurchaseList({ purchases, isLoading }: Props) {
 
   if (purchases.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <ShoppingCart className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">Nenhuma solicitação de compra encontrada.</p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={ShoppingCart}
+        title="Nenhuma solicitação de compra"
+        description="Nada por aqui ainda. Novas solicitações aparecerão nesta lista."
+      />
     );
   }
 
