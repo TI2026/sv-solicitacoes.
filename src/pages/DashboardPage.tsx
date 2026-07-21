@@ -277,11 +277,11 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="space-y-3">
               <h2 className="text-lg font-semibold text-foreground border-b pb-2">Minha Fila</h2>
-              <MyQueueWidget />
+              <MyQueueWidget userId={user.id} />
             </div>
             <div className="space-y-3">
               <h2 className="text-lg font-semibold text-foreground border-b pb-2">Pendências Críticas</h2>
-              <CriticalPendingWidget />
+              <CriticalPendingWidget canManage={isAdmin} />
             </div>
           </div>
           {isAdmin && (
