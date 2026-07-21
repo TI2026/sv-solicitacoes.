@@ -5,6 +5,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Paperclip, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { PurchaseAttachment } from '../queries/purchaseLoader';
+import { toast } from 'sonner';
+
+// Permite apenas http/https absolutos — bloqueia javascript:, data:, vbscript:, file:, etc.
+function isSafeHttpUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
 
 interface Props {
   attachments: PurchaseAttachment[];
@@ -18,11 +29,18 @@ export function PurchaseAttachments({ attachments, onUpdate, readOnly = true }: 
 
   const handleAdd = () => {
     if (!name || !path || !onUpdate) return;
-    
+
+    if (!isSafeHttpUrl(path)) {
+      toast.error('URL inválida', {
+        description: 'Informe um link http:// ou https:// válido. Esquemas como javascript:, data: ou file: não são permitidos.',
+      });
+      return;
+    }
+
     const newAttachment: PurchaseAttachment = {
       id: crypto.randomUUID(),
       name,
-      path,
+      path: path.trim(),
       uploaded_at: new Date().toISOString(),
     };
     
@@ -58,7 +76,19 @@ export function PurchaseAttachments({ attachments, onUpdate, readOnly = true }: 
                   <p className="text-xs text-muted-foreground truncate">{att.path}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-3">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(att.path, '_blank')} title="Abrir arquivo">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      if (!isSafeHttpUrl(att.path)) {
+                        toast.error('Link bloqueado', { description: 'Este anexo não possui um endereço http(s) seguro.' });
+                        return;
+                      }
+                      window.open(att.path, '_blank', 'noopener,noreferrer');
+                    }}
+                    title="Abrir arquivo"
+                  >
                     <ExternalLink className="w-4 h-4" />
                   </Button>
                   {!readOnly && (
