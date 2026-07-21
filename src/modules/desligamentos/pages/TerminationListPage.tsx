@@ -9,6 +9,7 @@ import { PlusCircle, UserMinus, Building2, Calendar, Briefcase, XCircle } from '
 import { PageHeader } from '@/components/PageHeader';
 import { StatusBadge } from '@/components/StatusBadge';
 import { QuickActionButton } from '@/components/QuickActionButton';
+import { EmptyState } from '@/components/EmptyState';
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
@@ -76,17 +77,16 @@ export default function TerminationListPage() {
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full" />)}
         </div>
       ) : items.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-3">
-            <UserMinus className="w-12 h-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">Nenhum desligamento registrado.</p>
-            {canCreate && (
-              <Button variant="outline" asChild>
-                <Link to="/desligamentos/new">Registrar Desligamento</Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={UserMinus}
+          title="Nenhum desligamento registrado"
+          description="Quando houver um pedido de desligamento, ele aparecerá aqui."
+          action={canCreate ? (
+            <Button variant="outline" asChild>
+              <Link to="/desligamentos/new">Registrar Desligamento</Link>
+            </Button>
+          ) : null}
+        />
       ) : (
         <div className="space-y-3">
           {items.map((item: any) => (
