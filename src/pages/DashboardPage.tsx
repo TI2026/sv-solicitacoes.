@@ -21,7 +21,8 @@ import { CriticalPendingWidget } from '@/modules/dashboard/components/CriticalPe
 
 import { FuelMetricsBlock } from '@/modules/dashboard/components/FuelMetricsBlock';
 import { AdmissionMetricsBlock } from '@/modules/dashboard/components/AdmissionMetricsBlock';
-import { PurchaseMetricsBlock } from '@/modules/dashboard/components/PurchaseMetricsBlock';
+// PurchaseMetricsBlock removido na Sprint 13.9 — tabela `purchases` inexistente.
+// Reativar na Sprint 14 quando o módulo Compras tiver persistência operacional.
 import { FlowControlPanel } from '@/modules/dashboard/components/FlowControlPanel';
 
 export default function DashboardPage() {
@@ -51,7 +52,7 @@ export default function DashboardPage() {
       // Métricas globais
       { table: 'fuel_requests',          queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
       { table: 'admission_requests',     queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
-      { table: 'purchases',              queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
+      // { table: 'purchases', ... } — desabilitado (sem tabela operacional). Sprint 14.
       // Fila de aprovação + pendências críticas
       {
         table: 'approval_requests',
@@ -84,7 +85,7 @@ export default function DashboardPage() {
     enabled: !!user,
   });
 
-  const metrics = metricsObj || { fuel: null, admission: null, purchase: null, isError: false };
+  const metrics = metricsObj || { fuel: null, admission: null, isError: false };
 
   if (!user) return <div className="flex h-64 items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
@@ -94,21 +95,21 @@ export default function DashboardPage() {
   const overviewKpis = [
     {
       label: 'Total de Solicitações',
-      value: (metrics?.fuel?.total ?? 0) + (metrics?.purchase?.total ?? 0) + (metrics?.admission?.total ?? 0),
+      value: (metrics?.fuel?.total ?? 0) + (metrics?.admission?.total ?? 0),
       icon: Activity,
       tone: 'text-primary',
       bg: 'bg-primary/10',
     },
     {
       label: 'Aguardando Aprovação',
-      value: (metrics?.fuel?.pendentes ?? 0) + (metrics?.purchase?.em_aprovacao ?? 0),
+      value: metrics?.fuel?.pendentes ?? 0,
       icon: Clock,
       tone: 'text-amber-600',
       bg: 'bg-amber-50',
     },
     {
       label: 'Aprovados',
-      value: (metrics?.fuel?.aprovados ?? 0) + (metrics?.purchase?.aprovados ?? 0),
+      value: metrics?.fuel?.aprovados ?? 0,
       icon: CheckCircle2,
       tone: 'text-emerald-600',
       bg: 'bg-emerald-50',
@@ -245,7 +246,6 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-6">
               <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={false} />
-              <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials={false} />
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={false} />
               )}
@@ -263,7 +263,6 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-6">
                 <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials />
-                <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials />
                 {isRH && (
                   <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials />
                 )}
@@ -305,7 +304,6 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-6">
               <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={canSeeFinancials} />
-              <PurchaseMetricsBlock metrics={metrics?.purchase} canSeeFinancials={canSeeFinancials} />
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={canSeeFinancials} />
               )}
