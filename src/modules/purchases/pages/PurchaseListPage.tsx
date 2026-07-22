@@ -4,6 +4,7 @@ import { PurchaseList } from '../components/PurchaseList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ShoppingCart, Plus, Filter, RefreshCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PurchaseFilters } from '../queries/purchaseLoader';
@@ -82,22 +83,13 @@ export default function PurchaseListPage() {
           <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
             Categoria
           </label>
-          <Select 
-            value={filters.category || 'all'} 
-            onValueChange={(val) => handleFilterChange('category', val)}
-          >
-            <SelectTrigger className="bg-background">
-              <SelectValue placeholder="Todas categorias" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas categorias</SelectItem>
-              <SelectItem value="ti">TI / Tecnologia</SelectItem>
-              <SelectItem value="escritorio">Material de Escritório</SelectItem>
-              <SelectItem value="servicos">Serviços Terceirizados</SelectItem>
-              <SelectItem value="manutencao">Manutenção e Reparos</SelectItem>
-              <SelectItem value="outros">Outros</SelectItem>
-            </SelectContent>
-          </Select>
+          <DynamicCategorySelect
+            module="compras"
+            fieldKey="category"
+            value={filters.category || ''}
+            onValueChange={(val) => handleFilterChange('category', val || 'all')}
+            placeholder="Todas categorias"
+          />
         </div>
 
         <div className="space-y-1 flex-1 min-w-[200px]">

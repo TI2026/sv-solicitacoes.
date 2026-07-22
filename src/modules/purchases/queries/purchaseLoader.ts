@@ -3,7 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 export interface PurchaseAttachment {
   id: string;
   name: string;
-  path: string;
+  path?: string | null;
+  url?: string | null;
+  kind?: 'file' | 'link';
   uploaded_at: string;
 }
 
