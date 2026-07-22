@@ -22,6 +22,24 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle2, XCircle, RotateCcw, Clock } from 'lucide-react';
 import { useApprovalFlowSteps } from '../hooks/useApprovalFlowSteps';
+import { getDisplayApproverType, APPROVER_TYPE_LABELS } from '@/lib/approvalLabels';
+
+function buildSemanticLabel(step: {
+  approval_flow_steps?: {
+    approver_type: string | null;
+    sectors?: { name: string | null } | null;
+  } | null;
+  profiles?: { full_name: string | null } | null;
+}): string {
+  const raw = step.approval_flow_steps?.approver_type ?? 'usuario_fixo';
+  const display = getDisplayApproverType(raw);
+  const base = APPROVER_TYPE_LABELS[display] || 'Aprovador';
+  if (display === 'sector') {
+    const sectorName = step.approval_flow_steps?.sectors?.name;
+    return sectorName ? `${base}: ${sectorName}` : base;
+  }
+  return base;
+}
 
 export function ApprovalFlowViewer({ approvalRequestId }: { approvalRequestId: string }) {
   const queryClient = useQueryClient();
@@ -75,12 +93,15 @@ export function ApprovalFlowViewer({ approvalRequestId }: { approvalRequestId: s
           : s.status === 'rejected' ? 'Recusada'
           : s.status === 'returned' ? 'Devolvida'
           : 'Pendente';
+        const semantic = buildSemanticLabel(s);
         return (
           <div key={s.id} className="flex items-start gap-3 p-2 rounded-md border bg-card">
             <div className="mt-0.5">{icon}</div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap text-sm">
                 <span className="font-medium">Etapa {s.step_order}</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground">{semantic}</span>
                 <span className="text-muted-foreground">·</span>
                 <span>{label}</span>
                 {s.profiles?.full_name && <span className="text-muted-foreground">· {s.profiles.full_name}</span>}
