@@ -136,19 +136,6 @@ export default function ApprovalChainsTab() {
     }, { onSuccess: () => setDialogOpen(false) });
   };
 
-  const getStepBadgeLabel = (step: any) => {
-    const raw = step.approver_type || 'specific_user';
-    const displayType = getDisplayApproverType(raw);
-    const label = APPROVER_TYPE_LABELS[displayType] || raw;
-    if (displayType === 'specific_user') {
-      return `${label}: ${step.profiles?.full_name || 'N/A'}`;
-    }
-    if (displayType === 'sector') {
-      return `${label}: ${step.sectors?.name || 'N/A'}`;
-    }
-    return label;
-  };
-
   const getSectorWarning = (sectorId: string | null) => {
     if (!sectorId || !sectors) return null;
     const sector = sectors.find((s: any) => s.id === sectorId);
