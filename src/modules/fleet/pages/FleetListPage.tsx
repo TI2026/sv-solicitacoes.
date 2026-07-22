@@ -262,7 +262,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
           </InfoCard>
 
           {/* Sub-filter: Pendentes / Negados / Concluídos */}
-          <div className="flex gap-2 flex-wrap">
+          <FiltersBar>
             <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
               Pendentes {abastGroups.pending.length ? `(${abastGroups.pending.length})` : ''}
             </Button>
@@ -272,7 +272,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
             <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
               <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídas {abastGroups.completed.length ? `(${abastGroups.completed.length})` : ''}
             </Button>
-          </div>
+          </FiltersBar>
 
           {subFilter === 'pendentes' ? (
             <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.pending} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
@@ -292,7 +292,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
             <p>• Limite: {reembolsoLimit} solicitações por dia</p>
           </InfoCard>
 
-          <div className="flex gap-2 flex-wrap">
+          <FiltersBar>
             <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
               Pendentes {reembolsoGroups.pending.length ? `(${reembolsoGroups.pending.length})` : ''}
             </Button>
@@ -302,7 +302,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
             <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
               <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídas {reembolsoGroups.completed.length ? `(${reembolsoGroups.completed.length})` : ''}
             </Button>
-          </div>
+          </FiltersBar>
 
           {subFilter === 'pendentes' ? (
             <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.pending} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
@@ -322,7 +322,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
               <p>• Custos são somados por período no dashboard</p>
             </InfoCard>
 
-            <div className="flex gap-2 flex-wrap">
+            <FiltersBar>
               <Button variant={subFilter === 'pendentes' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('pendentes')}>
                 Pendentes {diariaGroups.pending.length ? `(${diariaGroups.pending.length})` : ''}
               </Button>
@@ -335,7 +335,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
               <Button variant={subFilter === 'concluidos' ? 'default' : 'outline'} size="sm" onClick={() => setSubFilter('concluidos')}>
                 <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluídas {diariaGroups.completed.length ? `(${diariaGroups.completed.length})` : ''}
               </Button>
-            </div>
+            </FiltersBar>
 
             {subFilter === 'pendentes' ? (
               <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.pending} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária pendente" canDelete={isAdmin} onDelete={setDeleteTarget} />
