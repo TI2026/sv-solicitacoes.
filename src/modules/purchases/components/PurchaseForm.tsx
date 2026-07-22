@@ -11,6 +11,9 @@ import { Loader2, ShoppingCart } from 'lucide-react';
 import { PurchaseAttachment } from '../queries/purchaseLoader';
 import { useNavigate } from 'react-router-dom';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
+import { MoneyInput } from '@/components/MoneyInput';
+import { useState, useEffect } from 'react';
+import { maskCurrency } from '@/lib/masks';
 
 const formSchema = z.object({
   category: z.string().min(1, 'A categoria é obrigatória'),
@@ -32,6 +35,16 @@ interface Props {
 
 export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
   const navigate = useNavigate();
+  const [valorFormatted, setValorFormatted] = useState(
+    initialData?.estimated_value ? maskCurrency(String(Math.round((initialData.estimated_value as number) * 100))) : ''
+  );
+
+  useEffect(() => {
+    if (initialData?.estimated_value && !valorFormatted) {
+      setValorFormatted(maskCurrency(String(Math.round((initialData.estimated_value as number) * 100))));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.estimated_value]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -130,7 +143,13 @@ export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
                       <FormItem>
                         <FormLabel>Valor Estimado (R$) *</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} />
+                          <MoneyInput
+                            value={valorFormatted}
+                            onChange={(fmt, num) => {
+                              setValorFormatted(fmt);
+                              field.onChange(num);
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -195,7 +214,7 @@ export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
                 />
 
                 <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="outline" onClick={() => navigate(-1)} disabled={isLoading}>
+                  <Button type="button" variant="outline" onClick={() => navigate('/purchases')} disabled={isLoading}>
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={isLoading}>
