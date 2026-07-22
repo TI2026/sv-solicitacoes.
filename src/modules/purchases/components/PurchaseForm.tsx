@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, ShoppingCart } from 'lucide-react';
 import { PurchaseAttachment } from '../queries/purchaseLoader';
-import { PurchaseAttachments } from './PurchaseAttachments';
 import { useNavigate } from 'react-router-dom';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 
@@ -34,7 +32,6 @@ interface Props {
 
 export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
   const navigate = useNavigate();
-  const [attachments, setAttachments] = useState<PurchaseAttachment[]>(initialData?.attachments || []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -50,12 +47,12 @@ export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
   });
 
   const handleSubmit = async (values: FormValues) => {
-    await onSubmit({ ...values, attachments });
+    await onSubmit({ ...values, attachments: initialData?.attachments || [] });
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
+    <div className="max-w-3xl mx-auto">
+      <div className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -210,14 +207,6 @@ export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
             </Form>
           </CardContent>
         </Card>
-      </div>
-
-      <div className="space-y-6">
-        <PurchaseAttachments 
-          attachments={attachments} 
-          onUpdate={setAttachments} 
-          readOnly={false} 
-        />
       </div>
     </div>
   );
