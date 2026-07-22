@@ -17,11 +17,12 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Undo2, UserX, GitBranch, AlertCircle } from 'lucide-react';
+import { AlertTriangle, Undo2, UserX, GitBranch, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useCriticalPendings } from '../hooks/useCriticalPendings';
 import type { CriticalPending, CriticalPendingKind } from '../hooks/useCriticalPendings';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { EmptyState } from '@/components/EmptyState';
 
 const KIND_CONFIG: Record<CriticalPendingKind, {
   label: string;
@@ -73,7 +74,15 @@ export function CriticalPendingWidget({ canManage }: Props) {
     );
   }
 
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        icon={ShieldCheck}
+        title="Sem pendências críticas"
+        description="Nenhuma anomalia detectada nos fluxos ativos."
+      />
+    );
+  }
 
   return (
     <Card className="border-l-4 border-l-destructive bg-destructive/5 shadow-sm">

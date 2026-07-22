@@ -19,18 +19,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardCheck, Clock, AlertTriangle, Undo2, ArrowRight } from 'lucide-react';
+import { ClipboardCheck, Clock, AlertTriangle, Undo2, ArrowRight, Inbox } from 'lucide-react';
 import { useDashboardQueue } from '../hooks/useDashboardQueue';
 import type { QueueItem } from '../queries/dashboardQueueLoader';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { EmptyState } from '@/components/EmptyState';
 
 const MODULE_ROUTE: Record<string, string> = {
   abastecimento: '/fleet',
   reembolso: '/reembolsos',
   diaria: '/diarias',
   admissions: '/admissions',
-  compras: '/purchases',
 };
 
 function resolveItemRoute(item: QueueItem): string {
@@ -58,7 +58,15 @@ export function MyQueueWidget({ userId }: Props) {
     );
   }
 
-  if (summary.total === 0) return null;
+  if (summary.total === 0) {
+    return (
+      <EmptyState
+        icon={Inbox}
+        title="Sua fila está vazia"
+        description="Nenhuma solicitação aguarda a sua aprovação no momento."
+      />
+    );
+  }
 
   return (
     <Card className="border-l-4 border-l-primary bg-primary/5 shadow-sm">

@@ -24,27 +24,16 @@ import { getStatusVisual } from '@/lib/statusVisuals';
 import { FUEL_STATUS_LABELS, ADMISSION_STATUS_LABELS } from '@/lib/constants';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { EmptyState } from '@/components/EmptyState';
 
 const ENTITY_LABELS: Record<string, string> = {
   fuel_requests: 'Frota',
   admission_requests: 'Admissão',
-  purchases: 'Compras',
-};
-
-const PURCHASE_STATUS_LABELS: Record<string, string> = {
-  rascunho: 'Rascunho',
-  em_aprovacao: 'Em Aprovação',
-  aprovado: 'Aprovado',
-  retornado: 'Devolvido',
-  aguardando_pagamento: 'Aguardando Pagamento',
-  cancelado: 'Cancelado',
-  rejeitado: 'Rejeitado',
 };
 
 function getStatusLabel(entityType: string, status: string): string {
   if (entityType === 'fuel_requests') return FUEL_STATUS_LABELS[status] ?? status;
   if (entityType === 'admission_requests') return ADMISSION_STATUS_LABELS[status] ?? status;
-  if (entityType === 'purchases') return PURCHASE_STATUS_LABELS[status] ?? status;
   return status;
 }
 
@@ -63,7 +52,15 @@ export function RecentActivityWidget() {
     );
   }
 
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        icon={Activity}
+        title="Sem movimentações recentes"
+        description="As últimas transições de status aparecerão aqui assim que houver atividade."
+      />
+    );
+  }
 
   return (
     <Card>

@@ -111,7 +111,6 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
         <TabsList className="w-full sm:w-auto">
           {isRH && <TabsTrigger value="admissions">Admissões</TabsTrigger>}
           <TabsTrigger value="fuel">Solicitações</TabsTrigger>
-          <TabsTrigger value="pendencias">Pendências</TabsTrigger>
         </TabsList>
 
         {isRH && (
@@ -194,29 +193,6 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
           )}
         </TabsContent>
 
-        <TabsContent value="pendencias" className="mt-3">
-          <Card>
-            <CardContent className="p-4 space-y-2">
-              <p className="text-sm text-foreground font-medium">Itens aguardando sua ação:</p>
-              {[
-                ...fuelData.filter(f => f.status === 'enviado').map(f => ({ ...f, _action: 'Encaminhar para Aprovação', _path: `/fleet/${f.id}` })),
-                ...fuelData.filter(f => f.status === 'em_aprovacao').map(f => ({ ...f, _action: 'Aprovar/Reprovar', _path: `/fleet/${f.id}` })),
-                ...fuelData.filter(f => f.status === 'em_revisao_admin').map(f => ({ ...f, _action: 'Revisar Anexos', _path: `/fleet/${f.id}` })),
-              ].slice(0, 10).map((item: any) => (
-                <div key={item.id} className="flex items-center justify-between text-sm border border-border rounded-lg p-2 cursor-pointer hover:bg-muted/50" onClick={() => navigate(item._path)}>
-                  <div>
-                    <span className="font-medium">{canSeeFinancials ? formatCurrency(Number(item.valor || 0)) : '••••••'}</span>
-                    <span className="text-xs text-muted-foreground ml-2">{item._action}</span>
-                  </div>
-                  <Button size="sm" variant="outline" className="h-7 text-xs">Abrir</Button>
-                </div>
-              ))}
-              {fuelData.filter(f => ['enviado', 'em_aprovacao', 'em_revisao_admin'].includes(f.status)).length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma pendência</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       <Dialog open={batchAction === 'reject'} onOpenChange={() => { setBatchAction(null); setRejectReason(''); }}>
