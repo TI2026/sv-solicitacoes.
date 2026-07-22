@@ -1765,6 +1765,81 @@ export type Database = {
           },
         ]
       }
+      purchases: {
+        Row: {
+          approval_request_id: string | null
+          approved_value: number | null
+          attachments: Json
+          category: string
+          cost_center: string | null
+          created_at: string
+          deleted_at: string | null
+          description: string
+          estimated_value: number
+          id: string
+          justification: string | null
+          priority: string
+          purchase_number: string | null
+          requester_user_id: string
+          status: string
+          supplier: string | null
+          updated_at: string
+        }
+        Insert: {
+          approval_request_id?: string | null
+          approved_value?: number | null
+          attachments?: Json
+          category: string
+          cost_center?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          description: string
+          estimated_value?: number
+          id?: string
+          justification?: string | null
+          priority?: string
+          purchase_number?: string | null
+          requester_user_id: string
+          status?: string
+          supplier?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approval_request_id?: string | null
+          approved_value?: number | null
+          attachments?: Json
+          category?: string
+          cost_center?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          description?: string
+          estimated_value?: number
+          id?: string
+          justification?: string | null
+          priority?: string
+          purchase_number?: string | null
+          requester_user_id?: string
+          status?: string
+          supplier?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_approval_request_id_fkey"
+            columns: ["approval_request_id"]
+            isOneToOne: false
+            referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_limits: {
         Row: {
           created_at: string
@@ -2395,6 +2470,7 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_purchase_request: { Args: { p_request_id: string }; Returns: Json }
       user_participates_in_approval: {
         Args: { p_approval_request_id: string; p_user_id: string }
         Returns: boolean

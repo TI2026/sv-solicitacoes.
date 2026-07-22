@@ -52,10 +52,10 @@ const EpiPendingPage = lazy(() => import("@/modules/epis/pages/EpiPendingPage"))
 const EpiDismissalReportPage = lazy(() => import("@/modules/epis/pages/EpiDismissalReportPage"));
 const EpiKitRulesPage = lazy(() => import("@/modules/epis/pages/EpiKitRulesPage"));
 
-// Purchases module — desabilitado na Sprint 13.9 (sem tabela operacional).
-// Reativar na Sprint 14 quando `public.purchases` for criada.
-// import { EmptyState } from "@/components/EmptyState";
-// import { ShoppingCart } from "lucide-react";
+// Purchases module (Sprint 14 — reativado com tabela operacional `public.purchases`)
+const PurchaseListPage = lazy(() => import("@/modules/purchases/pages/PurchaseListPage"));
+const PurchaseFormPage = lazy(() => import("@/modules/purchases/pages/PurchaseFormPage"));
+const PurchaseDetailPage = lazy(() => import("@/modules/purchases/pages/PurchaseDetailPage"));
 
 // Desligamentos module
 const TerminationListPage = lazy(() => import("@/modules/desligamentos/pages/TerminationListPage"));
@@ -155,10 +155,10 @@ const AppRoutes = () => (
     <Route path="/epis/dismissal-report" element={<ProtectedRoute><EpiDismissalReportPage /></ProtectedRoute>} />
     <Route path="/epis/kit-rules" element={<ProtectedRoute><EpiKitRulesPage /></ProtectedRoute>} />
 
-    {/* Purchases — desabilitado na Sprint 13.9. Redireciona para o Dashboard. */}
-    <Route path="/purchases" element={<Navigate to="/dashboard" replace />} />
-    <Route path="/purchases/new" element={<Navigate to="/dashboard" replace />} />
-    <Route path="/purchases/:id" element={<Navigate to="/dashboard" replace />} />
+    {/* Purchases (Sprint 14) */}
+    <Route path="/purchases" element={<ProtectedRoute><PurchaseListPage /></ProtectedRoute>} />
+    <Route path="/purchases/new" element={<ProtectedRoute><PurchaseFormPage /></ProtectedRoute>} />
+    <Route path="/purchases/:id" element={<ProtectedRoute><PurchaseDetailPage /></ProtectedRoute>} />
 
     {/* Desligamentos */}
     <Route path="/desligamentos" element={<ProtectedRoute><TerminationListPage /></ProtectedRoute>} />

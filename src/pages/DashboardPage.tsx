@@ -52,7 +52,7 @@ export default function DashboardPage() {
       // Métricas globais
       { table: 'fuel_requests',          queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
       { table: 'admission_requests',     queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
-      // { table: 'purchases', ... } — desabilitado (sem tabela operacional). Sprint 14.
+      { table: 'purchases',              queryKeys: [['my_requests', user?.id]] },
       // Fila de aprovação + pendências críticas
       {
         table: 'approval_requests',
