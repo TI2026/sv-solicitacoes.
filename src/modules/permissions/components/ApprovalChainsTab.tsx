@@ -288,17 +288,10 @@ export default function ApprovalChainsTab() {
               <Input value={flowName} onChange={e => setFlowName(e.target.value)} placeholder="Ex: Aprovação padrão" />
             </div>
 
-            <div>
-              <Label>Tipo de aprovação</Label>
-              <Select value={approvalType} onValueChange={setApprovalType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sequential">Sequencial</SelectItem>
-                  <SelectItem value="parallel" disabled>Paralela (em breve)</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="rounded-md border border-border bg-muted/40 p-2.5">
+              <p className="text-xs font-medium text-foreground">Tipo de aprovação: Sequencial</p>
               <p className="text-[10px] text-muted-foreground mt-1">
-                Sequencial: cada etapa é processada na ordem. A próxima etapa só fica ativa após a conclusão da anterior.
+                Cada etapa é processada na ordem. A próxima etapa só fica ativa após a conclusão da anterior.
               </p>
             </div>
 
