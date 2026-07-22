@@ -38,7 +38,6 @@ const MODULE_ROUTE: Record<string, string> = {
   reembolso: '/fleet',
   diaria: '/fleet',
   admissions: '/admissions',
-  compras: '/purchases',
   desligamentos: '/desligamentos',
 };
 
