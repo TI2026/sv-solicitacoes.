@@ -165,9 +165,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         },
         { to: '/diarias', label: 'Diárias', icon: CalendarDays, show: true },
         { to: '/reembolsos', label: 'Reembolsos', icon: Receipt, show: true },
-        // Compras — módulo operacional desabilitado na Sprint 13.9 (sem tabela `purchases`).
-        // Reativar na Sprint 14. Categorias/Fornecedores/Centros de Custo permanecem em Configurações.
-        // { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: true },
+        { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: true },
         { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
       ],
     },
