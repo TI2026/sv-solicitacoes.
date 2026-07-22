@@ -35,6 +35,8 @@ export default function FleetNewPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [type] = useState(initialType);
+  const backRoute = type === 'diaria' ? '/diarias' : type === 'reembolso' ? '/reembolsos' : '/fleet';
+  const typeLabels: Record<string, string> = { abastecimento: 'Abastecimento', reembolso: 'Reembolso', diaria: 'Diária' };
   const { data: vehiclesList } = useVehicles({ onlyActive: true });
   const [placaPopoverOpen, setPlacaPopoverOpen] = useState(false);
   const [valorFormatted, setValorFormatted] = useState('');
@@ -252,7 +254,7 @@ export default function FleetNewPage() {
         await statusMutation.mutateAsync({ requestId: result.id, toStatus: 'enviado' });
       }
       clearDraft();
-      navigate('/fleet');
+      navigate(backRoute);
     } catch {
       // toast handled by mutation
     } finally {
@@ -260,11 +262,9 @@ export default function FleetNewPage() {
     }
   };
 
-  const typeLabels: Record<string, string> = { abastecimento: 'Abastecimento', reembolso: 'Reembolso', diaria: 'Diária' };
-
   return (
     <div className="max-w-lg mx-auto space-y-6 animate-fade-in">
-      <Button variant="ghost" className="gap-2" onClick={() => navigate('/fleet')}>
+      <Button variant="ghost" className="gap-2" onClick={() => navigate(backRoute)}>
         <ArrowLeft className="w-4 h-4" /> Voltar
       </Button>
 
