@@ -63,15 +63,15 @@ export function usePurchaseMutations() {
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await (supabase as any)
-        .from('purchases')
-        .update({ status: 'cancelado' })
-        .eq('id', id)
-        .select()
-        .single();
-        
+      const { data, error } = await (supabase as any).rpc('cancel_purchase_request', {
+        p_request_id: id,
+      });
       if (error) throw error;
-      return data;
+      const result = data as any;
+      if (result && result.code) {
+        throw new Error(result.message || 'Erro ao cancelar solicitação');
+      }
+      return result;
     },
     onSuccess: (_, id) => {
       refreshApprovalData(queryClient, id);

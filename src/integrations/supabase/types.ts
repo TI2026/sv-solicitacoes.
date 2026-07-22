@@ -2404,6 +2404,10 @@ export type Database = {
         }
         Returns: Json
       }
+      cancel_purchase_request: {
+        Args: { p_reason?: string; p_request_id: string }
+        Returns: Json
+      }
       current_has_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
