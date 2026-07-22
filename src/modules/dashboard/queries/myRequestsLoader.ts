@@ -82,28 +82,8 @@ async function fetchAdmissionRequests(userId: string): Promise<MyRequest[]> {
   }));
 }
 
-async function fetchPurchaseRequests(userId: string): Promise<MyRequest[]> {
-  const { data, error } = await (supabase as any)
-    .from('purchases')
-    .select('id, status, created_at, estimated_value, description')
-    .eq('requester_user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(20);
-
-  if (error) throw error;
-
-  return (data || []).map((row: any): MyRequest => ({
-    id: row.id,
-    type: 'compras',
-    module: 'Compras',
-    status: row.status,
-    group: classifyPurchaseStatus(row.status),
-    created_at: row.created_at,
-    valor: row.estimated_value,
-    description: row.description,
-    route: `/purchases/${row.id}`,
-  }));
-}
+// fetchPurchaseRequests removido na Sprint 13.9 — tabela `purchases` inexistente.
+// Reativar na Sprint 14 quando o módulo Compras tiver persistência operacional.
 
 async function fetchTerminationRequests(userId: string): Promise<MyRequest[]> {
   const { data, error } = await supabase
@@ -144,13 +124,7 @@ function classifyAdmissionStatus(status: string): RequestGroup {
   return 'em_aprovacao';
 }
 
-function classifyPurchaseStatus(status: string): RequestGroup {
-  if (['em_aprovacao', 'aguardando_pagamento'].includes(status)) return 'em_aprovacao';
-  if (['retornado'].includes(status)) return 'devolvida';
-  if (['aprovado'].includes(status)) return 'concluida';
-  if (['cancelado', 'rejeitado'].includes(status)) return 'cancelada';
-  return 'outra';
-}
+// classifyPurchaseStatus removido na Sprint 13.9 — reativar na Sprint 14.
 
 function classifyTerminationStatus(status: string): RequestGroup {
   if (['desligamento_concluido', 'aprovado'].includes(status)) return 'concluida';
@@ -162,17 +136,15 @@ function classifyTerminationStatus(status: string): RequestGroup {
 // ─── Agregador principal ──────────────────────────────────────────────────────
 
 export async function loadMyRequests(userId: string): Promise<MyRequest[]> {
-  const [fuel, admissions, purchases, terminations] = await Promise.all([
+  const [fuel, admissions, terminations] = await Promise.all([
     fetchFuelRequests(userId),
     fetchAdmissionRequests(userId),
-    fetchPurchaseRequests(userId),
     fetchTerminationRequests(userId),
   ]);
 
   return [
     ...(Array.isArray(fuel) ? fuel : []),
     ...(Array.isArray(admissions) ? admissions : []),
-    ...(Array.isArray(purchases) ? purchases : []),
     ...(Array.isArray(terminations) ? terminations : []),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
