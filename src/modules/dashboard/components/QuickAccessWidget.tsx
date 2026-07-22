@@ -72,14 +72,7 @@ export function QuickAccessWidget({ canViewAdmissions }: Props) {
       listRoute: '/admissions',
       show: canViewAdmissions,
     },
-    {
-      key: 'compras',
-      label: 'Compras',
-      icon: ShoppingCart,
-      newRoute: '/purchases/new',
-      listRoute: '/purchases',
-      show: true,
-    },
+    // Compras — desabilitado na Sprint 13.9 (sem tabela `purchases`). Reativar na Sprint 14.
   ].filter(m => m.show);
 
   return (
