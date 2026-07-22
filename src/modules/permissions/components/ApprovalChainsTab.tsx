@@ -189,7 +189,7 @@ export default function ApprovalChainsTab() {
                     <CardTitle className="text-base">{mod.name}</CardTitle>
                     <CardDescription className="text-xs">
                       {activeFlow
-                        ? `Fluxo: ${activeFlow.name} · ${activeFlow.approval_type === 'sequential' ? 'Sequencial' : 'Paralelo'} · ${stepsCount} etapa(s)`
+                        ? `Fluxo: ${activeFlow.name} · Sequencial · ${stepsCount} etapa(s)`
                         : 'Nenhum fluxo ativo configurado'}
                     </CardDescription>
                   </div>
@@ -211,7 +211,7 @@ export default function ApprovalChainsTab() {
               <CardContent className="pt-0">
                 <div className="flex flex-wrap gap-2 mb-3">
                   <Badge variant="secondary" className="text-xs gap-1">
-                    {activeFlow.approval_type === 'sequential' ? 'Sequencial' : 'Paralela'}
+                    Sequencial
                   </Badge>
                   <Badge variant={activeFlow.require_rejection_reason ? 'default' : 'outline'} className="text-xs gap-1">
                     {activeFlow.require_rejection_reason ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
@@ -224,19 +224,36 @@ export default function ApprovalChainsTab() {
                   </Badge>
                   {activeFlow.active && <Badge className="bg-green-100 text-green-800 text-xs">Ativo</Badge>}
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="space-y-2">
                   {activeFlow.approval_flow_steps
                     ?.sort((a: any, b: any) => a.step_order - b.step_order)
                     .filter((s: any) => s.active)
-                    .map((step: any, idx: number) => {
+                    .map((step: any) => {
                       const displayType = getDisplayApproverType(step.approver_type || 'usuario_fixo');
                       const Icon = APPROVER_TYPE_ICONS[displayType] || UserCheck;
+                      const typeLabel = APPROVER_TYPE_LABELS[displayType] || step.approver_type;
+                      const approverName = displayType === 'sector'
+                        ? (step.sectors?.name || '—')
+                        : (step.profiles?.full_name || '—');
                       return (
-                        <div key={step.id} className="flex items-center gap-1">
-                          {idx > 0 && <span className="text-muted-foreground">→</span>}
-                          <Badge variant="outline" className="text-xs gap-1">
-                            <Icon className="w-3 h-3" />
-                            {step.step_order}. {getStepBadgeLabel(step)}
+                        <div
+                          key={step.id}
+                          className="flex items-start gap-3 p-2.5 rounded-md border bg-card"
+                        >
+                          <Badge variant="secondary" className="shrink-0">
+                            Etapa {step.step_order}
+                          </Badge>
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-1.5 text-sm">
+                              <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span className="font-medium">{typeLabel}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              Aprovador: <span className="text-foreground">{approverName}</span>
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] shrink-0 self-center">
+                            {step.is_required !== false ? 'Obrigatória' : 'Opcional'}
                           </Badge>
                         </div>
                       );
