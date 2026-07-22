@@ -15,6 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/PageHeader';
 import { QuickActionButton } from '@/components/QuickActionButton';
+import { EmptyState } from '@/components/EmptyState';
+import { FiltersBar } from '@/components/FiltersBar';
 
 const REJECTED_STATUSES = new Set(['reprovado']);
 const COMPLETED_STATUSES = new Set(['aprovado', 'concluido', 'encerrado']);
@@ -104,12 +106,7 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
     </div>
   );
   if (!requests || requests.length === 0) return (
-    <Card>
-      <CardContent className="py-12 text-center">
-        <EmptyIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-        <p className="text-sm text-muted-foreground">{emptyText}</p>
-      </CardContent>
-    </Card>
+    <EmptyState icon={EmptyIcon} title={emptyText} />
   );
   return (
     <div className="space-y-3">
