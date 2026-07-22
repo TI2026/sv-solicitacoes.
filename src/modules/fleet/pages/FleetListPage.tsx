@@ -212,6 +212,12 @@ export default function FleetListPage({ requestType }: { requestType?: string })
 
   const canCreateDiaria = canSeeDiaria;
 
+  const pageMeta = requestType === 'diaria'
+    ? { icon: Briefcase, title: 'Diárias', subtitle: isAdmin ? 'Todas as diárias' : 'Suas diárias' }
+    : requestType === 'reembolso'
+      ? { icon: Receipt, title: 'Reembolsos', subtitle: isAdmin ? 'Todos os reembolsos' : 'Seus reembolsos' }
+      : { icon: Fuel, title: 'Solicitações', subtitle: isAdmin ? 'Todas as solicitações' : 'Suas solicitações' };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     await softDelete.mutateAsync({ requestId: deleteTarget.id });
@@ -221,9 +227,9 @@ export default function FleetListPage({ requestType }: { requestType?: string })
   return (
     <div className="space-y-4 animate-fade-in">
       <PageHeader
-        icon={Fuel}
-        title="Solicitações"
-        subtitle={isAdmin ? 'Todas as solicitações' : 'Suas solicitações'}
+        icon={pageMeta.icon}
+        title={pageMeta.title}
+        subtitle={pageMeta.subtitle}
         actions={(activeTab !== 'diaria' || canCreateDiaria) ? (
           <Button onClick={() => navigate(`/fleet/new?type=${activeTab}`)} className="gap-2">
             <PlusCircle className="w-4 h-4" />
