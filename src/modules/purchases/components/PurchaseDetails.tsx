@@ -6,6 +6,7 @@ import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { PurchaseAttachments } from './PurchaseAttachments';
 import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -16,6 +17,11 @@ interface Props {
 export function PurchaseDetails({ purchase }: Props) {
   const { data: approvalRequest } = useApprovalRequestForReference(purchase.id);
   const { data: previousCycles = [] } = useApprovalRequestsForReference(purchase.id);
+  const { user } = useAuth();
+  const canEditAttachments =
+    !!user &&
+    user.id === purchase.requester_user_id &&
+    ['rascunho', 'retornado'].includes(purchase.status);
   
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -143,7 +149,11 @@ export function PurchaseDetails({ purchase }: Props) {
       </div>
 
       <div className="space-y-6">
-        <PurchaseAttachments attachments={purchase.attachments || []} readOnly={true} />
+        <PurchaseAttachments
+          purchaseId={purchase.id}
+          attachments={purchase.attachments || []}
+          canEdit={canEditAttachments}
+        />
 
         <Card>
           <CardHeader className="pb-3 border-b">
