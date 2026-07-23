@@ -1,61 +1,74 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShoppingCart, CheckCircle2, Clock, DollarSign } from 'lucide-react';
+/**
+ * PurchaseMetricsBlock
+ *
+ * B5 Fix Sprint 15: bloco de métricas de Compras reativado.
+ * Estava desabilitado desde Sprint 13.9 com o comentário:
+ *   "tabela `purchases` inexistente".
+ * A tabela agora está ativa (Sprint 8 / 14) e os dados de purchase
+ * já são retornados por get_dashboard_metrics().
+ *
+ * Fonte: get_dashboard_metrics() → campo 'purchase'.
+ */
+import { useNavigate } from 'react-router-dom';
+import { ShoppingCart, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { MetricCard } from './FuelMetricsBlock';
 
-interface Props {
-  metrics: any;
-  canSeeFinancials: boolean;
+interface PurchaseMetrics {
+  total?: number;
+  abertas?: number;
+  aprovadas?: number;
+  valor_total?: number;
 }
 
-export function PurchaseMetricsBlock({ metrics, canSeeFinancials }: Props) {
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
-  };
+interface PurchaseMetricsBlockProps {
+  metrics?: PurchaseMetrics | null;
+  canSeeFinancials?: boolean;
+}
 
-  const m = metrics || { total: 0, abertas: 0, aprovadas: 0, valor_total: 0 };
+const formatCurrency = (val: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+export function PurchaseMetricsBlock({ metrics, canSeeFinancials = false }: PurchaseMetricsBlockProps) {
+  const navigate = useNavigate();
+
+  if (!metrics) return null;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Compras Totais</CardTitle>
-          <ShoppingCart className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{m.total}</div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Aguardando</CardTitle>
-          <Clock className="h-4 w-4 text-amber-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{m.abertas}</div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Aprovadas</CardTitle>
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{m.aprovadas}</div>
-        </CardContent>
-      </Card>
-
-      {canSeeFinancials && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Estimativa Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">{formatCurrency(m.valor_total)}</div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+    <section>
+      <h3 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+        <ShoppingCart className="w-4 h-4 text-primary" />
+        Compras
+      </h3>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          icon={ShoppingCart}
+          label="Total de Compras"
+          value={metrics.total ?? 0}
+          onClick={() => navigate('/purchases')}
+          gradientClass="bg-gradient-to-b from-primary to-primary/70"
+        />
+        <MetricCard
+          icon={Clock}
+          label="Em Andamento"
+          value={metrics.abertas ?? 0}
+          onClick={() => navigate('/purchases')}
+          gradientClass="bg-gradient-to-b from-amber-500 to-amber-400"
+        />
+        <MetricCard
+          icon={CheckCircle}
+          label="Aprovadas"
+          value={metrics.aprovadas ?? 0}
+          gradientClass="bg-gradient-to-b from-emerald-500 to-emerald-400"
+        />
+        {canSeeFinancials && (
+          <MetricCard
+            icon={DollarSign}
+            label="Valor Total"
+            value={formatCurrency(metrics.valor_total ?? 0)}
+            gradientClass="bg-gradient-to-b from-blue-500 to-blue-400"
+          />
+        )}
+      </div>
+    </section>
   );
 }
