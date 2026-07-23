@@ -1,5 +1,11 @@
 -- Habilita realtime na tabela approval_requests para o motor de aprovação
-ALTER PUBLICATION supabase_realtime ADD TABLE approval_requests;
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE approval_requests;
+EXCEPTION
+  WHEN duplicate_object THEN
+    NULL;
+END $$;
 
 -- RPC de Métricas do Dashboard (Performance Extrema)
 -- SECURITY INVOKER garante que as agregações abaixo usem as políticas de RLS do usuário logado.

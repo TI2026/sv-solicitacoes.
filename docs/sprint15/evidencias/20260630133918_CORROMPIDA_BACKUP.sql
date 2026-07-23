@@ -210,7 +210,7 @@ BEGIN
 
   IF p_action = 'reject' THEN
     IF _flow.require_rejection_reason AND (p_comments IS NULL OR trim(p_comments)='') THEN
-      RETURN jsonb_build_object('error','É obrigatório informar o motivo da recusa');
+É obrigatório informar o motivo da recusa');
     END IF;
     _new := 'rejected';
     UPDATE approval_request_steps SET status='rejected', action_at=now(), comments=p_comments
@@ -222,7 +222,7 @@ BEGIN
       RETURN jsonb_build_object('error','Este fluxo não permite devolução');
     END IF;
     IF p_comments IS NULL OR trim(p_comments)='' THEN
-      RETURN jsonb_build_object('error','É obrigatório informar o motivo da devolução');
+É obrigatório informar o motivo da devolução');
     END IF;
 
     IF COALESCE(_flow.return_mode,'requester') = 'previous_step' THEN
@@ -307,7 +307,7 @@ BEGIN
       CASE p_action
         WHEN 'approve' THEN 'Sua solicitação avançou no fluxo'
         WHEN 'reject' THEN COALESCE('Motivo: '||p_comments,'Recusada')
-        WHEN 'return' THEN COALESCE('Motivo: '||p_comments||' — corrija e reenvie para retomar o fluxo','Devolvida para correção')
+        WHEN 'return' THEN COALESCE('Motivo: '||p_comments||' - corrija e reenvie para retomar o fluxo','Devolvida para correção')
       END,
       jsonb_build_object('entity_type','approval_request','entity_id',p_approval_request_id));
   END IF;
@@ -337,7 +337,6 @@ BEGIN
   RETURN jsonb_build_object('success',true,'status',_new);
 END;
 $$;
-
 -- === ROLLBACK ===
 -- DROP INDEX IF EXISTS public.idx_approval_requests_one_active_per_reference;
 -- Reverter as funções start_approval_flow e process_approval_action para as versões anteriores (presentes nas migrations 20260623181031 e 20260622163923 respectivamente).

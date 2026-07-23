@@ -41,6 +41,7 @@ DECLARE
 
   _reason_blocked   text := NULL;
   _domain_state     text;
+  _domain_requester uuid;
 BEGIN
   -- ============================================================
   -- 1. LOCALIZAR O APPROVAL REQUEST ATIVO E DOMÍNIO
@@ -56,12 +57,12 @@ BEGIN
   LIMIT 1;
 
   -- Ler o estado da tabela de domínio 
-  SELECT status, requester_user_id INTO _domain_state, _requester_profile
+  SELECT status, requester_user_id INTO _domain_state, _domain_requester
   FROM public.fuel_requests WHERE id = p_reference_id LIMIT 1;
 
   -- Se não existe fluxo ativo, retorna contexto mínimo (request pode estar em rascunho)
   IF _req IS NULL THEN
-    _is_requester := (_requester_profile.requester_user_id = _uid);
+    _is_requester := (_domain_requester = _uid);
     RETURN jsonb_build_object(
       'is_in_flow', false,
       'status', 'draft',
