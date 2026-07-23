@@ -28,9 +28,18 @@ export function getDisplayApproverType(raw: string): 'specific_user' | 'sector' 
   return 'specific_user';
 }
 
-/** Converte a categoria da UI para o valor aceito pelo backend/RPC. */
+/**
+ * Converte a categoria da UI para o valor aceito pelo backend/RPC.
+ *
+ * IMPORTANTE: Sprint 13 migration (20260721000000_sprint13_approval_engine.sql)
+ * migrou todos os dados para 'sector'/'specific_user' e adicionou CHECK constraint:
+ *   CHECK (approver_type IN ('sector', 'specific_user'))
+ *
+ * Os valores legados 'responsavel_do_setor_especifico' e 'usuario_fixo'
+ * não são mais aceitos pelo banco. Usar os valores canônicos.
+ */
 export function toBackendApproverType(ui: 'specific_user' | 'sector'): string {
-  return ui === 'sector' ? 'responsavel_do_setor_especifico' : 'usuario_fixo';
+  return ui === 'sector' ? 'sector' : 'specific_user';
 }
 
 export function getApproverTypeLabel(raw: string | undefined): string {

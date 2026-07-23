@@ -163,17 +163,29 @@ function classifyTerminationStatus(status: string): RequestGroup {
 // ─── Agregador principal ──────────────────────────────────────────────────────
 
 export async function loadMyRequests(userId: string): Promise<MyRequest[]> {
-  const [fuel, admissions, purchases, terminations] = await Promise.all([
+  // B8 Fix: usar Promise.allSettled para capturar erros individualmente.
+  // O .catch(() => []) anterior silenciava falhas de RLS, schema ou rede de purchases.
+  const [fuelResult, admissionsResult, purchasesResult, terminationsResult] = await Promise.allSettled([
     fetchFuelRequests(userId),
     fetchAdmissionRequests(userId),
-    fetchPurchaseRequests(userId).catch(() => []),
+    fetchPurchaseRequests(userId),
     fetchTerminationRequests(userId),
   ]);
 
+  if (purchasesResult.status === 'rejected') {
+    // Erro visível em logs — não escondido. Pode indicar problema de RLS ou schema (B1).
+    console.error('[myRequestsLoader] purchases fetch failed:', purchasesResult.reason);
+  }
+
+  const fuel = fuelResult.status === 'fulfilled' ? fuelResult.value : [];
+  const admissions = admissionsResult.status === 'fulfilled' ? admissionsResult.value : [];
+  const purchases = purchasesResult.status === 'fulfilled' ? purchasesResult.value : [];
+  const terminations = terminationsResult.status === 'fulfilled' ? terminationsResult.value : [];
+
   return [
-    ...(Array.isArray(fuel) ? fuel : []),
-    ...(Array.isArray(admissions) ? admissions : []),
-    ...(Array.isArray(purchases) ? purchases : []),
-    ...(Array.isArray(terminations) ? terminations : []),
+    ...fuel,
+    ...admissions,
+    ...purchases,
+    ...terminations,
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }

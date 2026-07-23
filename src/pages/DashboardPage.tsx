@@ -21,8 +21,8 @@ import { CriticalPendingWidget } from '@/modules/dashboard/components/CriticalPe
 
 import { FuelMetricsBlock } from '@/modules/dashboard/components/FuelMetricsBlock';
 import { AdmissionMetricsBlock } from '@/modules/dashboard/components/AdmissionMetricsBlock';
-// PurchaseMetricsBlock removido na Sprint 13.9 — tabela `purchases` inexistente.
-// Reativar na Sprint 14 quando o módulo Compras tiver persistência operacional.
+// B5 Fix Sprint 15: PurchaseMetricsBlock reativado — dados já existem em get_dashboard_metrics()
+import { PurchaseMetricsBlock } from '@/modules/dashboard/components/PurchaseMetricsBlock';
 import { FlowControlPanel } from '@/modules/dashboard/components/FlowControlPanel';
 
 export default function DashboardPage() {
@@ -52,7 +52,7 @@ export default function DashboardPage() {
       // Métricas globais
       { table: 'fuel_requests',          queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
       { table: 'admission_requests',     queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
-      { table: 'purchases',              queryKeys: [['my_requests', user?.id]] },
+      { table: 'purchases', queryKeys: [['dashboard_metrics'], ['my_requests', user?.id]] },
       // Fila de aprovação + pendências críticas
       {
         table: 'approval_requests',
@@ -249,6 +249,7 @@ export default function DashboardPage() {
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={false} />
               )}
+              <PurchaseMetricsBlock metrics={(metrics as any)?.purchase} canSeeFinancials={false} />
             </div>
           )}
         </TabsContent>
@@ -307,6 +308,7 @@ export default function DashboardPage() {
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={canSeeFinancials} />
               )}
+              <PurchaseMetricsBlock metrics={(metrics as any)?.purchase} canSeeFinancials={canSeeFinancials} />
             </div>
           )}
           <section className="space-y-3">
