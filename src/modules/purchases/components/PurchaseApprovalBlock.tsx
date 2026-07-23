@@ -108,7 +108,7 @@ export function PurchaseApprovalBlock({
           toast.success('Solicitação devolvida para ajuste.');
           break;
 
-        case 'oc':
+        case 'oc': {
           if (!ocNumber.trim()) { toast.error('Número da OC obrigatório.'); return; }
           if (!supplier.trim()) { toast.error('Fornecedor obrigatório.'); return; }
           const val = parseFloat(approvedValue);
@@ -125,6 +125,7 @@ export function PurchaseApprovalBlock({
           });
           toast.success('Ordem de Compra gerada!');
           break;
+        }
 
         case 'payment':
           await actions.confirmPayment.mutateAsync({
