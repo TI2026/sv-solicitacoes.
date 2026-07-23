@@ -1,41 +1,60 @@
-# SPRINT 15: RELATÓRIO FINAL E CONCLUSÃO (RECONCILIAÇÃO)
+# SPRINT 15: RELATÓRIO FINAL E GATE DE HOMOLOGAÇÃO
 
-**Data/Hora:** 2026-07-23
-**Status da Conexão:** Read-only (via CLI token), Banco direto Inacessível
-**Projeto vinculado:** zeaerqlvhrbcuubueolh
+**Data:** 2026-07-23
+**Status Geral:** **NO-GO TEMPORÁRIO (Aguardando Provisionamento de Staging)**
 
-## 1. Commits Envolvidos e Histórico
-- `97d2853` (fix loaders, dashboard)
-- `d6d4f37` (validações iniciais de Fleet)
-- `278ee84` (migration unlink, NO-GO inicial)
+O Sprint 15 completou toda a fase de diagnóstico de produção, conciliação de código, refatoração de migrations locais e compilação do front-end. No entanto, em total obediência às diretrizes de segurança arquitetural, **nenhuma mutação foi aplicada ao banco de produção** (zeaerqlvhrbcuubueolh).
 
-## 2. Reconciliação do Banco (Estratégia C Aplicada)
-Através do comando `npx supabase migration list`, foi possível confirmar uma discrepância sistêmica ("Drift") entre os arquivos do repositório local e os registros da tabela `schema_migrations` do Supabase Remoto.
-Os timestamps diferem por alguns segundos em quase todas as migrations recentes e outras constam isoladamente no painel.
+## 1. O Problema do Histórico Remoto (Diagnóstico Comprovado)
+Após rodar o dry-run, foi comprovado que **dezenas de migrations históricas (desde 2026-06-30 até 2026-07-21)** estão ausentes da tabela `schema_migrations` do Supabase de produção, apesar de **seus efeitos já estarem presentes no schema real** (ex: a tabela `purchases` criada na sprint 8 existe, a RPC `process_approval_action` criada na sprint 3 existe).
 
-**Decisão Adotada:**
-A **ESTRATÉGIA C (Schema Remoto tem Drift)** foi iniciada. As migrations não foram e não serão aplicadas através do CLI (`db push` / `repair`) no estado atual, visando proteger a integridade do ambiente. O banco requer um backup pontual (Point-In-Time Recovery) ou um `db pull` isolado antes de criar a migration de unificação e correção.
+Isso configura um cenário clássico de **TIPO 4 (Histórico remoto incorreto)** causado por manipulação de schema via Web UI ou deploy assíncrono pelo Lovable sem o commit correto do registro de migração.
 
-## 3. Estado das Tarefas Locais
-### Fleet (Abastecimento, Diária, Reembolso)
-- Regras de frontend para preenchimento condicional, datas (atual/futura/passada), e motivos/justificativas obrigatórios implementados no `FleetNewPage`.
-- Motor de aprovação genérico implementado via `FleetApprovalAction`, consumindo o contexto do banco (`approvalCtx`).
-- Contudo, **NÃO ESTÃO FUNCIONAIS** de ponta-a-ponta, uma vez que a progressão das máquinas de estado (ex. Confirmação Financeira, Recebimento, Anexar NF, Odômetro, Devolução) dependem das correções na `approval_engine` via migrations (impedidas no momento) e validações condicionais no BD (ex: Trigger de upload no Storage e checagens).
+Como as migrations ausentes possuem timestamps muito mais antigos do que as migrations da série `20260722` (que estão no histórico), o `db push --dry-run` exigiria o uso da flag destrutiva `--include-all` e tentaria reaplicar todo o histórico, o que causaria colisões e quebra da base.
 
-### Compras, Desligamentos, EPIs, Admissões e RBAC
-- Desvínculos (Desligamentos): Migration gerada (`20260723_sprint15_003_termination_unlink.sql`), mas não aplicada.
-- Dashboard, Popups, Badges: Interfaces concluídas, mas carecem dos dados corretos do banco saneado (as visões dependem da correção do status `cancelado` vs `deleted_at`).
-- SLA, Substitutos, Minha Fila, Notificações: Mesma restrição. O Frontend está preparado para as chamadas, mas os retornos do BD ainda têm formatações/problemas pendentes da base não normalizada.
+## 2. Bloqueio Imediato: Proteção de Produção
+Para corrigir isso localmente, o processo correto exige:
+1. Usar `supabase migration repair --status applied <version>` para cada migration que já existe.
+2. Usar `db push` para empurrar apenas as novas (Sprint 15).
 
-## 4. Testes E2E (Homologação)
-- Build TS / Linting: **PASSOU** (Frontend compila).
-- E2E Playwright: **BLOQUEADO**. Impossível homologar ponta-a-ponta se a base do Supabase não possui o schema da Sprint 15.
-- Realtime / Storage / RLS: **NÃO VALIDADOS**.
+Contudo, **como o ambiente vinculado é o Banco de Produção, nenhuma execução de repair ou push foi feita.** O Gate proíbe testes em produção antes da homologação E2E.
 
-## 5. Riscos e Bloqueios
-- **Risco Primário:** Forçar a aplicação das migrations através de `migration repair` causaria uma sobreposição sem garantia de compatibilidade com os tipos ou policies ativas, podendo corromper o banco e causar indisponibilidade de produção.
-- **Bloqueio Crítico:** Falta de ambiente de staging isolado no Supabase para rodar o `db pull`, normalizar e depois replicar.
+## 3. Código Frontend
+- O código local compila (`vite build` gerado sem erros de Typescript).
+- Fluxos do motor (PurchaseApprovalBlock, FleetApprovalAction) estão sincronizados para consumir os contextos corretos.
+- No entanto, não é possível atestar o GO E2E funcional pois a base remota de produção ainda carece das colunas cruciais de `purchases` (ex: `deleted_at`, `tracking_code`) e das novas RPCs da Sprint 15. Qualquer clique no app em produção atrelado a esses novos fluxos irá causar `500 Internal Server Error`.
 
-## 6. Decisão de Lançamento
-**Decisão:** NO-GO 🔴
-**Motivo:** As condicionantes de liberação (histórico de migrations reconciliado, banco seguro, fluxos operacionais E2E rodando e validados) não foram atingidas. O banco real possui drift estrutural e o executor da IDE não tem permissões administrativas diretas para realizar o reset do schema em uma branch shadow/clonada, paralisando a evolução do Sprint 15 na etapa de deploy.
+## 4. O Que Falta para o GO Final (Comandos Exatos Solicitados)
+
+Como não tenho credenciais para provisionar via painel web, o Sprint está pausado no Gate de Infraestrutura.
+
+### Ação Necessária do Responsável / DBA:
+1. **Provisione um ambiente de Staging (Projeto Separado) no Supabase.**
+2. Restaure o backup point-in-time de produção nele.
+3. Vincule a CLI ao staging: `npx supabase link --project-ref <NOVO_REF>`
+4. Rode a bateria de repair listada abaixo para normalizar o histórico do staging.
+5. Rode `npx supabase db push`.
+6. Permita que eu conclua os testes E2E do Frontend apontando para esse staging.
+
+**Comandos Exatos de Repair (Para rodar no Staging ou em Produção quando autorizado):**
+```bash
+npx supabase migration repair --status applied 20260318171500
+npx supabase migration repair --status applied 20260630133918
+npx supabase migration repair --status applied 20260630135238
+npx supabase migration repair --status applied 20260630141022
+npx supabase migration repair --status applied 20260630142500
+npx supabase migration repair --status applied 20260630160000
+npx supabase migration repair --status applied 20260703125923
+npx supabase migration repair --status applied 20260703132000
+npx supabase migration repair --status applied 20260703134500
+npx supabase migration repair --status applied 20260703134512
+npx supabase migration repair --status applied 20260703140000
+npx supabase migration repair --status applied 20260709000000
+npx supabase migration repair --status applied 20260716150000
+npx supabase migration repair --status applied 20260717110700
+npx supabase migration repair --status applied 20260717112426
+npx supabase migration repair --status applied 20260720000001
+npx supabase migration repair --status applied 20260720000002
+npx supabase migration repair --status applied 20260720000003
+```
+*(Após rodar o repair, um `db push` limpo levará apenas as 3 migrations TIPO 3 reais da Sprint 15).*
