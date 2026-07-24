@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Paperclip, Upload, Trash2, ExternalLink, Loader2 } from 'lucide-react';
+import { Paperclip, Upload, Trash2, ExternalLink, Loader2, Link as LinkIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PurchaseAttachment } from '../queries/purchaseLoader';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +22,9 @@ interface Props {
 export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }: Props) {
   const [uploading, setUploading] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkName, setLinkName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
 
@@ -106,7 +111,9 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
   const handleRemove = async (att: PurchaseAttachment) => {
     setRemovingId(att.id);
     try {
-      await supabase.storage.from(BUCKET).remove([att.path]);
+      if (att.path) {
+        await supabase.storage.from(BUCKET).remove([att.path]);
+      }
       await persistAttachments(attachments.filter((a) => a.id !== att.id));
       toast.success('Anexo removido');
       invalidate();
@@ -114,6 +121,34 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
       toast.error('Erro ao remover', { description: err.message });
     } finally {
       setRemovingId(null);
+    }
+  };
+
+  const handleAddLink = async () => {
+    const url = linkUrl.trim();
+    if (!/^https?:\/\/.+/i.test(url)) {
+      toast.error('URL inválida', { description: 'Use um link http(s) válido.' });
+      return;
+    }
+    try {
+      const next: PurchaseAttachment[] = [
+        ...attachments,
+        {
+          id: crypto.randomUUID(),
+          name: linkName.trim() || url,
+          url,
+          kind: 'link',
+          uploaded_at: new Date().toISOString(),
+        },
+      ];
+      await persistAttachments(next);
+      toast.success('Link adicionado');
+      setLinkUrl('');
+      setLinkName('');
+      setLinkDialogOpen(false);
+      invalidate();
+    } catch (err: any) {
+      toast.error('Erro ao adicionar link', { description: err.message });
     }
   };
 
@@ -133,13 +168,16 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
             {attachments.map((att) => (
               <div key={att.id} className="flex items-center justify-between p-2 border rounded-lg bg-muted/30">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{att.name}</p>
+                  <p className="text-sm font-medium truncate flex items-center gap-1.5">
+                    {att.url ? <LinkIcon className="w-3.5 h-3.5 text-primary shrink-0" /> : null}
+                    {att.name}
+                  </p>
                   <p className="text-xs text-muted-foreground truncate">
                     {new Date(att.uploaded_at).toLocaleString('pt-BR')}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-3">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openSigned(att.path)} title="Abrir arquivo">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openAttachment(att)} title="Abrir">
                     <ExternalLink className="w-4 h-4" />
                   </Button>
                   {canEdit && (
@@ -161,7 +199,7 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
         )}
 
         {canEdit && (
-          <div className="pt-2 border-t">
+          <div className="pt-2 border-t space-y-2">
             <input
               ref={inputRef}
               type="file"
@@ -180,9 +218,49 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {uploading ? 'Enviando...' : 'Enviar anexo'}
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-8 gap-1"
+              onClick={() => setLinkDialogOpen(true)}
+              disabled={uploading}
+            >
+              <LinkIcon className="w-4 h-4" /> Anexar link
+            </Button>
             <p className="text-[11px] text-muted-foreground text-center mt-2">JPEG, PNG, WebP ou PDF · até 10MB</p>
           </div>
         )}
+
+        <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+          <DialogContent aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle>Anexar link</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">URL *</label>
+                <Input
+                  type="url"
+                  placeholder="https://..."
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Nome (opcional)</label>
+                <Input
+                  placeholder="Ex: Orçamento fornecedor X"
+                  value={linkName}
+                  onChange={(e) => setLinkName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>Cancelar</Button>
+              <Button onClick={handleAddLink}>Adicionar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

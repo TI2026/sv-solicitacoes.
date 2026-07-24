@@ -9,9 +9,9 @@ export default function PurchaseFormPage() {
 
   const handleSubmit = async (data: any) => {
     try {
-      const res = await createPurchase(data);
+      await createPurchase(data);
       toast.success('Solicitação de compra salva com sucesso!');
-      navigate(`/purchases/${res.id}`);
+      navigate('/purchases');
     } catch (error: any) {
       toast.error(error.message || 'Erro ao salvar solicitação');
     }
