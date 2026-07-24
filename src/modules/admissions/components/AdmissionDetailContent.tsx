@@ -64,7 +64,7 @@ export function AdmissionDetailContent() {
   const {
     id, req, isLoading, user, isRH, hasAnyRole,
     candidates, interviews, activeCandidates, approvedCandidates, hasApprovedCandidates, allActiveHaveInterviewResult,
-    approvalRequest, allApprovalCycles, previousCycles, status, canEditLocal,
+    approvalRequest, allApprovalCycles, previousCycles, status,
     showAddCandidate, setShowAddCandidate, candidateForm, setCandidateForm,
     editCandidateId, setEditCandidateId, showDeleteConfirm, setShowDeleteConfirm,
     interviewCandidate, setInterviewCandidate, generatedLinks, linksGenerating,
@@ -77,7 +77,7 @@ export function AdmissionDetailContent() {
 
   // O frontend NÃO DEVE calcular ações permitidas. Deve ler do motor.
   const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
-  // canEditLocal antigo agora deve ser substituído por permissão específica, 
+  // canEditLocal antigo agora deve ser substituído por permissão específica,
   // mas para manter compatibilidade com UI visual, mapeamos:
   const canEditLocal = hasAction('editar') || hasAction('avancar_etapa');
 
