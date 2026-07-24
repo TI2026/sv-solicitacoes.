@@ -64,7 +64,7 @@ export function AdmissionDetailContent() {
   const {
     id, req, isLoading, user, isRH, hasAnyRole,
     candidates, interviews, activeCandidates, approvedCandidates, hasApprovedCandidates, allActiveHaveInterviewResult,
-    approvalRequest, allApprovalCycles, previousCycles, status, canEdit,
+    approvalRequest, allApprovalCycles, previousCycles, status, canEditLocal,
     showAddCandidate, setShowAddCandidate, candidateForm, setCandidateForm,
     editCandidateId, setEditCandidateId, showDeleteConfirm, setShowDeleteConfirm,
     interviewCandidate, setInterviewCandidate, generatedLinks, linksGenerating,
@@ -72,8 +72,14 @@ export function AdmissionDetailContent() {
     handleStatusChange, handleAddCandidate, handleEditCandidate, handleDeleteCandidate,
     handleScheduleInterview, handleInterviewResult, handleConfirmInterview,
     copyToClipboard, generateLinksForCandidates, isInterviewPast, getInterviewStatusLabel, canDecideInterview,
-    updateInterview
+    updateInterview, approvalCtx, approvalCtxLoading, approvalCtxError,
   } = useAdmissionDetail();
+
+  // O frontend NÃO DEVE calcular ações permitidas. Deve ler do motor.
+  const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
+  // canEditLocal antigo agora deve ser substituído por permissão específica, 
+  // mas para manter compatibilidade com UI visual, mapeamos:
+  const canEditLocal = hasAction('editar') || hasAction('avancar_etapa');
 
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -114,7 +120,7 @@ export function AdmissionDetailContent() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {canEdit && (
+              {canEditLocal && (
                 <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)} className="gap-1">
                   <Pencil className="w-3.5 h-3.5" /> Editar
                 </Button>

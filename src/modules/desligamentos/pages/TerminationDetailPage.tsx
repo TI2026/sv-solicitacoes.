@@ -10,6 +10,7 @@ import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { FinalReviewChecklist } from '@/components/FinalReviewChecklist';
 import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
+import { useApprovalContext } from '@/modules/fleet/hooks/useApprovalContext';
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
@@ -52,7 +53,10 @@ export default function TerminationDetailPage() {
   const { user, hasAnyRole } = useAuth();
   const { data: item, isLoading } = useTermination(id!);
   const setStatusMutation = useTerminationSetStatus();
-  const canManage = hasAnyRole(['diretoria', 'administrativo', 'rh']);
+  
+  const { data: approvalCtx } = useApprovalContext(id, 'desligamentos');
+  const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
+
   const { data: approvalRequest } = useApprovalRequestForReference(id);
   const { data: previousCycles = [] } = useApprovalRequestsForReference(id);
 
@@ -155,26 +159,24 @@ export default function TerminationDetailPage() {
           </div>
 
           {/* Ações */}
-          {canManage && (
-            <div className="flex flex-wrap gap-3 pt-2">
-              {item.status === 'rascunho' && (
-                <Button onClick={handleSendToApproval} disabled={setStatusMutation.isPending}>
-                  Enviar para Aprovação
-                </Button>
-              )}
-              {['rascunho', 'retornado', 'aprovado'].includes(item.status) && (
-                <Button
-                  variant="destructive"
-                  onClick={handleCancel}
-                  disabled={setStatusMutation.isPending}
-                >
-                  Cancelar Solicitação
-                </Button>
-              )}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-3 pt-2">
+            {hasAction('enviar') && (
+              <Button onClick={handleSendToApproval} disabled={setStatusMutation.isPending}>
+                Enviar para Aprovação
+              </Button>
+            )}
+            {hasAction('cancelar') && (
+              <Button
+                variant="destructive"
+                onClick={handleCancel}
+                disabled={setStatusMutation.isPending}
+              >
+                Cancelar Solicitação
+              </Button>
+            )}
+          </div>
 
-          {canManage && item.status === 'aprovado' && (
+          {hasAction('processar') && (
             <FinalReviewChecklist
               description="Confirme os itens de RH antes de concluir o desligamento."
               items={[

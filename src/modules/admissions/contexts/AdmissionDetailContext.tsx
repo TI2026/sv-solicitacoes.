@@ -14,6 +14,7 @@ import {
 import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useCreateCollaboratorFromAdmission } from '@/modules/epis/hooks/useAdmissionToCollaborator';
+import { useApprovalContext, type ApprovalContextData } from '@/modules/fleet/hooks/useApprovalContext';
 
 interface AdmissionDetailContextData {
   id: string;
@@ -22,6 +23,10 @@ interface AdmissionDetailContextData {
   user: any;
   isRH: boolean;
   hasAnyRole: (roles: string[]) => boolean;
+
+  approvalCtx: ApprovalContextData | undefined;
+  approvalCtxLoading: boolean;
+  approvalCtxError: Error | null;
 
   candidates: any[];
   interviews: any[];
@@ -86,6 +91,13 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
   const previousCycles = (allApprovalCycles || []).slice(1);
   const { data: candidates } = useCandidates(id!);
   const { data: interviews } = useAdmissionInterviews(id!);
+
+  // [Sprint 15] Fonte canônica — carrega o contexto do Motor para este request.
+  const {
+    data: approvalCtx,
+    isLoading: approvalCtxLoading,
+    error: approvalCtxError,
+  } = useApprovalContext(id, 'admissions');
 
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
@@ -295,6 +307,7 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
 
   const value = {
     id: id!, req, isLoading, user, isRH, hasAnyRole,
+    approvalCtx, approvalCtxLoading, approvalCtxError: approvalCtxError as Error | null,
     candidates: candidates || [], interviews: interviews || [],
     activeCandidates, approvedCandidates, hasApprovedCandidates, allActiveHaveInterviewResult,
     approvalRequest, allApprovalCycles: allApprovalCycles || [], previousCycles,

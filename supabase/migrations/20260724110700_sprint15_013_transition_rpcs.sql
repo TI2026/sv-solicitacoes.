@@ -109,8 +109,8 @@ BEGIN
         VALUES (v_uid, 'ENTITY_TRANSITION', p_module_key, p_entity_id, v_audit_details);
 
         -- 7. Notificações (Simples)
-        INSERT INTO public.notifications (user_id, title, message, type, read, reference_id, reference_type)
-        VALUES (v_ctx.requester_user_id, 'Atualização de Solicitação', 'Sua solicitação mudou para: ' || v_new_status, 'status_update', false, p_entity_id, p_module_key);
+        INSERT INTO public.notifications (user_id, title, message, read, metadata)
+        VALUES (v_ctx.requester_user_id, 'Atualização de Solicitação', 'Sua solicitação mudou para: ' || v_new_status, false, jsonb_build_object('type', 'status_update', 'reference_id', p_entity_id, 'reference_type', p_module_key));
     END IF;
 
     RETURN jsonb_build_object('success', true, 'status', v_new_status);

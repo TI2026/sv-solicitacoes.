@@ -41,17 +41,25 @@ BEGIN
     v_is_master := public.has_role(v_uid, 'master');
 
     -- Recuperar entidade base
-    IF p_module_key = 'purchases' THEN
+    IF p_module_key = 'purchases' OR p_module_key = 'compras' THEN
         SELECT status::text, requester_user_id INTO v_base_status, v_base_requester FROM public.purchases WHERE id = p_entity_id;
-    ELSIF p_module_key = 'fleet' THEN
+    ELSIF p_module_key IN ('abastecimento', 'diaria', 'reembolso', 'fleet') THEN
         SELECT status::text, requester_user_id, type INTO v_base_status, v_base_requester, v_fleet_type FROM public.fuel_requests WHERE id = p_entity_id;
+        IF p_module_key <> 'fleet' AND v_fleet_type IS DISTINCT FROM p_module_key THEN
+            RAISE EXCEPTION 'Entidade não pertence ao módulo fleet informado (esperado %, recebido %)', p_module_key, v_fleet_type;
+        END IF;
+        -- Se veio como fleet genérico, ajusta para o tipo real para logica de ações funcionar abaixo
+        IF p_module_key = 'fleet' THEN
+            v_ctx.module_key := v_fleet_type;
+            p_module_key := v_fleet_type;
+        END IF;
     ELSIF p_module_key = 'admissions' THEN
         SELECT status::text, requester_user_id INTO v_base_status, v_base_requester 
         FROM public.admission_requests WHERE id = p_entity_id;
     ELSIF p_module_key = 'desligamentos' THEN
         SELECT status::text, requester_user_id INTO v_base_status, v_base_requester FROM public.termination_requests WHERE id = p_entity_id;
     ELSE
-        RAISE EXCEPTION 'Módulo inválido';
+        RAISE EXCEPTION 'Módulo inválido: %', p_module_key;
     END IF;
 
     IF v_base_status IS NULL THEN
@@ -115,7 +123,7 @@ BEGIN
             END IF;
         END IF;
 
-    ELSIF p_module_key = 'fleet' THEN
+    ELSIF p_module_key IN ('abastecimento', 'diaria', 'reembolso') THEN
         -- Fleet Submodules
         IF v_base_status IN ('rascunho', 'retornado') THEN
             IF v_is_requester OR v_is_master THEN
