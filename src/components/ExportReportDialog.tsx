@@ -84,11 +84,6 @@ export function ExportReportDialog({ open, onOpenChange }: ExportReportDialogPro
         const blob = new Blob([html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         openSecureWindow(url);
-        if (w) {
-          w.onload = () => {
-            setTimeout(() => w.print(), 500);
-          };
-        }
         toast.success('Relatório aberto para impressão/PDF');
       } else if (data?.base64) {
         // Download XLSX
