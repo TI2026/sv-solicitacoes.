@@ -174,23 +174,25 @@ export default function FleetNewPage() {
     return digits.length === 10 || digits.length === 11;
   };
 
-  // Abastecimento: today + future only. Diária: any date.
+  // Abastecimento: somente de hoje.
+  // Diária: atual ou futura.
+  // Reembolso: atual ou passada.
   const isDateValid = () => {
     if (!data) return false;
-    if (type === 'abastecimento') {
-      return data >= minDateToday();
-    }
-    // reembolso and diaria: any date
-    return true;
+    const today = todayBR();
+    if (type === 'abastecimento') return data === today;
+    if (type === 'diaria') return data >= today;
+    if (type === 'reembolso') return data <= today;
+    return false;
   };
 
   const isValid = () => {
     if (!isDateValid()) return false;
     if (type === 'abastecimento') {
-      return valorNum > 0 && valorNum <= 50000 && !!placa && isValidPlate(placa) && !!data;
+      return valorNum > 0 && valorNum <= 50000 && !!placa && isValidPlate(placa) && !!data && !!motivo.trim();
     }
     if (type === 'reembolso') {
-      return valorNum > 0 && valorNum <= 50000 && !!categoria && !!data && (paymentMethod === 'pix' ? isPixValid() : !!bankName);
+      return valorNum > 0 && valorNum <= 50000 && !!categoria && !!data && (paymentMethod === 'pix' ? isPixValid() : !!bankName) && !!notes.trim();
     }
     if (type === 'diaria') {
       return !!dailyCategory && !!personName && dailyValueNum > 0 && dailyValueNum <= 50000 && !!data;

@@ -39,6 +39,8 @@ const MODULE_ROUTE: Record<string, string> = {
   diaria: '/fleet',
   admissions: '/admissions',
   desligamentos: '/desligamentos',
+  // B6 Fix: rota de Compras reativada na Sprint 15
+  compras: '/purchases',
 };
 
 function resolveRoute(moduleCode: string | null, referenceId: string | null): string | null {
@@ -91,12 +93,13 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
   }
 
   // 3. Approval requests ativas sem current_step_order
+  // B4 Fix: incluir 'returned_for_adjustment' além de 'returned_to_requester' pois o motor usa ambos em versões distintas
   const { data: noStep } = await supabase
     .from('approval_requests')
     .select('id, reference_id, status, created_at, approval_modules(code, name)')
     .is('ended_at', null)
     .is('current_step_order', null)
-    .not('status', 'in', '("approved","rejected","returned_to_requester")')
+    .not('status', 'in', '("approved","rejected","returned_to_requester","returned_for_adjustment")')
     .order('created_at', { ascending: true })
     .limit(20);
 
@@ -111,11 +114,14 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
     });
   }
 
-  // 4. Inconsistência: status 'em_aprovacao' com ended_at preenchido
+  // 4. Inconsistência: approval_requests com status awaiting_step_N mas ended_at preenchido.
+  // B3 Fix: o motor NUNCA escreve 'pending_approval'. Ele usa 'awaiting_step_1', 'awaiting_step_2', etc.
+  // A inconsistência real é: fluxo em etapa ativa (awaiting_step_%) porém ended_at já está preenchido,
+  // indicando que foi encerrado prematuramente sem transição correta de status.
   const { data: inconsistent } = await supabase
     .from('approval_requests')
-    .select('id, reference_id, created_at, approval_modules(code, name)')
-    .eq('status', 'pending_approval')
+    .select('id, reference_id, status, created_at, approval_modules(code, name)')
+    .like('status', 'awaiting_step_%')
     .not('ended_at', 'is', null)
     .order('created_at', { ascending: true })
     .limit(20);
