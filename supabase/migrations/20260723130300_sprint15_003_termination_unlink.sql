@@ -2,7 +2,7 @@
 
 CREATE OR REPLACE FUNCTION public.termination_set_status(
   _request_id uuid,
-  _to_status text,
+  _to_status public.termination_status,
   _reason text DEFAULT NULL::text
 )
  RETURNS jsonb
@@ -61,10 +61,26 @@ BEGIN
         UPDATE public.profiles SET active = false WHERE id = _collab.user_id;
         
         -- Limpa setor (responsável / substituto)
-        UPDATE public.sectors SET manager_user_id = NULL WHERE manager_user_id = _collab.user_id;
+        UPDATE public.sectors SET responsible_user_id = NULL WHERE responsible_user_id = _collab.user_id;
         UPDATE public.sectors SET substitute_user_id = NULL WHERE substitute_user_id = _collab.user_id;
         
-        -- Remove roles
+        -- Remove roles preservando o último Master
+        IF EXISTS (
+          SELECT 1 FROM public.user_role_assignments ura
+          JOIN public.roles r ON r.id = ura.role_id
+          WHERE ura.user_id = _collab.user_id AND r.key = 'master'
+        ) THEN
+          IF (
+            SELECT count(DISTINCT ura2.user_id)
+            FROM public.user_role_assignments ura2
+            JOIN public.roles r2 ON r2.id = ura2.role_id
+            JOIN public.profiles p2 ON p2.id = ura2.user_id
+            WHERE r2.key = 'master' AND COALESCE(p2.active, true) = true
+          ) <= 1 THEN
+            RAISE EXCEPTION 'Não é possível desligar o último Master do sistema.';
+          END IF;
+        END IF;
+
         DELETE FROM public.user_role_assignments WHERE user_id = _collab.user_id;
       END IF;
     END IF;
