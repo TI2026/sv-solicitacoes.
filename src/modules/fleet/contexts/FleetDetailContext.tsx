@@ -1,3 +1,4 @@
+import { openSecureWindow } from "@/utils/urlSecurity";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -318,7 +319,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
 
   const getSignedUrl = async (path: string) => {
     const { data } = await supabase.storage.from('fleet').createSignedUrl(path, 300);
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+    if (data?.signedUrl) openSecureWindow(data.signedUrl);
   };
 
   const openInlinePreview = async (path: string, label: string) => {

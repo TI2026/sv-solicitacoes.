@@ -1,3 +1,4 @@
+import { openSecureWindow } from "@/utils/urlSecurity";
 import { useNavigate } from 'react-router-dom';
 import { useFleetDetail } from '../contexts/FleetDetailContext';
 import { FleetPaymentBlock } from './FleetPaymentBlock';
@@ -429,7 +430,7 @@ export function FleetDetailContent() {
             {previewType === 'pdf' && previewUrl && <iframe src={`${previewUrl}#toolbar=0`} className="w-full h-full rounded-md shadow-sm border-0" />}
           </div>
           <DialogFooter className="p-4 border-t shrink-0">
-            <Button variant="outline" onClick={() => { if (previewUrl) window.open(previewUrl, '_blank'); }}>Abrir em nova aba</Button>
+            <Button variant="outline" onClick={() => { if (previewUrl) openSecureWindow(previewUrl); }}>Abrir em nova aba</Button>
             <Button onClick={() => { setPreviewUrl(null); setPreviewType(null); }}>Fechar</Button>
           </DialogFooter>
         </DialogContent>

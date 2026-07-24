@@ -1,3 +1,4 @@
+import { openSecureWindow } from "@/utils/urlSecurity";
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCandidate, useCandidateDocuments, useDocuments, useMedicalExam, useSystemRegistration, useClinics } from '../hooks/useAdmissionQueries';
@@ -101,7 +102,7 @@ export default function CandidateDetailPage() {
 
   const getSignedUrl = async (path: string) => {
     const { data } = await supabase.storage.from('admissions').createSignedUrl(path, 300);
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+    if (data?.signedUrl) openSecureWindow(data.signedUrl);
   };
 
   if (isLoading) {

@@ -29,12 +29,19 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
   };
 
   const openSigned = async (path: string) => {
+    // legacy external URL support
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      const { openSecureWindow } = await import('@/utils/urlSecurity');
+      openSecureWindow(path);
+      return;
+    }
     const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300);
     if (error || !data?.signedUrl) {
       toast.error('Não foi possível abrir o anexo');
       return;
     }
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    const { openSecureWindow } = await import('@/utils/urlSecurity');
+    openSecureWindow(data.signedUrl);
   };
 
   const persistAttachments = async (next: PurchaseAttachment[]) => {
