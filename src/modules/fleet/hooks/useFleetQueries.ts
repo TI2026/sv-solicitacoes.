@@ -186,7 +186,7 @@ export function useFuelSetStatus() {
       else if (params.toStatus === 'pago') action = 'pagar';
       else action = 'editar';
 
-      const { data, error } = await supabase.rpc('execute_entity_action', {
+      const { data, error } = await (supabase.rpc as any)('execute_entity_action', {
         p_module_key: 'fleet',
         p_entity_id: params.requestId,
         p_action: action,
