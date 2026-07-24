@@ -21,20 +21,12 @@ export function FleetPaymentBlock() {
   if (!req) return null;
 
   const requiresOC = reqType !== 'reembolso'; // Reembolso skips OC
-  // [Sprint 2 — Onda 2] ctx.permissions é a fonte única — zero IF de cargo
-  const canGenerateOC     = approvalCtx?.permissions.generate_oc ?? false;
-  const canConfirmPayment = approvalCtx?.permissions.confirm_payment ?? false;
+  const canConfirmPayment = approvalCtx?.permissions.allowed_actions.includes('pagar') ?? false;
 
   return (
     <>
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2 mt-4">
-        {canGenerateOC && requiresOC && (
-          <Button onClick={() => setShowOcDialog(true)} disabled={isPending} className="gap-2 w-full sm:w-auto">
-            Registrar OC e Liberar para Pagamento
-          </Button>
-        )}
-
         {canConfirmPayment && !requiresOC && (
           <Button onClick={() => setShowPaymentDialog(true)} disabled={isPending} className="gap-2 w-full sm:w-auto">
             <DollarSign className="w-4 h-4" /> Registrar Pagamento
@@ -48,26 +40,7 @@ export function FleetPaymentBlock() {
         )}
       </div>
 
-      {/* OC Dialog */}
-      <Dialog open={showOcDialog} onOpenChange={setShowOcDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Registrar Ordem de Compra (OC)</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Número da OC *</Label>
-              <Input value={ocNumber} onChange={e => setOcNumber(e.target.value)} placeholder="Ex: OC-12345" />
-            </div>
-            <div className="space-y-2">
-              <Label>Observações (Opcional)</Label>
-              <Textarea value={ocNotes} onChange={e => setOcNotes(e.target.value)} placeholder="Detalhes sobre a OC..." />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowOcDialog(false)}>Cancelar</Button>
-            <Button onClick={handleOcSubmit} disabled={isPending || !ocNumber.trim()}>Confirmar OC</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>

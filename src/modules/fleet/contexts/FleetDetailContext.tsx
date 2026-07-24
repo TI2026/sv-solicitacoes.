@@ -257,19 +257,10 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const handlePaymentConfirm = async () => {
     if (!id || statusMutation.isPending) return;
     try {
-      const { data: result, error } = await supabase.rpc('fuel_set_status', {
-        _request_id: id,
-        _to_status: 'pago' as any,
-        _reason: null,
-        _metadata: { payment_notes: paymentNotes.trim() || null },
-      });
-      if (error) throw error;
-      if ((result as any)?.error) throw new Error((result as any).error);
-
+      await statusMutation.mutateAsync({ requestId: id, toStatus: 'pago', reason: paymentNotes });
       toast({ title: 'Pagamento confirmado!' });
       setShowPaymentDialog(false);
       setPaymentNotes('');
-      refreshApprovalData(qc, id);
     } catch (err: any) {
       toast({ title: 'Erro ao confirmar pagamento', description: err.message, variant: 'destructive' });
     }

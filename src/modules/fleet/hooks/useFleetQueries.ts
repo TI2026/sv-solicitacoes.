@@ -174,28 +174,27 @@ export function useFuelSetStatus() {
 
   return useMutation({
     mutationFn: async (params: { requestId: string; toStatus: string; reason?: string; startApproval?: { moduleCode: string; requesterUserId: string } }) => {
-      // Envio para aprovação: RPC atômica — valida, cria fluxo e atualiza status em uma transaçãoúnica.
-      // Elimina a race condition da abordagem anterior (duas chamadas separadas).
-      if (params.toStatus === 'em_aprovacao' && params.startApproval) {
-        const { data, error } = await (supabase as any).rpc('submit_fuel_request', {
-          p_request_id:  params.requestId,
-          p_module_code: params.startApproval.moduleCode,
-        } as any);
-        if (error) throw error;
-        const result = data as any;
-        if (result?.code) throw new Error(`${result.code}: ${result.message}`);
-        return result;
-      }
+      // Mapeamento simplificado de status para ações do novo motor
+      let action = '';
+      if (params.toStatus === 'enviado' || params.toStatus === 'em_aprovacao') action = 'enviar';
+      else if (params.toStatus === 'aguardando_fotos') action = 'informar_abastecimento';
+      else if (params.toStatus === 'em_revisao_admin') action = 'enviar_documentos';
+      else if (params.toStatus === 'aprovado' && params.reason?.includes('conferidos')) action = 'concluir_revisao'; // workaround for review_admin
+      else if (params.toStatus === 'retornado') action = 'devolver';
+      else if (params.toStatus === 'em_revisao') action = 'confirmar_horas'; // daily travel
+      else if (params.toStatus === 'aguardando_pagamento') action = 'confirmar_horas'; // both are valid
+      else if (params.toStatus === 'pago') action = 'pagar';
+      else action = 'editar';
 
-      // Demais transições continuam via fuel_set_status (validações e locks já existentes)
-      const { data, error } = await supabase.rpc('fuel_set_status', {
-        _request_id: params.requestId,
-        _to_status:  params.toStatus as any,
-        _reason:     params.reason || null,
+      const { data, error } = await supabase.rpc('execute_entity_action', {
+        p_module_key: 'fleet',
+        p_entity_id: params.requestId,
+        p_action: action,
+        p_payload: { notes: params.reason || null }
       });
       if (error) throw error;
       const result = data as any;
-      if (result?.error) throw new Error(result.error);
+      if (result && !result.success) throw new Error(result.error);
       return result;
     },
     onSuccess: (_, params) => {

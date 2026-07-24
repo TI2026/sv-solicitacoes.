@@ -34,12 +34,12 @@ export default function PurchaseDetailPage() {
     data: approvalCtx,
     isLoading: approvalCtxLoading,
     error: approvalCtxError,
-  } = useApprovalContext(id, 'compras');
+  } = useApprovalContext(id, 'purchases');
 
   // ── Estados derivados ─────────────────────────────────────
-  const isEditable = purchase?.status === 'rascunho' || purchase?.status === 'retornado';
-  const isTerminal  = ['concluido', 'cancelado', 'rejeitado'].includes(purchase?.status || '');
-  const hasActiveFlow = purchase?.approval_request_id != null && !isEditable && !isTerminal;
+  // Frontend não calcula! Apenas reflete o estado do backend.
+  const isEditable = !!approvalCtx?.permissions.edit;
+  const hasActiveFlow = !isEditable && (approvalCtx?.permissions.allowed_actions.length || approvalCtx?.permissions.approve);
 
   // ── Handlers ──────────────────────────────────────────────
   const handleUpdate = async (data: any) => {

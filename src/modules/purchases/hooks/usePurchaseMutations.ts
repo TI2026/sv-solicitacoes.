@@ -45,14 +45,16 @@ export function usePurchaseMutations() {
 
   const submitMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await (supabase as any).rpc('submit_purchase_request', {
-        p_request_id: id
+      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
+        p_module_key: 'purchases',
+        p_entity_id: id,
+        p_action: 'enviar'
       });
       
       if (error) throw error;
       const result = data as any;
-      if (result && result.code) {
-        throw new Error(result.message || 'Erro ao enviar para aprovação');
+      if (result && !result.success) {
+        throw new Error(result.error || 'Erro ao enviar para aprovação');
       }
       return result;
     },

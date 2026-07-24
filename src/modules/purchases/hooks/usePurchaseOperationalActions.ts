@@ -77,18 +77,22 @@ export function usePurchaseOperationalActions(purchaseId: string | undefined) {
   // ── Gerar OC ────────────────────────────────────────────────
   const advanceToOc = useMutation({
     mutationFn: async (params: AdvanceToOcParams) => {
-      const { data, error } = await (supabase as any).rpc('advance_purchase_to_oc', {
-        p_request_id:      params.requestId,
-        p_oc_number:       params.ocNumber,
-        p_supplier:        params.supplier,
-        p_approved_value:  params.approvedValue,
-        p_notes:           params.notes ?? null,
-        p_delivery_address: params.deliveryAddress ?? null,
-        p_delivery_date:   params.deliveryDate ?? null,
-        p_tracking_code:   params.trackingCode ?? null,
+      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
+        p_module_key: 'purchases',
+        p_entity_id: params.requestId,
+        p_action: 'gerar_oc',
+        p_payload: {
+          ocNumber: params.ocNumber,
+          supplier: params.supplier,
+          approvedValue: params.approvedValue,
+          notes: params.notes,
+          deliveryAddress: params.deliveryAddress,
+          deliveryDate: params.deliveryDate,
+          trackingCode: params.trackingCode,
+        }
       });
       if (error) throw error;
-      return handleRpcResult(data, 'advance_purchase_to_oc');
+      return handleRpcResult(data, 'gerar_oc');
     },
     onSuccess: invalidate,
   });
@@ -96,12 +100,14 @@ export function usePurchaseOperationalActions(purchaseId: string | undefined) {
   // ── Confirmar Pagamento ──────────────────────────────────────
   const confirmPayment = useMutation({
     mutationFn: async (params: ConfirmPaymentParams) => {
-      const { data, error } = await (supabase as any).rpc('confirm_purchase_payment', {
-        p_request_id: params.requestId,
-        p_notes:      params.notes ?? null,
+      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
+        p_module_key: 'purchases',
+        p_entity_id: params.requestId,
+        p_action: 'pagar',
+        p_payload: { notes: params.notes }
       });
       if (error) throw error;
-      return handleRpcResult(data, 'confirm_purchase_payment');
+      return handleRpcResult(data, 'pagar');
     },
     onSuccess: invalidate,
   });
@@ -109,15 +115,19 @@ export function usePurchaseOperationalActions(purchaseId: string | undefined) {
   // ── Confirmar Entrega ────────────────────────────────────────
   const confirmDelivery = useMutation({
     mutationFn: async (params: ConfirmDeliveryParams) => {
-      const { data, error } = await (supabase as any).rpc('confirm_purchase_delivery', {
-        p_request_id:      params.requestId,
-        p_delivery_address: params.deliveryAddress ?? null,
-        p_delivery_date:   params.deliveryDate ?? null,
-        p_notes:           params.notes ?? null,
-        p_tracking_code:   params.trackingCode ?? null,
+      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
+        p_module_key: 'purchases',
+        p_entity_id: params.requestId,
+        p_action: 'informar_entrega',
+        p_payload: {
+          deliveryAddress: params.deliveryAddress,
+          deliveryDate: params.deliveryDate,
+          notes: params.notes,
+          trackingCode: params.trackingCode,
+        }
       });
       if (error) throw error;
-      return handleRpcResult(data, 'confirm_purchase_delivery');
+      return handleRpcResult(data, 'informar_entrega');
     },
     onSuccess: invalidate,
   });
@@ -125,12 +135,14 @@ export function usePurchaseOperationalActions(purchaseId: string | undefined) {
   // ── Confirmar Recebimento ────────────────────────────────────
   const confirmReceipt = useMutation({
     mutationFn: async (params: ConfirmReceiptParams) => {
-      const { data, error } = await (supabase as any).rpc('confirm_purchase_receipt', {
-        p_request_id: params.requestId,
-        p_notes:      params.notes ?? null,
+      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
+        p_module_key: 'purchases',
+        p_entity_id: params.requestId,
+        p_action: 'concluir',
+        p_payload: { notes: params.notes }
       });
       if (error) throw error;
-      return handleRpcResult(data, 'confirm_purchase_receipt');
+      return handleRpcResult(data, 'concluir');
     },
     onSuccess: invalidate,
   });
@@ -138,26 +150,35 @@ export function usePurchaseOperationalActions(purchaseId: string | undefined) {
   // ── Cancelar (com reason obrigatório) ───────────────────────
   const cancelPurchase = useMutation({
     mutationFn: async (params: CancelPurchaseParams) => {
-      const { data, error } = await (supabase as any).rpc('cancel_purchase_request', {
-        p_request_id: params.requestId,
-        p_reason:     params.reason,
+      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
+        p_module_key: 'purchases',
+        p_entity_id: params.requestId,
+        p_action: 'cancelar',
+        p_payload: { notes: params.reason }
       });
       if (error) throw error;
-      return handleRpcResult(data, 'cancel_purchase_request');
+      return handleRpcResult(data, 'cancelar');
     },
     onSuccess: invalidate,
   });
 
   // ── Aprovação (via motor canônico process_approval_action) ───
+  // Note: the component only passes approvalRequestId (from the view),
+  // but execute_entity_action needs the entity ID! Wait. 
+  // We can change the component to pass entityId instead, or we can look it up.
+  // Actually, let's keep calling execute_entity_action but we must fix the component to pass entityId instead.
+  // Wait, I will just call execute_entity_action if I have the entityId, or I can call process_approval_action directly here!
+  // It's safer to keep process_approval_action here because the component has approvalRequestId.
   const approvalAction = useMutation({
     mutationFn: async (params: {
       approvalRequestId: string;
       action: 'approve' | 'reject' | 'return';
       comments?: string;
     }) => {
+      const actionName = params.action === 'approve' ? 'aprovar' : params.action === 'reject' ? 'rejeitar' : 'devolver';
       const { data, error } = await (supabase as any).rpc('process_approval_action', {
         p_approval_request_id: params.approvalRequestId,
-        p_action:              params.action,
+        p_action:              actionName,
         p_comments:            params.comments ?? null,
       });
       if (error) throw error;

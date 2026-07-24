@@ -231,27 +231,27 @@ export function PurchaseApprovalBlock({
           )}
 
           {/* Ações Operacionais (allowed_actions do Motor) */}
-          {(allowedActions.includes('generate_oc') || allowedActions.includes('confirm_payment') ||
-            allowedActions.includes('confirm_delivery') || allowedActions.includes('confirm_receipt')) && (
+          {(allowedActions.includes('gerar_oc') || allowedActions.includes('pagar') ||
+            allowedActions.includes('informar_entrega') || allowedActions.includes('concluir')) && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ações Operacionais</p>
               <div className="flex flex-wrap gap-2">
-                {allowedActions.includes('generate_oc') && (
+                {allowedActions.includes('gerar_oc') && (
                   <Button size="sm" className="gap-1.5" onClick={() => setActionDialog('oc')}>
                     <ShoppingCart className="w-4 h-4" /> Gerar Ordem de Compra
                   </Button>
                 )}
-                {allowedActions.includes('confirm_payment') && (
+                {allowedActions.includes('pagar') && (
                   <Button size="sm" className="gap-1.5" onClick={() => setActionDialog('payment')}>
                     <CreditCard className="w-4 h-4" /> Confirmar Pagamento
                   </Button>
                 )}
-                {allowedActions.includes('confirm_delivery') && (
+                {allowedActions.includes('informar_entrega') && (
                   <Button size="sm" className="gap-1.5" onClick={() => setActionDialog('delivery')}>
                     <Truck className="w-4 h-4" /> Confirmar Entrega
                   </Button>
                 )}
-                {allowedActions.includes('confirm_receipt') && (
+                {allowedActions.includes('concluir') && (
                   <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={() => setActionDialog('receipt')}>
                     <PackageCheck className="w-4 h-4" /> Confirmar Recebimento
                   </Button>
