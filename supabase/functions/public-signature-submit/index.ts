@@ -30,6 +30,15 @@ async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function getMagicBytesMime(bytes: Uint8Array): string {
+  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  if (hex.startsWith('25504446')) return 'application/pdf';
+  if (hex.startsWith('FFD8FF')) return 'image/jpeg';
+  if (hex.startsWith('89504E47')) return 'image/png';
+  if (hex.startsWith('52494646')) return 'image/webp';
+  return 'unknown';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -46,21 +55,33 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    const { token, filename, content_type, mode, doc_key } = body;
-    // mode: 'admin' (upload docs for candidate to sign) or 'candidate' (upload signed docs)
-    // doc_key: optional, identifies the specific document type (e.g. CONTRATO_TRABALHO_SIGNED)
+    const formData = await req.formData();
+    const token = formData.get('token') as string;
+    const file = formData.get('file') as File | null;
+    const mode = formData.get('mode') as string | null;
+    const doc_key = formData.get('doc_key') as string | null;
+    const filename = (formData.get('filename') as string | null) || file?.name || '';
 
-    if (!token || !filename) {
+    if (!token || !file || !filename) {
       return new Response(JSON.stringify({ error: 'Parâmetros obrigatórios faltando' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-    if (content_type && !allowed.includes(content_type)) {
-      return new Response(JSON.stringify({ error: 'Tipo de arquivo não permitido' }), {
+    if (file.size > 10 * 1024 * 1024) {
+      return new Response(JSON.stringify({ error: 'Arquivo muito grande. Limite de 10MB.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Real content-type validation via magic bytes
+    const buffer = await file.arrayBuffer();
+    const firstBytes = new Uint8Array(buffer.slice(0, 4));
+    const realMime = getMagicBytesMime(firstBytes);
+    if (realMime === 'unknown') {
+      return new Response(JSON.stringify({ error: 'Formato de arquivo não suportado ou forjado' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -100,13 +121,13 @@ Deno.serve(async (req) => {
 
     const storagePath = `signature/signed/${link.admission_request_id}/${link.candidate_id}/${Date.now()}_${sanitizedFilename}`;
 
-    const { data: signedData, error: signedError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('admissions')
-      .createSignedUploadUrl(storagePath);
+      .upload(storagePath, buffer, { contentType: realMime, upsert: false });
 
-    if (signedError || !signedData) {
-      console.error('Signed URL error:', signedError);
-      return new Response(JSON.stringify({ error: 'Falha ao gerar URL de upload' }), {
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return new Response(JSON.stringify({ error: 'Falha ao salvar o arquivo' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -151,7 +172,7 @@ Deno.serve(async (req) => {
     console.log(`Signature candidate upload from IP ${clientIp} for candidate ${link.candidate_id}`);
 
     return new Response(JSON.stringify({
-      signedUrl: signedData.signedUrl,
+      success: true,
       path: storagePath,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
