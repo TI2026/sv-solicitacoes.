@@ -27,9 +27,9 @@ export function useCollaborators(filters?: { active?: boolean; sector_id?: strin
 
       if (filters?.includeProfiles) {
         const { data: profiles, error: profError } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, sector_id')
-          .order('full_name');
+          .from('vw_employee_directory')
+          .select('id, display_name, sector_id')
+          .order('display_name');
         
         if (!profError && profiles) {
           const linkedProfileIds = new Set(finalData.map(c => c.user_profile_id).filter(Boolean));
@@ -39,8 +39,8 @@ export function useCollaborators(filters?: { active?: boolean; sector_id?: strin
               id: `profile_${p.id}`,
               _profileId: p.id,
               _isProfileOnly: true,
-              full_name: p.full_name || p.email,
-              email: p.email,
+              full_name: p.display_name || 'Usuário Sem Nome',
+              email: null,
               sector_id: p.sector_id || null,
               active: true,
               matricula: null,

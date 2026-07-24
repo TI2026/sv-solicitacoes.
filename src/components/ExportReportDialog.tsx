@@ -1,3 +1,4 @@
+import { openSecureWindow } from "@/utils/urlSecurity";
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -82,7 +83,7 @@ export function ExportReportDialog({ open, onOpenChange }: ExportReportDialogPro
         const html = decodeURIComponent(escape(atob(data.base64)));
         const blob = new Blob([html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
-        const w = window.open(url, '_blank');
+        openSecureWindow(url);
         if (w) {
           w.onload = () => {
             setTimeout(() => w.print(), 500);

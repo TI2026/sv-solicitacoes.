@@ -33,21 +33,20 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
     qc.invalidateQueries({ queryKey: ['purchases'] });
   };
 
-  const openAttachment = async (att: PurchaseAttachment) => {
-    if (att.url) {
-      window.open(att.url, '_blank', 'noopener,noreferrer');
+  const openSigned = async (path: string) => {
+    // legacy external URL support
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      const { openSecureWindow } = await import('@/utils/urlSecurity');
+      openSecureWindow(path);
       return;
     }
-    if (!att.path) {
-      toast.error('Anexo inválido');
-      return;
-    }
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(att.path, 300);
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300);
     if (error || !data?.signedUrl) {
       toast.error('Não foi possível abrir o anexo');
       return;
     }
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    const { openSecureWindow } = await import('@/utils/urlSecurity');
+    openSecureWindow(data.signedUrl);
   };
 
   const persistAttachments = async (next: PurchaseAttachment[]) => {

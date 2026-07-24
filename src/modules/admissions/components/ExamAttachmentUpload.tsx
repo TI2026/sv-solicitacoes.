@@ -1,3 +1,4 @@
+import { openSecureWindow } from "@/utils/urlSecurity";
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,7 +144,7 @@ export function ExamAttachmentUpload({ admissionId, candidateId }: ExamAttachmen
     }
 
     if (data?.signedUrl) {
-      window.open(data.signedUrl, '_blank');
+      openSecureWindow(data.signedUrl);
     }
   };
 

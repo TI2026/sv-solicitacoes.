@@ -1,3 +1,4 @@
+import { openSecureWindow } from "@/utils/urlSecurity";
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmissionDetail } from '../contexts/AdmissionDetailContext';
@@ -431,7 +432,7 @@ export function AdmissionDetailContent() {
                   </div>
                   {link && link !== 'EXISTS' ? (
                     <div className="flex gap-2 items-center flex-wrap">
-                      <Button size="sm" className="gap-1 text-xs" onClick={() => window.open(link, '_blank')}>
+                      <Button size="sm" className="gap-1 text-xs" onClick={() => openSecureWindow(link)}>
                         <ExternalLink className="w-3 h-3" /> Abrir link de documentos
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => copyToClipboard(link)} className="gap-1 text-xs shrink-0">
@@ -614,7 +615,7 @@ function CandidateFilesList({ admissionId, candidateId, linkType }: { admissionI
       toast({ title: 'Erro ao gerar download', variant: 'destructive' });
       return;
     }
-    window.open(data.signedUrl, '_blank');
+    openSecureWindow(data.signedUrl);
   };
 
   if (candidateFiles.length === 0) return null;
@@ -884,7 +885,7 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
   const handleDownload = async (storagePath: string) => {
     const { data, error } = await supabase.storage.from('admissions').createSignedUrl(storagePath, 3600);
     if (error || !data) { toast({ title: 'Erro ao gerar download', variant: 'destructive' }); return; }
-    window.open(data.signedUrl, '_blank');
+    openSecureWindow(data.signedUrl);
   };
 
   return (
@@ -947,7 +948,7 @@ function SignatureSection({ admissionId, candidateId, candidateName, link, linkE
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">Link para o candidato</Label>
           <div className="flex gap-2 items-center flex-wrap">
-            <Button size="sm" className="gap-1 text-xs" onClick={() => window.open(link, '_blank')}><ExternalLink className="w-3 h-3" /> Abrir link</Button>
+            <Button size="sm" className="gap-1 text-xs" onClick={() => openSecureWindow(link)}><ExternalLink className="w-3 h-3" /> Abrir link</Button>
             <Button variant="outline" size="sm" onClick={onCopyLink} className="gap-1 text-xs shrink-0"><Copy className="w-3 h-3" /> Copiar</Button>
           </div>
         </div>

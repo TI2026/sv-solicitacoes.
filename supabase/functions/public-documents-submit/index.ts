@@ -30,6 +30,14 @@ async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function getMagicBytesMime(bytes: Uint8Array): string {
+  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  if (hex.startsWith('25504446')) return 'application/pdf'; // %PDF
+  if (hex.startsWith('FFD8FF')) return 'image/jpeg';
+  if (hex.startsWith('89504E47')) return 'image/png';
+  return 'unknown';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -46,28 +54,50 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    const { token, filename, content_type, file_type, bank_info } = body;
+    const formData = await req.formData();
+    const token = formData.get('token') as string;
+    const file = formData.get('file') as File;
+    const file_type = formData.get('file_type') as string;
 
-    if (!token || !filename) {
+    if (!token || !file) {
       return new Response(JSON.stringify({ error: 'Parâmetros obrigatórios faltando' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Validate file type
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-    if (content_type && !allowed.includes(content_type)) {
-      return new Response(JSON.stringify({ error: 'Tipo de arquivo não permitido' }), {
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      return new Response(JSON.stringify({ error: 'Arquivo muito grande. Limite de 10MB.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 255);
-    const tokenHash = await hashToken(token);
+    // Read first bytes for magic bytes validation
+    const buffer = await file.arrayBuffer();
+    const firstBytes = new Uint8Array(buffer.slice(0, 4));
+    const realMime = getMagicBytesMime(firstBytes);
 
+    if (realMime === 'unknown') {
+      return new Response(JSON.stringify({ error: 'Formato de arquivo não suportado ou forjado' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Sanitize extension
+    const extMap: Record<string, string> = {
+      'application/pdf': 'pdf',
+      'image/jpeg': 'jpg',
+      'image/png': 'png'
+    };
+    const secureExt = extMap[realMime];
+    
+    // Generate secure random filename
+    const uuid = crypto.randomUUID();
+    const storageFilename = `${Date.now()}_${uuid}.${secureExt}`;
+
+    const tokenHash = await hashToken(token);
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -88,17 +118,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const ext = sanitizedFilename.split('.').pop() || 'pdf';
-    const storagePath = `documents/${link.admission_request_id}/${link.candidate_id}/${Date.now()}_${sanitizedFilename}`;
+    const storagePath = `documents/${link.admission_request_id}/${link.candidate_id}/${storageFilename}`;
 
-    // Create signed upload URL
-    const { data: signedData, error: signedError } = await supabase.storage
+    // Upload using service role to private bucket
+    const { error: uploadError } = await supabase.storage
       .from('admissions')
-      .createSignedUploadUrl(storagePath);
+      .upload(storagePath, buffer, {
+        contentType: realMime,
+        upsert: false
+      });
 
-    if (signedError || !signedData) {
-      console.error('Signed URL error:', signedError);
-      return new Response(JSON.stringify({ error: 'Falha ao gerar URL de upload' }), {
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return new Response(JSON.stringify({ error: 'Falha ao salvar o arquivo' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -110,7 +142,7 @@ Deno.serve(async (req) => {
       candidate_id: link.candidate_id,
       file_type: file_type || 'generic',
       storage_path: storagePath,
-      original_filename: sanitizedFilename,
+      original_filename: file.name.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 100), // Keep sanitized original name for display only
       uploaded_by: 'CANDIDATE',
       link_type: 'DOCUMENTS',
     });
@@ -120,13 +152,11 @@ Deno.serve(async (req) => {
       action: 'document_upload',
       entity_type: 'candidates',
       entity_id: link.candidate_id,
-      details: { ip: clientIp, user_agent: userAgent, filename: sanitizedFilename, file_type: file_type || 'generic' },
+      details: { ip: clientIp, user_agent: userAgent, filename: storageFilename, file_type: file_type || 'generic', realMime }
     });
 
-    console.log(`Document upload from IP ${clientIp} for candidate ${link.candidate_id}`);
-
     return new Response(JSON.stringify({
-      signedUrl: signedData.signedUrl,
+      success: true,
       path: storagePath,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
