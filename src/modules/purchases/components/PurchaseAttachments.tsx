@@ -33,19 +33,37 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
     qc.invalidateQueries({ queryKey: ['purchases'] });
   };
 
-  const openSigned = async (path: string) => {
-    // legacy external URL support
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      const { openSecureWindow } = await import('@/utils/urlSecurity');
-      openSecureWindow(path);
+  const openAttachment = async (att: PurchaseAttachment) => {
+    const { openSecureWindow, getSecureExternalUrl } = await import('@/utils/urlSecurity');
+    // External link attachment
+    if (att.url) {
+      const safe = getSecureExternalUrl(att.url);
+      if (!safe) {
+        toast.error('Link inválido ou inseguro');
+        return;
+      }
+      openSecureWindow(safe);
       return;
     }
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300);
+    // Legacy: path stored as absolute URL
+    if (att.path && (att.path.startsWith('http://') || att.path.startsWith('https://'))) {
+      const safe = getSecureExternalUrl(att.path);
+      if (!safe) {
+        toast.error('Anexo com URL inválida');
+        return;
+      }
+      openSecureWindow(safe);
+      return;
+    }
+    if (!att.path) {
+      toast.error('Anexo sem arquivo');
+      return;
+    }
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(att.path, 300);
     if (error || !data?.signedUrl) {
       toast.error('Não foi possível abrir o anexo');
       return;
     }
-    const { openSecureWindow } = await import('@/utils/urlSecurity');
     openSecureWindow(data.signedUrl);
   };
 
@@ -126,8 +144,10 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
 
   const handleAddLink = async () => {
     const url = linkUrl.trim();
-    if (!/^https?:\/\/.+/i.test(url)) {
-      toast.error('URL inválida', { description: 'Use um link http(s) válido.' });
+    const { getSecureExternalUrl } = await import('@/utils/urlSecurity');
+    const safe = getSecureExternalUrl(url);
+    if (!safe) {
+      toast.error('URL inválida', { description: 'Use um link https válido, sem credenciais.' });
       return;
     }
     try {
@@ -135,8 +155,8 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
         ...attachments,
         {
           id: crypto.randomUUID(),
-          name: linkName.trim() || url,
-          url,
+          name: linkName.trim() || safe,
+          url: safe,
           kind: 'link',
           uploaded_at: new Date().toISOString(),
         },

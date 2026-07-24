@@ -66,34 +66,21 @@ export default function PublicCandidatePage() {
     if (!data || !token) return;
     setUploading(candidateDocId);
     try {
-      // Get signed upload URL from edge function
+      // Upload file directly through edge function (server validates magic bytes)
+      const fd = new FormData();
+      fd.append('token', token);
+      fd.append('file', file);
+      fd.append('filename', file.name);
+      fd.append('candidate_document_id', candidateDocId);
       const res = await fetch(
         `https://${projectId}.supabase.co/functions/v1/admissions-create-signed-upload`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token,
-            document_id: documentId,
-            candidate_document_id: candidateDocId,
-            filename: file.name,
-            content_type: file.type,
-          }),
-        }
+        { method: 'POST', body: fd }
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || 'Erro ao gerar URL de upload');
       }
-      const { signedUrl, path } = await res.json();
-
-      // Upload to signed URL
-      const uploadRes = await fetch(signedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-      if (!uploadRes.ok) throw new Error('Falha no upload');
+      await res.json();
 
       toast({ title: 'Documento enviado!' });
       // Refresh data

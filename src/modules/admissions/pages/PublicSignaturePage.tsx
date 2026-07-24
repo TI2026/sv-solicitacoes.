@@ -103,27 +103,21 @@ export default function PublicSignaturePage() {
     setUploadingKey(docKey);
     try {
       const signedDocKey = docKey.replace('_ADMIN', '_SIGNED');
+      const fd = new FormData();
+      fd.append('token', token);
+      fd.append('file', file);
+      fd.append('filename', `${signedDocKey}-${file.name}`);
+      fd.append('mode', 'candidate');
+      fd.append('doc_key', signedDocKey);
       const res = await fetch(
         `https://${projectId}.supabase.co/functions/v1/public-signature-submit`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token,
-            filename: `${signedDocKey}-${file.name}`,
-            content_type: file.type,
-            mode: 'candidate',
-            doc_key: signedDocKey,
-          }),
-        }
+        { method: 'POST', body: fd }
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || 'Erro ao gerar URL');
       }
-      const { signedUrl } = await res.json();
-      const uploadRes = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
-      if (!uploadRes.ok) throw new Error('Falha no upload');
+      await res.json();
       setUploadedKeys(prev => ({ ...prev, [docKey]: file.name }));
       toast({ title: `${ADMIN_DOC_KEYS.find(d => d.key === docKey)?.label || 'Documento'} assinado enviado!` });
     } catch (err: any) {
