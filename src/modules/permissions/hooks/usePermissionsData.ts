@@ -54,9 +54,15 @@ export function useSectors() {
 export interface StepDraft {
   id?: string;
   stepOrder: number;
-  approverType: 'specific_user' | 'sector';
+  stepCode: string;
+  stepName: string;
+  purpose: string;
+  approverType: 'specific_user' | 'sector' | 'cargo_perfil' | 'gestor_imediato';
   fixedUserId: string | null;
+  substituteUserId: string | null;
   sectorId: string | null;
+  approverRoleKey: string | null;
+  defaultSlaHours: number;
   isRequired?: boolean;
 }
 
@@ -77,101 +83,29 @@ export function useSaveApprovalFlow() {
       createdBy: string;
       steps: StepDraft[];
     }): Promise<{ flowId: string; versioned: boolean }> => {
-      let flowId = params.id;
-      let versioned = false;
+      const flowId = params.id;
+      const versioned = false;
 
-      if (flowId) {
-        // Check if this flow has ever been used by approval_requests
-        const { count, error: countErr } = await supabase
-          .from('approval_requests')
-          .select('id', { count: 'exact', head: true })
-          .eq('flow_id', flowId);
-        if (countErr) throw countErr;
-
-        const flowInUse = (count || 0) > 0;
-
-        if (flowInUse) {
-          // VERSIONING: deactivate old flow, create new one
-          await supabase
-            .from('approval_flows')
-            .update({ active: false })
-            .eq('id', flowId);
-
-          const { data: newFlow, error: createErr } = await supabase
-            .from('approval_flows')
-            .insert({
-              module_id: params.moduleId,
-              name: params.name,
-              approval_type: params.approvalType,
-              require_rejection_reason: params.requireRejectionReason,
-              allow_return_for_adjustment: params.allowReturn,
-              return_mode: params.returnMode,
-              notify_next_approver: params.notifyNext,
-              created_by: params.createdBy,
-              active: true,
-            })
-            .select()
-            .single();
-          if (createErr) throw createErr;
-          flowId = newFlow.id;
-          versioned = true;
-        } else {
-          // Safe to edit in-place: no references exist
-          const { error } = await supabase
-            .from('approval_flows')
-            .update({
-              name: params.name,
-              approval_type: params.approvalType,
-              require_rejection_reason: params.requireRejectionReason,
-              allow_return_for_adjustment: params.allowReturn,
-              return_mode: params.returnMode,
-              notify_next_approver: params.notifyNext,
-            })
-            .eq('id', flowId);
-          if (error) throw error;
-        }
-      } else {
-        // New flow: deactivate other active flows for the same module
-        await supabase
-          .from('approval_flows')
-          .update({ active: false })
-          .eq('module_id', params.moduleId)
-          .eq('active', true);
-
-        const { data, error } = await supabase
-          .from('approval_flows')
-          .insert({
-            module_id: params.moduleId,
-            name: params.name,
-            approval_type: params.approvalType,
-            require_rejection_reason: params.requireRejectionReason,
-            allow_return_for_adjustment: params.allowReturn,
-            return_mode: params.returnMode,
-            notify_next_approver: params.notifyNext,
-            created_by: params.createdBy,
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        flowId = data.id;
+      // SPRINT 15.1: Canonical flows are fixed. We only update the assignments on the existing steps.
+      for (const s of params.steps) {
+        if (!s.id) continue;
+        const approverType = s.approverType;
+        const updatePayload: any = {
+          approver_type: approverType,
+          approver_user_id: approverType === 'specific_user' ? s.fixedUserId : null,
+          fixed_sector_id: approverType === 'sector' ? s.sectorId : null,
+          approver_role_key: approverType === 'cargo_perfil' ? s.approverRoleKey : null,
+          substitute_user_id: s.substituteUserId || null,
+          default_sla_hours: s.defaultSlaHours || 48
+        };
+        const { error: updErr } = await supabase
+          .from('approval_flow_steps')
+          .update(updatePayload)
+          .eq('id', s.id);
+        if (updErr) throw updErr;
       }
-
-      // Atomic replace via RPC — avoids 409 on (flow_id, step_order) uniqueness
-      // e garante DELETE + INSERT na mesma transação. Payload alinhado ao
-      // schema real de `approval_flow_steps` (sem name/description/timeout_hours;
-      // setor via `fixed_sector_id`; approver_type usa o enum do backend).
-      const stepsPayload = params.steps.map((s) => ({
-        approver_type: toBackendApproverType(s.approverType),
-        approver_user_id: s.approverType === 'specific_user' ? s.fixedUserId : null,
-        fixed_sector_id: s.approverType === 'sector' ? s.sectorId : null,
-        is_required: s.isRequired,
-      }));
-
-      const { data: replaceResult, error: replaceErr } = await supabase.rpc(
-        'replace_approval_flow_steps',
-        { p_flow_id: flowId!, p_steps: stepsPayload as any }
-      );
-      if (replaceErr) throw replaceErr;
+      
+      const replaceResult = null;
       if ((replaceResult as any)?.error) throw new Error((replaceResult as any).error);
 
       return { flowId: flowId!, versioned };
