@@ -73,22 +73,24 @@ export default function ApprovalChainsTab() {
         .sort((a: any, b: any) => a.step_order - b.step_order)
         .filter((s: any) => s.active !== false) // hide inactive steps
         .map((s: any) => {
-          const parsed = parseApproverType(s.approver_type || 'specific_user');
           return {
             id: s.id,
             stepOrder: s.step_order,
-            approverType: parsed.type,
-            fixedUserId: parsed.type === 'specific_user' ? (s.approver_user_id || null) : null,
-            sectorId: parsed.type === 'sector' ? (s.fixed_sector_id || null) : null,
+            stepCode: s.step_code || `step_${s.step_order}`,
+            stepName: s.step_name || `Etapa ${s.step_order}`,
+            purpose: s.purpose || '',
+            approverType: s.approver_type || 'cargo_perfil',
+            fixedUserId: s.approver_user_id || null,
+            substituteUserId: s.substitute_user_id || null,
+            sectorId: s.fixed_sector_id || null,
+            approverRoleKey: s.approver_role_key || null,
+            defaultSlaHours: s.default_sla_hours || 48,
             isRequired: s.is_required,
           };
         })
     );
-    const { count } = await supabase
-      .from('approval_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('flow_id', flow.id);
-    setEditFlowInUse((count || 0) > 0);
+    // SPRINT 15.1: Flows are canonical, no new versioning required for assignment updates
+    setEditFlowInUse(false);
     setDialogOpen(true);
   };
 
@@ -99,6 +101,7 @@ export default function ApprovalChainsTab() {
       if (patch.approverType && patch.approverType !== s.approverType) {
         updated.fixedUserId = null;
         updated.sectorId = null;
+        updated.approverRoleKey = null;
       }
       return updated;
     }));
@@ -107,18 +110,19 @@ export default function ApprovalChainsTab() {
   const isStepValid = (step: StepDraft) => {
     if (step.approverType === 'specific_user') return !!step.fixedUserId;
     if (step.approverType === 'sector') return !!step.sectorId;
+    if (step.approverType === 'cargo_perfil') return !!step.approverRoleKey;
     return true;
   };
 
   const getStepValidationError = (step: StepDraft, idx: number): string | null => {
-    if (step.approverType === 'specific_user' && !step.fixedUserId) return `Etapa ${idx + 1}: selecione um aprovador`;
+    if (step.approverType === 'specific_user' && !step.fixedUserId) return `Etapa ${idx + 1}: selecione um aprovador principal`;
     if (step.approverType === 'sector' && !step.sectorId) return `Etapa ${idx + 1}: selecione um setor`;
+    if (step.approverType === 'cargo_perfil' && !step.approverRoleKey) return `Etapa ${idx + 1}: selecione um cargo/perfil`;
     return null;
   };
 
-  const canSave = flowName.trim() && steps.length > 0 && steps.every(isStepValid);
+  const canSave = steps.length > 0 && steps.every(isStepValid);
   const validationErrors = !canSave ? steps.map((s, i) => getStepValidationError(s, i)).filter(Boolean) : [];
-  const hasDynamicSteps = false;
 
   const handleSave = () => {
     if (!canSave) return;
@@ -184,13 +188,9 @@ export default function ApprovalChainsTab() {
                 <div className="flex gap-2">
                   {activeFlow ? (
                     <Button variant="outline" size="sm" onClick={() => openEditFlow(activeFlow)}>
-                      Editar fluxo
+                      Editar aprovadores
                     </Button>
-                  ) : (
-                    <Button variant="outline" size="sm" className="gap-1" onClick={() => openNewFlow(mod.id)}>
-                      <Plus className="w-3.5 h-3.5" /> Configurar fluxo
-                    </Button>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </CardHeader>
@@ -272,30 +272,30 @@ export default function ApprovalChainsTab() {
             {/* Flow config */}
             <div>
               <Label>Nome do fluxo</Label>
-              <Input value={flowName} onChange={e => setFlowName(e.target.value)} placeholder="Ex: Aprovação padrão" />
+              <Input value={flowName} disabled className="bg-muted" />
             </div>
 
             <div className="rounded-md border border-border bg-muted/40 p-2.5">
               <p className="text-xs font-medium text-foreground">Tipo de aprovação: Sequencial</p>
               <p className="text-[10px] text-muted-foreground mt-1">
-                Cada etapa é processada na ordem. A próxima etapa só fica ativa após a conclusão da anterior.
+                A estrutura e o fluxo são definidos canonicamente. Você pode alterar apenas as configurações de responsáveis.
               </p>
             </div>
 
             <div className="space-y-3 border border-border rounded-lg p-3">
-              <p className="text-xs font-semibold text-foreground">Configuração do fluxo</p>
-              <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-foreground">Configuração do fluxo (Apenas Leitura)</p>
+              <div className="flex items-center justify-between opacity-70">
                 <Label className="text-sm">Exigir motivo na recusa</Label>
-                <Switch checked={requireReason} onCheckedChange={setRequireReason} />
+                <Switch checked={requireReason} disabled />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between opacity-70">
                 <Label className="text-sm">Permitir devolução para ajuste</Label>
-                <Switch checked={allowReturn} onCheckedChange={setAllowReturn} />
+                <Switch checked={allowReturn} disabled />
               </div>
               {allowReturn && (
-                <div>
+                <div className="opacity-70">
                   <Label className="text-xs">Modo de devolução</Label>
-                  <Select value={returnMode} onValueChange={setReturnMode}>
+                  <Select value={returnMode} disabled>
                     <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="requester" className="text-xs">Devolver ao solicitante</SelectItem>
@@ -304,9 +304,9 @@ export default function ApprovalChainsTab() {
                   </Select>
                 </div>
               )}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between opacity-70">
                 <Label className="text-sm">Notificar próximo aprovador</Label>
-                <Switch checked={notifyNext} onCheckedChange={setNotifyNext} />
+                <Switch checked={notifyNext} disabled />
               </div>
             </div>
 
@@ -324,25 +324,37 @@ export default function ApprovalChainsTab() {
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="shrink-0">Etapa {step.stepOrder}</Badge>
                       <div className="flex flex-col">
-                        <span className="text-sm font-bold text-foreground">{`Etapa ${step.stepOrder}`}</span>
+                        <span className="text-sm font-bold text-foreground">{step.stepName}</span>
+                        <span className="text-[10px] text-muted-foreground">{step.purpose}</span>
                       </div>
                     </div>
                     <Badge variant="outline" className="text-[10px] text-muted-foreground">Obrigatória</Badge>
                   </div>
 
-                  <div>
-                    <Label className="text-xs">Tipo de aprovador</Label>
-                    <Select
-                      value={step.approverType}
-                      onValueChange={(v) => updateStep(idx, { approverType: v as StepDraft['approverType'] })}
-                    >
-                      <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(APPROVER_TYPE_LABELS).map(([key, label]) => (
-                          <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Tipo de responsável</Label>
+                      <Select
+                        value={step.approverType}
+                        onValueChange={(v) => updateStep(idx, { approverType: v as StepDraft['approverType'] })}
+                      >
+                        <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(APPROVER_TYPE_LABELS).map(([key, label]) => (
+                            <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">SLA (horas)</Label>
+                      <Input 
+                        type="number" 
+                        className="text-xs h-9" 
+                        value={step.defaultSlaHours} 
+                        onChange={(e) => updateStep(idx, { defaultSlaHours: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
                   </div>
 
                   {/* Pessoa (specific_user) */}
@@ -397,6 +409,50 @@ export default function ApprovalChainsTab() {
                           {getSectorWarning(step.sectorId)}
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {/* Cargo/Perfil */}
+                  {step.approverType === 'cargo_perfil' && (
+                    <div>
+                      <Label className="text-xs">Cargo / Perfil</Label>
+                      <Select
+                        value={step.approverRoleKey || ''}
+                        onValueChange={(v) => updateStep(idx, { approverRoleKey: v })}
+                      >
+                        <SelectTrigger className="text-xs">
+                          <SelectValue placeholder="Selecionar cargo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {approverRoles?.map((r: any) => (
+                            <SelectItem key={r.key} value={r.key} className="text-xs">{r.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {!step.approverRoleKey && (
+                        <p className="text-xs text-destructive mt-1">Selecione um cargo</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Substituto */}
+                  {step.approverType === 'specific_user' && (
+                    <div className="mt-2">
+                      <Label className="text-xs">Substituto (Opcional)</Label>
+                      <Select
+                        value={step.substituteUserId || 'none'}
+                        onValueChange={(v) => updateStep(idx, { substituteUserId: v === 'none' ? null : v })}
+                      >
+                        <SelectTrigger className="text-xs">
+                          <SelectValue placeholder="Sem substituto" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-xs">Sem substituto</SelectItem>
+                          {eligibleApprovers?.map((p: any) => (
+                            <SelectItem key={p.id} value={p.id} className="text-xs">{p.full_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
 
