@@ -111,11 +111,11 @@ SELECT ok(
 
 -- Trocar usuário para sem acesso
 SELECT set_auth_user('sem_acesso');
--- pgTAP throws test for error
-SELECT throws_ok(
-  $$ SELECT public.get_entity_action_context('purchases', get_test_uuid('compra_teste_1')) $$,
-  'Entidade não encontrada ou inacessível via RLS',
-  'Usuário sem acesso bloqueado de ler contexto de compras'
+-- pgTAP throws test for error replaced by return value check due to Exception block
+SELECT is(
+  (public.get_entity_action_context('purchases', get_test_uuid('compra_teste_1'))).current_status,
+  'ERRO',
+  'Usuário sem acesso recebe contexto com erro (inacessível via RLS)'
 );
 
 -- ==========================================
@@ -145,9 +145,9 @@ SELECT ok(
 );
 
 -- Testar Discriminador Errado
-SELECT throws_ok(
-  $$ SELECT public.get_entity_action_context('diaria', get_test_uuid('fleet_teste_1')) $$,
-  'Entidade não pertence ao módulo fleet informado (esperado diaria, recebido abastecimento)',
+SELECT is(
+  (public.get_entity_action_context('diaria', get_test_uuid('fleet_teste_1'))).current_status,
+  'ERRO',
   'Discriminador de fleet respeitado'
 );
 

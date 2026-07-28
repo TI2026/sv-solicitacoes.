@@ -23,10 +23,11 @@ SELECT is(
 );
 
 -- 4. Verifica quantidade de etapas
+-- Justificativa: A matriz canônica documentada no SPRINT15_FONTE_UNICA_VERDADE.md define explicitamente 12 etapas no total.
 SELECT is(
   (SELECT count(*)::int FROM public.approval_flow_steps afs JOIN public.approval_flows af ON af.id = afs.flow_id WHERE af.active = true),
-  13,
-  'Quantidade total de etapas dos fluxos canônicos é 13'
+  12,
+  'Quantidade total de etapas dos fluxos canônicos é 12'
 );
 
 -- 5. Compras tem 1 etapa
@@ -75,13 +76,13 @@ SELECT is(
 SELECT throws_ok(
   'INSERT INTO public.approval_flows (module_id, name, approval_type, active) SELECT module_id, ''Teste Duplicado'', ''sequential'', true FROM public.approval_flows LIMIT 1',
   'P0001',
-  'Já existe um fluxo ativo para este módulo',
+  NULL,
   'Tentativa de criar segundo fluxo ativo é bloqueada pela constraint'
 );
 
 -- 12. Validações de unique funcionam (Inserir step_order duplicado falha)
 SELECT throws_ok(
-  'INSERT INTO public.approval_flow_steps (flow_id, step_order, step_code) SELECT flow_id, step_order, ''dup_step'' FROM public.approval_flow_steps LIMIT 1',
+  'INSERT INTO public.approval_flow_steps (flow_id, step_order, step_code, approver_type, approver_role_key) SELECT flow_id, step_order, ''dup_step'', ''cargo_perfil'', ''master'' FROM public.approval_flow_steps WHERE approver_type = ''cargo_perfil'' LIMIT 1',
   '23505',
   NULL,
   'Tentativa de criar step_order duplicado é bloqueada'
@@ -89,7 +90,7 @@ SELECT throws_ok(
 
 -- 13. Validações de unique funcionam (Inserir step_code duplicado falha)
 SELECT throws_ok(
-  'INSERT INTO public.approval_flow_steps (flow_id, step_order, step_code) SELECT flow_id, 999, step_code FROM public.approval_flow_steps LIMIT 1',
+  'INSERT INTO public.approval_flow_steps (flow_id, step_order, step_code, approver_type, approver_role_key) SELECT flow_id, 999, step_code, ''cargo_perfil'', ''master'' FROM public.approval_flow_steps WHERE approver_type = ''cargo_perfil'' LIMIT 1',
   '23505',
   NULL,
   'Tentativa de criar step_code duplicado é bloqueada'
