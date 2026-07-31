@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(13);
+SELECT plan(21);
 
 -- Teste 1: Falhar se não autenticado
 SELECT is(
@@ -150,6 +150,91 @@ SELECT is(
   'true',
   'Deve permitir iniciar por outro usuário se for master'
 );
+
+-- PREPARAÇÃO PARA OS TESTES DOS MÓDULOS RESTANTES
+SELECT set_config('role', 'postgres', true);
+
+-- Módulo Reembolso
+INSERT INTO public.fuel_requests (id, type, requester_user_id, status, valor) VALUES ('e0040000-0000-0000-0000-000000000001', 'reembolso', '10000000-0000-0000-0000-000000000001', 'rascunho', 100) ON CONFLICT DO NOTHING;
+DELETE FROM public.approval_flows WHERE module_id = '00000000-0001-0000-0000-000000000004';
+INSERT INTO public.approval_flows (id, module_id, name, active, version, approval_type) VALUES ('e0f40000-0000-0000-0000-000000000004', '00000000-0001-0000-0000-000000000004', 'Reembolso v1', true, 'v1', 'sequential');
+INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, approver_user_id, step_code, active) VALUES ('e0f40000-0000-0000-0000-000000000004', 1, 'usuario_fixo', '10000000-0000-0000-0000-000000000002', 'S1', true);
+
+-- Módulo Admissões
+INSERT INTO public.admission_requests (id, requester_user_id, status) VALUES ('e00a0000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'rascunho') ON CONFLICT DO NOTHING;
+DELETE FROM public.approval_flows WHERE module_id = '00000000-0001-0000-0000-000000000005';
+INSERT INTO public.approval_flows (id, module_id, name, active, version, approval_type) VALUES ('e0f50000-0000-0000-0000-000000000005', '00000000-0001-0000-0000-000000000005', 'Admissoes v1', true, 'v1', 'sequential');
+INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, approver_user_id, step_code, active) VALUES ('e0f50000-0000-0000-0000-000000000005', 1, 'usuario_fixo', '10000000-0000-0000-0000-000000000002', 'S1', true);
+
+-- Módulo Desligamentos
+INSERT INTO public.collaborators (id, full_name, status) VALUES ('10000000-0000-0000-0000-000000000001', 'Colab', 'active') ON CONFLICT DO NOTHING;
+INSERT INTO public.termination_requests (id, requester_user_id, status, collaborator_id, tipo_desligamento, motivo, data_prevista, ultimo_dia_trabalhado, gestor_imediato, matricula) VALUES ('e0060000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'rascunho', '10000000-0000-0000-0000-000000000001', 'pedido_demissao', 'Motivo', '2026-12-31', '2026-12-31', 'Gestor', '123') ON CONFLICT DO NOTHING;
+DELETE FROM public.approval_flows WHERE module_id = (SELECT id FROM public.approval_modules WHERE code = 'desligamentos');
+INSERT INTO public.approval_flows (id, module_id, name, active, version, approval_type) VALUES ('e0f60000-0000-0000-0000-000000000006', (SELECT id FROM public.approval_modules WHERE code = 'desligamentos'), 'Desligamentos v1', true, 'v1', 'sequential');
+INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, approver_user_id, step_code, active) VALUES ('e0f60000-0000-0000-0000-000000000006', 1, 'usuario_fixo', '10000000-0000-0000-0000-000000000002', 'S1', true);
+
+-- Ajustar Diária (Teste Válido)
+-- Corrigir setup da diária para permitir outro aprovador além do solicitante, para podermos testar o start de sucesso.
+DELETE FROM public.approval_flow_steps WHERE flow_id = 'e0f30000-0000-0000-0000-000000000003' AND step_order = 1;
+UPDATE public.profiles SET manager_user_id = '10000000-0000-0000-0000-000000000002' WHERE id = '10000000-0000-0000-0000-000000000001';
+INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, approver_user_id, step_code, active) VALUES ('e0f30000-0000-0000-0000-000000000003', 2, 'usuario_fixo', '10000000-0000-0000-0000-000000000002', 'S2', true) ON CONFLICT DO NOTHING;
+INSERT INTO public.fuel_requests (id, type, requester_user_id, status, valor) VALUES ('e00d0000-0000-0000-0000-000000000002', 'diaria', '10000000-0000-0000-0000-000000000001', 'rascunho', 100) ON CONFLICT DO NOTHING;
+
+
+SELECT set_config('role', 'authenticated', true);
+SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000001", "role":"authenticated"}', true);
+
+-- Teste 14: Diaria Válido (desde que o passo resolva para alguém não-solicitante)
+SELECT is(
+  (public.start_approval_flow('diaria', 'e00d0000-0000-0000-0000-000000000002'))->>'success',
+  'true',
+  'Deve iniciar fluxo de Diaria'
+);
+
+-- Teste 15: Reembolso Válido
+SELECT is(
+  (public.start_approval_flow('reembolso', 'e0040000-0000-0000-0000-000000000001'))->>'success',
+  'true',
+  'Deve iniciar fluxo de Reembolso'
+);
+
+-- Teste 16: Admissões Válido
+SELECT is(
+  (public.start_approval_flow('admissoes', 'e00a0000-0000-0000-0000-000000000001'))->>'success',
+  'true',
+  'Deve iniciar fluxo de Admissões'
+);
+
+-- Teste 17: Desligamentos Válido
+SELECT is(
+  (public.start_approval_flow('desligamentos', 'e0060000-0000-0000-0000-000000000001'))->>'success',
+  'true',
+  'Deve iniciar fluxo de Desligamentos'
+);
+
+-- Teste 18: Preservação de Snapshot
+SELECT set_config('role', 'postgres', true);
+SELECT is(
+  (SELECT status FROM public.approval_request_steps WHERE approval_request_id = (SELECT id FROM public.approval_requests WHERE reference_id = 'e00a0000-0000-0000-0000-000000000001' LIMIT 1) AND step_order = 1),
+  'pending',
+  'Passo criado com snapshot (status pendente)'
+);
+
+-- Teste 19: Rollback por Falha de Resolução (Sem etapas/sem responsável)
+UPDATE public.profiles SET manager_user_id = NULL WHERE id = '10000000-0000-0000-0000-000000000001';
+INSERT INTO public.admission_requests (id, requester_user_id, status) VALUES ('e00a0000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'rascunho') ON CONFLICT DO NOTHING;
+DELETE FROM public.approval_request_steps;
+DELETE FROM public.approval_requests;
+DELETE FROM public.approval_flows WHERE module_id = '00000000-0001-0000-0000-000000000005';
+INSERT INTO public.approval_flows (id, module_id, name, active, version, approval_type) VALUES ('e0f50000-0000-0000-0000-000000000005', '00000000-0001-0000-0000-000000000005', 'Admissoes', true, 'v1', 'sequential');
+INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, step_code, active) VALUES ('e0f50000-0000-0000-0000-000000000005', 1, 'gestor_imediato', 'S1', true); -- Não existe gestor configurado para 10000000-0000-0000-0000-000000000001
+
+SELECT set_config('role', 'authenticated', true);
+SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000001", "role":"authenticated"}', true);
+SELECT is((public.start_approval_flow('admissoes', 'e00a0000-0000-0000-0000-000000000002'))->>'success', 'false', 'Falha ao resolver responsável (Rollback)');
+SELECT set_config('role', 'postgres', true);
+SELECT is((SELECT count(*)::int FROM public.approval_requests WHERE reference_id = 'e00a0000-0000-0000-0000-000000000002'), 0, 'Nenhuma request criada devido ao rollback');
+SELECT is((SELECT status::text FROM public.admission_requests WHERE id = 'e00a0000-0000-0000-0000-000000000002'), 'rascunho', 'Status mantido em rascunho devido ao rollback');
 
 SELECT * FROM finish();
 ROLLBACK;
