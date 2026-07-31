@@ -108,8 +108,8 @@ test.describe('Sprint 15.1 - Flows Admin Canonical Structure', () => {
   test('Master acessa a tela e vê a estrutura canônica', async ({ page }) => {
     // 1. Master acessa a tela
     await page.goto('/permissoes', { waitUntil: 'domcontentloaded' });
-    // Clica na tab de Aprovadores
-    await page.getByRole('tab', { name: 'Aprovadores' }).click();
+    // Clica na tab de Aprovadores (é a 3ª aba quando o master acessa)
+    await page.locator('button[role="tab"]').nth(2).click();
 
     // 2. seis módulos aparecem
     await expect(page.locator('text=Compras').first()).toBeVisible();

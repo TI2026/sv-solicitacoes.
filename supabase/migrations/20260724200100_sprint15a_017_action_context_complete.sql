@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- SPRINT 15A: Migration 017 - get_entity_action_context COMPLETO
 -- Sem fallbacks genericos. Cobertura explicita dos 6 modulos.
 -- Retorna contexto para o motor de aprovacao e frontend.
