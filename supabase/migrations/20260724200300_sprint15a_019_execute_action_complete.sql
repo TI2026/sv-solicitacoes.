@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- SPRINT 15A: Migration 019 - execute_entity_action COMPLETO
 -- Acoes do Sprint 15A: enviar, aprovar, devolver, rejeitar, cancelar
 -- Caminho unico: get_entity_action_context -> execute_entity_action

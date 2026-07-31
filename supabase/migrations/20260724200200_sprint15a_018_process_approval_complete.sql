@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- SPRINT 15A: Migration 018 - process_approval_action COMPLETO
 -- Cobre: enviar, aprovar, devolver, rejeitar, cancelar
 -- Cada operacao: FOR UPDATE, auditoria, historico, notificacao
