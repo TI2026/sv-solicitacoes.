@@ -1,9 +1,6 @@
--- =======================================================================================
--- MIGRATION: sprint15_2b_start_approval_flow.sql (Correção + Função)
--- DESCRIÇÃO: Resolve a falta de estado 'em_aprovacao' e implementa start_approval_flow.
--- =======================================================================================
-
-ALTER TYPE public.admission_status ADD VALUE IF NOT EXISTS 'em_aprovacao' AFTER 'rascunho';
+-- ============================================================
+-- SPRINT 15.2B: INÍCIO ATÔMICO DOS FLUXOS DE APROVAÇÃO
+-- ============================================================
 
 -- ============================================================
 -- 1. ASSINATURA ADMINISTRATIVA (COMPATIBILIDADE E IMPERSONATION)
