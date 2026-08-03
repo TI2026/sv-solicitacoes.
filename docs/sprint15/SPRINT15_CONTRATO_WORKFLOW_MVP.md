@@ -1,11 +1,13 @@
 # SPRINT 15 — CONTRATO FUNCIONAL DO WORKFLOW MVP
 
 > **Gerado em:** 2026-08-03
+> **Atualizado em:** 2026-08-03 (Sprint 15.2F0-D1 — decisões funcionais resolvidas)
 > **Branch:** `sprint-15-finalizacao-funcional-v2`
-> **Hash inicial:** `0629dbc50a5f33927c08a4532f1631c808b367de`
+> **Hash inicial (15.2F0):** `0629dbc50a5f33927c08a4532f1631c808b367de`
+> **Hash inicial (15.2F0-D1):** `5fc96a1eb9aa00396d7588241791d911769830bf`
 > **Migration âncora:** `20260725100000_sprint15_1_canonical_flows.sql`
 > **Autoridade:** Este documento é a única fonte de verdade para implementação a partir desta data.
-> **Status:** CONGELADO — não alterar sem novo Sprint de contrato.
+> **Status:** CONGELADO — nenhum bloqueio de decisão funcional pendente.
 
 ---
 
@@ -45,10 +47,10 @@ Cada trecho classificado conforme regra de autoridade:
 | Abastecimento: estados `enviado`, `devolvido` | legado | Não coincidem com enums ativos nem com fluxo canônico |
 | Abastecimento: `aguardando_financeiro` | divergente | Não existe no enum; migration 018 usa `aguardando_execucao` |
 | Abastecimento: `aguardando_revisao_docs` | divergente | Enum tem `em_revisao_admin`; SSOT usa `revisao_administrativa` |
-| Diária: `agendada` | divergente | SSOT usa `programada`; migration 018 define `programada` |
-| Diária: `aguardando_confirmacao` | divergente | SSOT usa `em_verificacao`; enum tem `em_revisao` |
+| Diária: `agendada` | resolvido | Estado definitivo é `ativa` (enum fuel_status); não usar `programada` (Decisão 15.2F0-D1) |
+| Diária: `aguardando_confirmacao` | resolvido | Estado definitivo é `em_revisao` (enum fuel_status); não usar `em_verificacao` (Decisão 15.2F0-D1) |
 | Diária: `concluida` (com acento) | legado | Enum usa `concluido` (sem acento) |
-| Reembolso: `revisao_financeira` | decisao_pendente | Ambiguidade entre status da entidade e step_code (ver BLOQUEIO_DE_DECISAO #1) |
+| Reembolso: `revisao_financeira` | resolvido | step_kind = review; completion_action = concluir_revisao; entidade permanece em aguardando_pagamento após concluir_revisao; pagar é ação operacional separada (Decisão 15.2F0-D1) |
 | Reembolso: `aguardando_recebimento` | divergente | Enum não tem este valor; SSOT define `pago` |
 | Reembolso: `divergencia` | legado | Não está no enum `fuel_status` atual |
 | Compras: estados canônicos | compatível | Alinhados com migration 018 e SSOT |
@@ -180,8 +182,15 @@ return_entity_status:     retornado
 rejection_entity_status:  reprovado
 closes_workflow:          false
 next_step_code:           verificacao_horas
+next_step_activation:     enviar_comprovantes
+approval_request_status_after: waiting_operational
+current_approver_user_id_after: null
 sla_hours:                24
 ```
+
+Nota: após aprovar na etapa 1, a verificacao_horas fica em estado waiting (não pending).
+approval_request entra em waiting_operational.
+A etapa 2 só ativa (pending) quando o solicitante chamar enviar_comprovantes.
 
 ### 6.5 DIÁRIA — verificacao_horas
 
@@ -243,6 +252,7 @@ return_entity_status:     retornado
 rejection_entity_status:  reprovado
 closes_workflow:          false
 next_step_code:           revisao_financeira
+approval_request_status_after: awaiting_step
 sla_hours:                24
 ```
 
@@ -254,20 +264,29 @@ step_code:                revisao_financeira
 step_order:               2
 step_kind:                review
 step_name:                Revisão Financeira
-purpose:                  Validar NFs, documentos e realizar pagamento
+purpose:                  Validar NFs e documentos; liberar pagamento ao solicitante
 responsible_rule:         cargo_perfil: financeiro
-completion_action:        pagar
+completion_action:        concluir_revisao
 entity_status_on_entry:   aguardando_pagamento
-entity_status_on_success: pago -> concluido
+entity_status_on_success: aguardando_pagamento
 return_target:            null
 return_entity_status:     null
 rejection_entity_status:  encerrado
-closes_workflow:          true
+closes_workflow:          true (encerra o workflow de aprovacao)
 next_step_code:           null
+approval_request_status_after: completed
 sla_hours:                48
 ```
 
-BLOQUEIO_DE_DECISAO #1 — ver Seção 15.
+Nota (DECISAO DEFINITIVA 15.2F0-D1):
+A entidade permanece em aguardando_pagamento após concluir_revisao.
+Isso é intencional: concluir_revisao encerra o workflow de aprovacao,
+nao o processo operacional de pagamento.
+O financeiro executa pagar como acao operacional separada, nao como etapa do motor.
+pagar: aguardando_pagamento -> pago.
+concluir: pago -> concluido.
+Nao existe status intermediario entre aguardando_pagamento e pago.
+Nao criar em_revisao_financeira.
 
 ### 6.9 ADMISSÕES — aprovacao_vaga
 
@@ -395,15 +414,17 @@ sla_hours:                72
 |--------|---------|---------|------------|----------|------------|--------|
 | rascunho | SIM | SIM | SIM | SIM | SIM | - |
 | em_aprovacao | SIM | SIM | SIM | SIM | SIM | - |
-| ativa | SIM | SIM (como programada) | SIM | SIM | SIM | SSOT usa programada, enum tem ativa — usar ativa |
-| em_revisao | SIM | SIM (como em_verificacao) | SIM | Parcial | SIM | SSOT usa em_verificacao, enum tem em_revisao — usar em_revisao |
+| ativa | SIM | SIM | SIM | SIM | SIM | DECISAO DEFINITIVA: usar ativa (nao programada) |
+| em_revisao | SIM | SIM | SIM | Parcial | SIM | DECISAO DEFINITIVA: usar em_revisao (nao em_verificacao) |
 | aguardando_pagamento | SIM | SIM | SIM | SIM | SIM | - |
 | concluido | SIM | SIM | SIM | SIM | SIM | - |
 | retornado | SIM | SIM | SIM | SIM | SIM | - |
 | reprovado | SIM | SIM | SIM | SIM | SIM | - |
 | encerrado | SIM | SIM | SIM | SIM | SIM | - |
 
-BLOQUEIO_DE_DECISAO #2 — ver Secao 15.
+Decisao 15.2F0-D1: programada e em_verificacao NAO devem ser usados.
+A migration 018 que usa programada como cast deve ser corrigida em F1 para usar ativa.
+Nao requer adicao de valores ao enum fuel_status.
 
 ### Reembolso (`fuel_requests.status` — enum `fuel_status`)
 
@@ -458,24 +479,60 @@ devolucao_epis) que NAO existem no enum. O processamento_rh orquestra tudo inter
 
 ## 8. VOCABULARIO UNICO DE ACOES (CONTRATO PUBLICO)
 
-Estas sao as unicas acoes que o frontend final pode enviar para `execute_entity_action`:
+Lista definitiva: 15 acoes. Nenhuma adicao sem novo Sprint de contrato.
 
-| Acao | step_kind permitido | Ator | Payload obrigatorio | Status anterior -> posterior | Avanca etapa | Encerra workflow | Exige motivo |
-|------|-------------------|------|--------------------|-----------------------------|--------------|-----------------|--------------|
-| enviar | N/A (pre-fluxo) | solicitante | nenhum | rascunho/retornado -> em_aprovacao | - | Nao | Nao |
-| aprovar | approval | aprovador_da_etapa | nenhum | em_aprovacao -> [por modulo] | Sim | Se ultima etapa | Nao |
-| devolver | approval | aprovador_da_etapa | notes (texto livre) | em_aprovacao -> retornado | Nao | Sim (encerra ciclo) | SIM |
-| rejeitar | approval | aprovador_da_etapa | notes (texto livre) | em_aprovacao -> reprovado | Nao | Sim | SIM |
-| cancelar | N/A | solicitante/master | notes (opcional) | qualquer -> cancelado | Nao | Sim | Nao |
-| concluir_revisao | review | revisor_da_etapa | nenhum | em_revisao_admin -> concluido | Sim | Se ultima etapa | Nao |
-| confirmar_horas | verification | supervisor | nenhum | em_revisao -> aguardando_pagamento | Sim | Nao | Nao |
-| pagar | payment / review | financeiro | nenhum | aguardando_pagamento -> pago/concluido | Sim | Se ultima etapa | Nao |
-| concluir_triagem | hr_processing | rh | nenhum | em_triagem -> aguardando_documentos | Sim | Nao | Nao |
-| concluir_processamento_rh | hr_processing | rh | nenhum | aprovado -> desligamento_concluido | Sim | Sim | Nao |
-| gerar_oc | N/A (operacional Compras) | compras | ocNumber, supplier, approvedValue | aguardando_oc -> aguardando_pagamento | Sim | Nao | Nao |
-| informar_entrega | N/A (operacional Compras) | solicitante/compras | deliveryAddress, deliveryDate | aguardando_entrega -> entregue | Sim | Nao | Nao |
-| concluir | N/A (operacional Compras) | solicitante/compras | nenhum | entregue -> concluido | Sim | Sim | Nao |
-| relatar_divergencia | N/A (operacional Compras) | solicitante/compras | notes | entregue -> divergencia | Nao | Nao | SIM |
+| # | Acao | Modulo | step_kind | Ator | Payload obrigatorio | Status anterior | Status posterior | Avanca etapa | Encerra workflow | Exige motivo |
+|---|------|--------|-----------|------|--------------------|-----------------|-----------------|--------------|-----------------|--------------|
+| 1 | enviar | todos | N/A (pre-fluxo) | solicitante (dono) | nenhum | rascunho / retornado | em_aprovacao | - | Nao | Nao |
+| 2 | aprovar | todos (step approval) | approval | aprovador_da_etapa | nenhum | em_aprovacao | [por modulo e etapa] | Sim | Se ultima etapa | Nao |
+| 3 | devolver | todos (step approval) | approval | aprovador_da_etapa | notes (obrigatorio) | em_aprovacao | retornado | Nao | Sim (encerra ciclo) | SIM |
+| 4 | rejeitar | todos (step approval) | approval | aprovador_da_etapa | notes (obrigatorio) | em_aprovacao | reprovado | Nao | Sim | SIM |
+| 5 | cancelar | todos | N/A | solicitante / master | notes (opcional) | qualquer (exceto terminal) | cancelado | Nao | Sim | Nao |
+| 6 | enviar_comprovantes | diaria | N/A (operacional) | solicitante | documentos (obrigatorio) | ativa | em_revisao | Sim (ativa verificacao_horas) | Nao | Nao |
+| 7 | concluir_revisao | abastecimento, reembolso | review | revisor_da_etapa | nenhum | em_revisao_admin / aguardando_pagamento | concluido / aguardando_pagamento | Sim | Se ultima etapa | Nao |
+| 8 | confirmar_horas | diaria | verification | supervisor | nenhum | em_revisao | aguardando_pagamento | Sim | Nao | Nao |
+| 9 | pagar | diaria, reembolso, compras | payment / operacional | financeiro / compras | nenhum | aguardando_pagamento | pago / concluido | Sim (payment) / Nao (operacional) | Se payment e ultima etapa | Nao |
+| 10 | concluir_triagem | admissoes | hr_processing | rh | nenhum | em_triagem | aguardando_documentos | Sim | Nao | Nao |
+| 11 | concluir_processamento_rh | desligamentos | hr_processing | rh | nenhum | aprovado | desligamento_concluido | Sim | Sim | Nao |
+| 12 | gerar_oc | compras | N/A (operacional) | compras | ocNumber, supplier, approvedValue | aguardando_oc | aguardando_pagamento | Nao | Nao | Nao |
+| 13 | informar_entrega | compras | N/A (operacional) | solicitante / compras | deliveryAddress, deliveryDate | aguardando_entrega | entregue | Nao | Nao | Nao |
+| 14 | concluir | compras | N/A (operacional) | solicitante / compras | nenhum | entregue | concluido | Nao | Sim (operacional) | Nao |
+| 15 | relatar_divergencia | compras | N/A (operacional) | solicitante / compras | notes (obrigatorio) | entregue | divergencia | Nao | Nao | SIM |
+
+### Detalhamento da acao enviar_comprovantes (acao 6)
+
+```
+acao:                      enviar_comprovantes
+modulo:                    diaria
+step_kind:                 N/A (operacional — nao e etapa do motor de aprovacao)
+ator:                      solicitante (dono da solicitacao)
+payload_obrigatorio:       documentos (lista de referencias de arquivos)
+status_anterior:           ativa
+status_posterior:          em_revisao
+avanca_etapa:              Sim — muda verificacao_horas de waiting para pending
+encerra_workflow:          Nao
+exige_motivo:              Nao
+approval_request_status:   waiting_operational -> awaiting_step
+current_approver_after:    responsavel da etapa verificacao_horas
+notificacao:               Sim — notifica o supervisor responsavel pela verificacao
+auditoria:                 Sim
+historico:                 Sim
+```
+
+### Classificacao por tipo
+
+- **Acoes de motor de aprovacao (delegadas ao execute_entity_action via process_approval_action):**
+  aprovar, devolver, rejeitar
+
+- **Acoes de transicao pre-motor (delegadas ao start_approval_flow):**
+  enviar
+
+- **Acoes de transicao operacional (executadas diretamente pelo execute_entity_action):**
+  enviar_comprovantes, concluir_revisao, confirmar_horas, concluir_triagem, concluir_processamento_rh,
+  gerar_oc, informar_entrega, concluir, relatar_divergencia
+
+- **Acoes operacionais financeiras (executadas diretamente, sem motor):**
+  pagar, cancelar
 
 ### Acoes internas temporarias — NAO usar no frontend final
 
@@ -533,6 +590,47 @@ Campos ausentes que precisam de migration futura:
 
 ---
 
+## 9A. ESTADOS INTERNOS DE APPROVAL_REQUESTS (CONTRATO FUTURO)
+
+Os seguintes estados internos da tabela `approval_requests` devem ser implementados
+em Sprint 15.2B-R2 (requer migration). Nao existem fisicamente agora — documentados para
+contrato de implementacao futura.
+
+| Status interno | Descricao | current_approver_user_id | Ha etapa pending |
+|----------------|-----------|--------------------------|------------------|
+| `draft` | Fluxo nao iniciado (pre-enviar) | null | Nao |
+| `awaiting_step` | Ha uma etapa pending com aprovador definido | uuid do aprovador | Sim |
+| `waiting_operational` | Nenhuma etapa pending; aguarda acao operacional da entidade | null | Nao |
+| `returned` | Solicitacao devolvida ao solicitante; ciclo encerrado | null | Nao |
+| `rejected` | Workflow encerrado por rejeicao definitiva | null | Nao |
+| `cancelled` | Encerrado pelo solicitante ou ator autorizado | null | Nao |
+| `completed` | Todas as etapas do workflow concluidas | null | Nao |
+
+### Regras de transicao do approval_request
+
+```
+draft           -> awaiting_step         : enviar (via start_approval_flow)
+awaiting_step   -> waiting_operational   : aprovar (quando next_step_activation != null)
+awaiting_step   -> awaiting_step         : aprovar (quando proxima etapa ativa imediatamente)
+awaiting_step   -> returned              : devolver
+awaiting_step   -> rejected              : rejeitar
+waiting_operational -> awaiting_step     : enviar_comprovantes (ativa verificacao_horas)
+awaiting_step   -> completed             : concluir_revisao ou pagar (ultima etapa)
+awaiting_step   -> cancelled             : cancelar
+waiting_operational -> cancelled         : cancelar
+```
+
+### Mapeamento para implementacao
+
+O campo `approval_requests.status` atual usa texto livre (pending_approval, etc.).
+A tabela atual nao tem os estados acima como constraint.
+A migration futura deve:
+1. Adicionar CHECK constraint ou enum para os 7 estados acima.
+2. Migrar registros existentes para o mapeamento correto.
+3. Atualizar todas as RPCs que escrevem em approval_requests.status.
+
+---
+
 ## 10. CONTRATO DAS RPCs PUBLICAS DEFINITIVAS
 
 ### RPC Principal — Consulta de Contexto
@@ -566,6 +664,28 @@ execute_entity_action(
 - Responsabilidade: Execucao atomica de qualquer acao do contrato
 - Vocabulario aceito: apenas o vocabulario portugues da Secao 8
 - Status: IMPLEMENTADA em migration 20260724200300
+
+### Contrato da acao enviar dentro de execute_entity_action (DECISAO DEFINITIVA 15.2F0-D1)
+
+```
+execute_entity_action com action = 'enviar':
+  1. Consultar get_entity_action_context para validar que 'enviar' esta em allowed_actions
+  2. Delegar integralmente para start_approval_flow(module_key, entity_id, uid)
+  3. Retornar o resultado de start_approval_flow
+  NAO executar _update_entity_status antes de chamar start_approval_flow
+
+start_approval_flow — responsabilidades atomicas (DECISAO DEFINITIVA):
+  1. Lock da entidade (FOR UPDATE)
+  2. Validacao de ownership (requester_user_id == uid)
+  3. Validacao do status (apenas rascunho ou retornado)
+  4. Criacao do registro em approval_requests
+  5. Criacao dos registros em approval_request_steps (todos com status waiting)
+  6. Ativacao da primeira etapa (step_order = 1 -> status pending)
+  7. Atualizacao da entidade para em_aprovacao (UNICO ponto de escrita)
+  8. Insercao em status_history
+  9. Insercao em audit_logs
+  10. Geracao de notificacao para o aprovador da etapa 1
+```
 
 ---
 
@@ -640,58 +760,87 @@ Os demais campos estao AUSENTES da implementacao atual. Requerem implementacao e
    nao existem no enum. O fluxo correto usa apenas aprovado -> desligamento_concluido com operacoes
    internas no processamento_rh.
 
-5. SSOT vs enum para Diaria: SSOT usa programada/em_verificacao, enum tem ativa/em_revisao.
-   Migration 018 usa programada (inexistente no enum). Registrado como BLOQUEIO_DE_DECISAO #2.
+5. SSOT vs enum para Diaria: SSOT usa programada/em_verificacao — RESOLVIDO (15.2F0-D1).
+   Decisao definitiva: usar ativa (nao programada) e em_revisao (nao em_verificacao).
+   Nao requer adicao de valores ao enum. Migration 018 deve ser corrigida em F1.
 
-6. Chamada duplicada de start_approval_flow: execute_entity_action (migration 019) chama
-   _update_entity_status antes de start_approval_flow, que tambem faz UPDATE interno.
-   Dupla escrita idempotente. Registrado para correcao em F1 como BLOQUEIO_DE_DECISAO #3.
+6. Chamada duplicada de start_approval_flow — RESOLVIDO (15.2F0-D1).
+   Decisao definitiva: start_approval_flow e o unico responsavel pela transicao para em_aprovacao.
+   execute_entity_action NAO deve chamar _update_entity_status antes. Correcao e pendencia de implementacao.
+
+7. Reembolso — completion_action da revisao_financeira — RESOLVIDO (15.2F0-D1).
+   Decisao definitiva: completion_action = concluir_revisao (nao pagar).
+   pagar e acao operacional separada apos o workflow de aprovacao.
 
 ---
 
 ## 15. BLOQUEIOS DE DECISAO
 
-### BLOQUEIO_DE_DECISAO #1 — Reembolso: status de entrada da revisao financeira
+Nenhum bloqueio de decisao funcional pendente para o Sprint 15.2F1.
 
-Problema: aguardando_pagamento e usado como status ao sair da etapa 1 (aprovacao_gestor)
-E como status de entrada da etapa 2 (revisao_financeira). O financeiro nao consegue distinguir
-na fila se a entidade esta "aprovada mas nao paga" ou "em revisao financeira ativa".
+Todas as decisoes foram tomadas na Sprint 15.2F0-D1 em 2026-08-03:
 
-Opcoes:
-- A) Aceitar ambiguidade e usar apenas aguardando_pagamento para os dois momentos
-- B) Introduzir status intermediario em_revisao_financeira (requer migration no enum fuel_status)
-
-Impacto: Fila do Financeiro, Dashboard, notificacoes.
-NAO iniciar F1 sem resolucao desta decisao para o modulo Reembolso.
+| Decisao | Modulo | Resolucao | Status |
+|---------|--------|-----------|--------|
+| Decisao #1 | Reembolso | completion_action da revisao_financeira = concluir_revisao; entidade permanece em aguardando_pagamento; pagar e acao operacional separada; nao criar em_revisao_financeira | RESOLVIDA |
+| Decisao #2 | Diaria | Estados definitivos: ativa e em_revisao; nao usar programada nem em_verificacao; migration 018 deve ser corrigida em F1 | RESOLVIDA |
+| Decisao #3 | enviar | start_approval_flow e o unico responsavel pela transicao para em_aprovacao; execute_entity_action NAO deve chamar _update_entity_status antes | RESOLVIDA |
 
 ---
 
-### BLOQUEIO_DE_DECISAO #2 — Diaria: ativa vs programada / em_revisao vs em_verificacao
+## 15A. PENDENCIAS DE IMPLEMENTACAO
 
-Problema: SSOT usa programada e em_verificacao. O enum fuel_status tem ativa e em_revisao.
-A migration 018 usa programada como cast ::public.fuel_status — falharia em runtime se
-programada nao estiver no enum.
+As pendencias abaixo nao sao bloqueios de decisao. Sao implementacoes tecnicas
+necessarias em Sprints futuros (15.2F1 ou 15.2B-R2).
 
-Opcoes:
-- A) Usar ativa equivalente a programada e em_revisao equivalente a em_verificacao (sem migration)
-- B) Adicionar programada e em_verificacao ao enum fuel_status (requer migration)
+### PI-1 — Corrigir dupla atualizacao de enviar (Sprint 15.2F1)
 
-Impacto: Funcionamento do fluxo de Diaria em producao.
-NAO iniciar F1 sem resolucao desta decisao para o modulo Diaria.
+Descricao: A migration 019 (execute_entity_action) chama _update_entity_status antes de
+start_approval_flow, que ja faz o UPDATE internamente. Remover a chamada redundante.
+Impacto: Correcao de logica; sem impacto no usuario final.
+Requer migration: Sim (reescrever execute_entity_action).
 
----
+### PI-2 — Adicionar snapshots nas tabelas de instancia (Sprint 15.2B-R2)
 
-### BLOQUEIO_DE_DECISAO #3 — Execute entity action: dupla atualizacao em enviar
+Descricao: Adicionar as colunas ausentes listadas na Secao 9.2:
+step_code_snapshot, step_name_snapshot, purpose_snapshot, step_kind_snapshot,
+completion_action_snapshot, substitute_user_id, sla_hours_snapshot, sla_deadline,
+flow_version_snapshot.
+Impacto: Historico imutavel de configuracao no momento do inicio do fluxo.
+Requer migration: Sim.
 
-Problema: A migration 019 chama _update_entity_status(v_module, p_entity_id, 'em_aprovacao')
-E DEPOIS chama start_approval_flow, que internamente tambem faz UPDATE do status.
-Dupla escrita idempotente mas desnecessaria.
+### PI-3 — Materializar estados internos de approval_requests (Sprint 15.2B-R2)
 
-Opcoes:
-- A) Remover o _update_entity_status redundante do execute_entity_action (requer migration)
-- B) Aceitar a dupla escrita idempotente como comportamento correto ate F1
+Descricao: Adicionar CHECK constraint ou enum para os 7 estados definidos na Secao 9A:
+draft, awaiting_step, waiting_operational, returned, rejected, cancelled, completed.
+Migrar registros existentes.
+Requer migration: Sim.
 
-Impacto: Performance (menor) e clareza arquitetural. Nao bloqueia F1.
+### PI-4 — Materializar step_kind e completion_action no motor (Sprint 15.2F1)
+
+Descricao: As RPCs de execucao devem validar step_kind e completion_action em runtime
+comparando com os valores snapshot da etapa. Hoje a validacao e implicita.
+Requer migration: Sim (adicionar colunas snapshot antes).
+
+### PI-5 — Corrigir Action Context para waiting_operational (Sprint 15.2F1)
+
+Descricao: get_entity_action_context deve retornar allowed_actions corretas quando
+approval_request esta em waiting_operational (ex: enviar_comprovantes para Diaria).
+Hoje o contexto nao contempla este estado.
+Requer migration: Sim (reescrever get_entity_action_context).
+
+### PI-6 — Consolidar RPC publica em execute_entity_action com 4 parametros (Sprint 15.2F1)
+
+Descricao: Remover o overload antigo execute_entity_action(uuid, text, text, jsonb)
+e restringir admission_set_status e termination_set_status a uso interno.
+Requer migration: Sim (DROP FUNCTION dos overloads antigos).
+
+### PI-7 — Corrigir fila, notificacoes e Dashboard (Sprint 15.2B-R2)
+
+Descricao: Notificacoes devem incluir todos os 9 campos do contrato da Secao 13.
+Dashboard deve refletir os novos estados internos.
+Fila deve filtrar por approval_request.status = awaiting_step e assigned_user_id.
+Requer migration: Sim.
 
 ---
 
@@ -763,5 +912,8 @@ Regras de cancelamento por modulo:
 ---
 
 Documento produzido pela auditoria Sprint 15.2F0 em 2026-08-03.
-Hash inicial auditado: 0629dbc50a5f33927c08a4532f1631c808b367de
+Atualizado pela Sprint 15.2F0-D1 em 2026-08-03 (resolucao de todas as decisoes pendentes).
+Hash auditado 15.2F0: 0629dbc50a5f33927c08a4532f1631c808b367de
+Hash auditado 15.2F0-D1: 5fc96a1eb9aa00396d7588241791d911769830bf
 Proxima alteracao somente por Sprint de contrato com novo hash de commit.
+Nenhum bloqueio de decisao funcional pendente.
