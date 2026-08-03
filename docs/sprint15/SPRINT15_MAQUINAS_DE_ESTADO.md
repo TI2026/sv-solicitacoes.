@@ -1,5 +1,11 @@
 # SPRINT 15: MÁQUINAS DE ESTADO
 
+> **DOCUMENTO HISTÓRICO — NÃO UTILIZAR COMO FONTE DE IMPLEMENTAÇÃO.**
+> A fonte atual é `SPRINT15_CONTRATO_WORKFLOW_MVP.md`.
+> Este documento foi classificado e substituído pela auditoria Sprint 15.2F0 em 2026-08-03.
+> Hash de congelamento: `0629dbc50a5f33927c08a4532f1631c808b367de`
+
+
 ## 1. ABASTECIMENTO
 - **Estados Atuais (observados/presumidos):** rascunho, enviado, aprovado, devolvido, concluído.
 - **Estados Canônicos Esperados:** rascunho, em_aprovacao, aguardando_financeiro, aguardando_abastecimento, aguardando_revisao_docs, concluido, rejeitado, cancelado.
