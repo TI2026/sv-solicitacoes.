@@ -35,3 +35,6 @@ blob-report/
 /public_schema.sql
 /functiondef.json
 /current_start_approval.txt
+
+# Busca temporaria criada durante auditorias do Gemini
+/findstr_15_2f.txt
