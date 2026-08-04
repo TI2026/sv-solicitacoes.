@@ -492,8 +492,8 @@ Lista definitiva: 16 acoes. Nenhuma adicao sem novo Sprint de contrato.
 | 4 | rejeitar | todos (step approval) | approval | aprovador_da_etapa | notes (obrigatorio) | em_aprovacao | reprovado | Nao | Sim | SIM |
 | 5 | cancelar | todos | N/A | solicitante / master | notes (opcional) | qualquer (exceto terminal) | cancelado | Nao | Sim | Nao |
 | 6 | registrar_abastecimento | abastecimento | N/A (operacional) | solicitante / ator autorizado | valor, data_abastecimento, placa, km, motivo (opcional: notes) | aprovado | aguardando_fotos | Nao | Nao | Nao |
-| 7 | enviar_comprovantes | diaria, abastecimento | N/A (operacional) | solicitante | documentos (obrigatorio) | ativa / aguardando_fotos | em_revisao / em_revisao_admin | Sim (ativa verificacao_horas / revisao_adm) | Nao | Nao |
-| 9 | concluir_revisao | abastecimento, reembolso | review | revisor_da_etapa | nenhum | em_revisao_admin / aguardando_pagamento | concluido / aguardando_pagamento | Sim | Se ultima etapa | Nao |
+| 7 | enviar_comprovantes | diaria, abastecimento | N/A (operacional) | solicitante | registros em fuel_attachments (obrigatorio) | ativa / aguardando_fotos | em_revisao / em_revisao_admin | Sim (ativa verificacao_horas / revisao_adm) | Nao | Nao |
+| 8 | concluir_revisao | abastecimento, reembolso | review | revisor_da_etapa | nenhum | em_revisao_admin / aguardando_pagamento | concluido / aguardando_pagamento | Sim | Se ultima etapa | Nao |
 | 9 | confirmar_horas | diaria | verification | supervisor | nenhum | em_revisao | aguardando_pagamento | Sim | Nao | Nao |
 | 10 | pagar | diaria, reembolso, compras | payment / operacional | financeiro / compras | nenhum | aguardando_pagamento | pago / concluido | Sim (payment) / Nao (operacional) | Se payment e ultima etapa | Nao |
 | 11 | concluir_triagem | admissoes | hr_processing | rh | nenhum | em_triagem | aguardando_documentos | Sim | Nao | Nao |
@@ -510,7 +510,7 @@ acao:                      enviar_comprovantes
 modulo:                    diaria
 step_kind:                 N/A (operacional — nao e etapa do motor de aprovacao)
 ator:                      solicitante (dono da solicitacao)
-payload_obrigatorio:       documentos (lista de referencias de arquivos)
+payload_obrigatorio:       registros em fuel_attachments
 status_anterior:           ativa
 status_posterior:          em_revisao
 avanca_etapa:              Sim — muda verificacao_horas de waiting para pending
@@ -744,7 +744,7 @@ nao atomica. Isso e legado que deve ser migrado para execute_entity_action em Sp
 - approval_request_before = waiting_operational
 - approval_request_after = awaiting_step
 - activates_step = revisao_adm
-- Payload: listar somente os anexos e campos ja existentes no codigo atual. (Para Diaria, o contrato definido em Sprint 15.2F0-D1 foi integralmente preservado).
+- Payload: anexos (comprovantes de hodômetro e nota fiscal enviados para `fuel_attachments`). (Para Diária, o contrato definido em Sprint 15.2F0-D1 foi integralmente preservado).
 
 **revisao_adm**:
 - entry_status = em_revisao_admin
