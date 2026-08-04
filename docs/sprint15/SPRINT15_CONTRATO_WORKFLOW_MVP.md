@@ -1,7 +1,7 @@
 # SPRINT 15 — CONTRATO FUNCIONAL DO WORKFLOW MVP
 
 > **Gerado em:** 2026-08-03
-> **Atualizado em:** 2026-08-03 (Sprint 15.2F0-D1 — decisões funcionais resolvidas)
+> **Atualizado em:** 2026-08-03 (Sprint 15.2F0-D2 — fechar contrato funcional de abastecimento)
 > **Branch:** `sprint-15-finalizacao-funcional-v2`
 > **Hash inicial (15.2F0):** `0629dbc50a5f33927c08a4532f1631c808b367de`
 > **Hash inicial (15.2F0-D1):** `5fc96a1eb9aa00396d7588241791d911769830bf`
@@ -83,11 +83,11 @@ Cada trecho classificado conforme regra de autoridade:
 | 5 | diaria | verificacao_horas | 2 | verification | Verificação de Horas | supervisor | 24 |
 | 6 | diaria | confirmacao_pagamento | 3 | payment | Pagamento Financeiro | financeiro | 48 |
 | 7 | reembolso | aprovacao_gestor | 1 | approval | Aprovação de Reembolso | gestor_imediato | 24 |
-| 8 | reembolso | revisao_financeira | 2 | review | Revisão Financeira | financeiro | 48 |
-| 9 | admissoes | aprovacao_vaga | 1 | approval | Aprovação da Vaga | diretoria | 48 |
-| 10 | admissoes | triagem | 2 | hr_processing | Triagem de Candidato | rh | 72 |
-| 11 | desligamentos | aprovacao_desligamento | 1 | approval | Aprovação de Desligamento | diretoria | 48 |
-| 12 | desligamentos | processamento_rh | 2 | hr_processing | Processamento RH | rh | 72 |
+| 9 | reembolso | revisao_financeira | 2 | review | Revisão Financeira | financeiro | 48 |
+| 10 | admissoes | aprovacao_vaga | 1 | approval | Aprovação da Vaga | diretoria | 48 |
+| 11 | admissoes | triagem | 2 | hr_processing | Triagem de Candidato | rh | 72 |
+| 12 | desligamentos | aprovacao_desligamento | 1 | approval | Aprovação de Desligamento | diretoria | 48 |
+| 13 | desligamentos | processamento_rh | 2 | hr_processing | Processamento RH | rh | 72 |
 
 ### Regras de step_kind (OBRIGATÓRIAS)
 
@@ -140,6 +140,9 @@ return_entity_status:     retornado
 rejection_entity_status:  reprovado
 closes_workflow:          false
 next_step_code:           revisao_adm
+next_step_activation:     enviar_comprovantes
+approval_request_status_after: waiting_operational
+current_approver_user_id_after: null
 sla_hours:                24
 ```
 
@@ -479,7 +482,7 @@ devolucao_epis) que NAO existem no enum. O processamento_rh orquestra tudo inter
 
 ## 8. VOCABULARIO UNICO DE ACOES (CONTRATO PUBLICO)
 
-Lista definitiva: 15 acoes. Nenhuma adicao sem novo Sprint de contrato.
+Lista definitiva: 16 acoes. Nenhuma adicao sem novo Sprint de contrato.
 
 | # | Acao | Modulo | step_kind | Ator | Payload obrigatorio | Status anterior | Status posterior | Avanca etapa | Encerra workflow | Exige motivo |
 |---|------|--------|-----------|------|--------------------|-----------------|-----------------|--------------|-----------------|--------------|
@@ -488,16 +491,17 @@ Lista definitiva: 15 acoes. Nenhuma adicao sem novo Sprint de contrato.
 | 3 | devolver | todos (step approval) | approval | aprovador_da_etapa | notes (obrigatorio) | em_aprovacao | retornado | Nao | Sim (encerra ciclo) | SIM |
 | 4 | rejeitar | todos (step approval) | approval | aprovador_da_etapa | notes (obrigatorio) | em_aprovacao | reprovado | Nao | Sim | SIM |
 | 5 | cancelar | todos | N/A | solicitante / master | notes (opcional) | qualquer (exceto terminal) | cancelado | Nao | Sim | Nao |
-| 6 | enviar_comprovantes | diaria | N/A (operacional) | solicitante | documentos (obrigatorio) | ativa | em_revisao | Sim (ativa verificacao_horas) | Nao | Nao |
-| 7 | concluir_revisao | abastecimento, reembolso | review | revisor_da_etapa | nenhum | em_revisao_admin / aguardando_pagamento | concluido / aguardando_pagamento | Sim | Se ultima etapa | Nao |
-| 8 | confirmar_horas | diaria | verification | supervisor | nenhum | em_revisao | aguardando_pagamento | Sim | Nao | Nao |
-| 9 | pagar | diaria, reembolso, compras | payment / operacional | financeiro / compras | nenhum | aguardando_pagamento | pago / concluido | Sim (payment) / Nao (operacional) | Se payment e ultima etapa | Nao |
-| 10 | concluir_triagem | admissoes | hr_processing | rh | nenhum | em_triagem | aguardando_documentos | Sim | Nao | Nao |
-| 11 | concluir_processamento_rh | desligamentos | hr_processing | rh | nenhum | aprovado | desligamento_concluido | Sim | Sim | Nao |
-| 12 | gerar_oc | compras | N/A (operacional) | compras | ocNumber, supplier, approvedValue | aguardando_oc | aguardando_pagamento | Nao | Nao | Nao |
-| 13 | informar_entrega | compras | N/A (operacional) | solicitante / compras | deliveryAddress, deliveryDate | aguardando_entrega | entregue | Nao | Nao | Nao |
-| 14 | concluir | compras | N/A (operacional) | solicitante / compras | nenhum | entregue | concluido | Nao | Sim (operacional) | Nao |
-| 15 | relatar_divergencia | compras | N/A (operacional) | solicitante / compras | notes (obrigatorio) | entregue | divergencia | Nao | Nao | SIM |
+| 6 | registrar_abastecimento | abastecimento | N/A (operacional) | solicitante / ator autorizado | valor, data_abastecimento, placa, km, motivo (opcional: notes) | aprovado | aguardando_fotos | Nao | Nao | Nao |
+| 7 | enviar_comprovantes | diaria, abastecimento | N/A (operacional) | solicitante | registros em fuel_attachments (obrigatorio) | ativa / aguardando_fotos | em_revisao / em_revisao_admin | Sim (ativa verificacao_horas / revisao_adm) | Nao | Nao |
+| 8 | concluir_revisao | abastecimento, reembolso | review | revisor_da_etapa | nenhum | em_revisao_admin / aguardando_pagamento | concluido / aguardando_pagamento | Sim | Se ultima etapa | Nao |
+| 9 | confirmar_horas | diaria | verification | supervisor | nenhum | em_revisao | aguardando_pagamento | Sim | Nao | Nao |
+| 10 | pagar | diaria, reembolso, compras | payment / operacional | financeiro / compras | nenhum | aguardando_pagamento | pago / concluido | Sim (payment) / Nao (operacional) | Se payment e ultima etapa | Nao |
+| 11 | concluir_triagem | admissoes | hr_processing | rh | nenhum | em_triagem | aguardando_documentos | Sim | Nao | Nao |
+| 12 | concluir_processamento_rh | desligamentos | hr_processing | rh | nenhum | aprovado | desligamento_concluido | Sim | Sim | Nao |
+| 13 | gerar_oc | compras | N/A (operacional) | compras | ocNumber, supplier, approvedValue | aguardando_oc | aguardando_pagamento | Nao | Nao | Nao |
+| 14 | informar_entrega | compras | N/A (operacional) | solicitante / compras | deliveryAddress, deliveryDate | aguardando_entrega | entregue | Nao | Nao | Nao |
+| 15 | concluir | compras | N/A (operacional) | solicitante / compras | nenhum | entregue | concluido | Nao | Sim (operacional) | Nao |
+| 16 | relatar_divergencia | compras | N/A (operacional) | solicitante / compras | notes (obrigatorio) | entregue | divergencia | Nao | Nao | SIM |
 
 ### Detalhamento da acao enviar_comprovantes (acao 6)
 
@@ -506,7 +510,7 @@ acao:                      enviar_comprovantes
 modulo:                    diaria
 step_kind:                 N/A (operacional — nao e etapa do motor de aprovacao)
 ator:                      solicitante (dono da solicitacao)
-payload_obrigatorio:       documentos (lista de referencias de arquivos)
+payload_obrigatorio:       registros em fuel_attachments
 status_anterior:           ativa
 status_posterior:          em_revisao
 avanca_etapa:              Sim — muda verificacao_horas de waiting para pending
@@ -528,7 +532,7 @@ historico:                 Sim
   enviar
 
 - **Acoes de transicao operacional (executadas diretamente pelo execute_entity_action):**
-  enviar_comprovantes, concluir_revisao, confirmar_horas, concluir_triagem, concluir_processamento_rh,
+  registrar_abastecimento, enviar_comprovantes, concluir_revisao, confirmar_horas, concluir_triagem, concluir_processamento_rh,
   gerar_oc, informar_entrega, concluir, relatar_divergencia
 
 - **Acoes operacionais financeiras (executadas diretamente, sem motor):**
@@ -689,6 +693,13 @@ start_approval_flow — responsabilidades atomicas (DECISAO DEFINITIVA):
 
 ---
 
+
+
+### Diferença entre Reprovado, Devolvido e Encerrado (Abastecimento)
+- **Reprovado**: Na etapa `aprovacao_supervisor`, usar a acao `rejeitar`. O fluxo muda para `reprovado`, o `approval_request` vai para `rejected` e o workflow é encerrado definitivamente.
+- **Devolvido**: Na etapa `revisao_adm`, quando ha erro documental, usar `devolver` informando o motivo. A entidade volta para `aguardando_fotos`, o `approval_request` volta para `waiting_operational`, o solicitante recebe notificacao e pode enviar os comprovantes novamente. Nao voltar para rascunho.
+- **Encerrado**: A acao encerrar (cancelamento/encerramento operacional) podera ser usada somente conforme regra ja existente e documentada, sem substituir rejeicao da aprovacao. Não utilizar `rejeitar` na etapa `revisao_adm` como sinonimo de erro documental.
+
 ## 11. FUNCOES QUE DEVEM TORNAR-SE INTERNAS OU SER REMOVIDAS
 
 As seguintes funcoes devem ser removidas da API publica em sprints posteriores (nao alterar agora):
@@ -708,7 +719,50 @@ nao atomica. Isso e legado que deve ser migrado para execute_entity_action em Sp
 
 ---
 
-## 12. CONTRATO DE PROPAGACAO ATOMICA
+## 12. MATRIZ EXATA DE ABASTECIMENTO
+
+**aprovacao_supervisor**:
+- entry_status = em_aprovacao
+- success_status = aprovado
+- completion_action = aprovar
+- next_step = revisao_adm
+- next_step_activation = enviar_comprovantes
+- approval_request_after_success = waiting_operational
+- closes_workflow = false
+
+**registrar_abastecimento**:
+- entity_status_before = aprovado
+- entity_status_after = aguardando_fotos
+- approval_request_before = waiting_operational
+- approval_request_after = waiting_operational
+- activates_step = false
+- Payload (campos existentes exigidos): valor, data_abastecimento, placa, km, motivo (obrigatorios), notes (opcional). Anexos serao enviados posteriormente.
+
+**enviar_comprovantes**:
+- entity_status_before = aguardando_fotos
+- entity_status_after = em_revisao_admin
+- approval_request_before = waiting_operational
+- approval_request_after = awaiting_step
+- activates_step = revisao_adm
+- Payload: anexos (comprovantes de hodômetro e nota fiscal enviados para `fuel_attachments`). (Para Diária, o contrato definido em Sprint 15.2F0-D1 foi integralmente preservado).
+
+**revisao_adm**:
+- entry_status = em_revisao_admin
+- success_status = concluido
+- completion_action = concluir_revisao
+- next_step = null
+- closes_workflow = true
+
+**devolver em revisao_adm**:
+- entity_status_before = em_revisao_admin
+- entity_status_after = aguardando_fotos
+- approval_request_after = waiting_operational
+- step_after = waiting
+- current_approver_user_id = null
+
+---
+
+## 12A. CONTRATO DE PROPAGACAO ATOMICA
 
 Toda acao futura executada via execute_entity_action deve produzir atomicamente:
 
@@ -834,6 +888,18 @@ Requer migration: Sim (reescrever get_entity_action_context).
 Descricao: Remover o overload antigo execute_entity_action(uuid, text, text, jsonb)
 e restringir admission_set_status e termination_set_status a uso interno.
 Requer migration: Sim (DROP FUNCTION dos overloads antigos).
+
+### PI-8 — Materializar registrar_abastecimento e enviar_comprovantes em abastecimento
+
+Descricao: Implementar a acao `registrar_abastecimento` (aprovado -> aguardando_fotos) e habilitar `enviar_comprovantes` para o modulo abastecimento (aguardando_fotos -> em_revisao_admin), ativando a etapa revisao_adm.
+Impacto: Permite o registro dos dados operacionais e o posterior envio dos comprovantes.
+Requer migration: Nao.
+
+### PI-9 — Refatorar Abastecimento: waiting_operational apos aprovacao
+
+Descricao: Implementar `waiting_operational` apos aprovacao, ativar `revisao_adm` somente no envio dos comprovantes, implementar devolucao para `aguardando_fotos` e alinhar notificacoes e Action Context.
+Impacto: Correcao do motor para suportar fluxo com interrupcao operacional e permitir devolucao e reenvio de comprovantes.
+Requer migration: Sim (atualizar get_entity_action_context e validacoes).
 
 ### PI-7 — Corrigir fila, notificacoes e Dashboard (Sprint 15.2B-R2)
 
