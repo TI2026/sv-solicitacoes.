@@ -26,4 +26,12 @@ dist-ssr
 supabase/.temp/
 supabase/.branches/
 
+# Relatorios de testes gerados automaticamente
 test-results/
+playwright-report/
+blob-report/
+
+# Dumps e artefatos de debug — gerados automaticamente, nao versionados
+/public_schema.sql
+/functiondef.json
+/current_start_approval.txt
