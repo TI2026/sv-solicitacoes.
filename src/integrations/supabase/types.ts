@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -7,30 +7,10 @@
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
@@ -176,13 +156,6 @@ export type Database = {
             columns: ["conducted_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admission_interviews_conducted_by_fkey"
-            columns: ["conducted_by"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -348,93 +321,44 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "admission_requests_requester_user_id_fkey"
-            columns: ["requester_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       approval_flow_steps: {
         Row: {
           active: boolean
-          approval_request_status_after: string | null
           approver_role_key: string | null
           approver_type: string
           approver_user_id: string | null
-          closes_workflow: boolean | null
-          completion_action: string | null
           created_at: string
-          default_sla_hours: number | null
-          entity_status_on_entry: string | null
-          entity_status_on_success: string | null
           fixed_sector_id: string | null
           flow_id: string
           id: string
           is_required: boolean
-          next_step_activation: boolean | null
-          purpose: string | null
-          rejection_entity_status: string | null
-          return_entity_status: string | null
-          step_code: string | null
-          step_kind: string | null
-          step_name: string | null
           step_order: number
-          substitute_user_id: string | null
         }
         Insert: {
           active?: boolean
-          approval_request_status_after?: string | null
           approver_role_key?: string | null
           approver_type?: string
           approver_user_id?: string | null
-          closes_workflow?: boolean | null
-          completion_action?: string | null
           created_at?: string
-          default_sla_hours?: number | null
-          entity_status_on_entry?: string | null
-          entity_status_on_success?: string | null
           fixed_sector_id?: string | null
           flow_id: string
           id?: string
           is_required?: boolean
-          next_step_activation?: boolean | null
-          purpose?: string | null
-          rejection_entity_status?: string | null
-          return_entity_status?: string | null
-          step_code?: string | null
-          step_kind?: string | null
-          step_name?: string | null
           step_order: number
-          substitute_user_id?: string | null
         }
         Update: {
           active?: boolean
-          approval_request_status_after?: string | null
           approver_role_key?: string | null
           approver_type?: string
           approver_user_id?: string | null
-          closes_workflow?: boolean | null
-          completion_action?: string | null
           created_at?: string
-          default_sla_hours?: number | null
-          entity_status_on_entry?: string | null
-          entity_status_on_success?: string | null
           fixed_sector_id?: string | null
           flow_id?: string
           id?: string
           is_required?: boolean
-          next_step_activation?: boolean | null
-          purpose?: string | null
-          rejection_entity_status?: string | null
-          return_entity_status?: string | null
-          step_code?: string | null
-          step_kind?: string | null
-          step_name?: string | null
           step_order?: number
-          substitute_user_id?: string | null
         }
         Relationships: [
           {
@@ -442,13 +366,6 @@ export type Database = {
             columns: ["approver_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "approval_flow_steps_approver_user_id_fkey"
-            columns: ["approver_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
           {
@@ -481,7 +398,6 @@ export type Database = {
           require_rejection_reason: boolean
           return_mode: string | null
           updated_at: string
-          version: string | null
         }
         Insert: {
           active?: boolean
@@ -496,7 +412,6 @@ export type Database = {
           require_rejection_reason?: boolean
           return_mode?: string | null
           updated_at?: string
-          version?: string | null
         }
         Update: {
           active?: boolean
@@ -511,7 +426,6 @@ export type Database = {
           require_rejection_reason?: boolean
           return_mode?: string | null
           updated_at?: string
-          version?: string | null
         }
         Relationships: [
           {
@@ -519,13 +433,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "approval_flows_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
           {
@@ -577,13 +484,6 @@ export type Database = {
             columns: ["action_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "approval_history_action_by_fkey"
-            columns: ["action_by"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
           {
@@ -678,13 +578,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "approval_request_steps_approver_user_id_fkey"
-            columns: ["approver_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "approval_request_steps_flow_step_id_fkey"
             columns: ["flow_step_id"]
             isOneToOne: false
@@ -742,13 +635,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "approval_requests_current_approver_user_id_fkey"
-            columns: ["current_approver_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "approval_requests_flow_id_fkey"
             columns: ["flow_id"]
             isOneToOne: false
@@ -767,13 +653,6 @@ export type Database = {
             columns: ["requester_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "approval_requests_requester_user_id_fkey"
-            columns: ["requester_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -1247,13 +1126,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "epi_deliveries_delivered_by_user_id_fkey"
-            columns: ["delivered_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "epi_deliveries_epi_item_id_fkey"
             columns: ["epi_item_id"]
             isOneToOne: false
@@ -1420,13 +1292,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "epi_movements_moved_by_user_id_fkey"
-            columns: ["moved_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       fuel_attachments: {
@@ -1591,24 +1456,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fuel_requests_assigned_to_user_id_fkey"
-            columns: ["assigned_to_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "fuel_requests_requester_user_id_fkey"
             columns: ["requester_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fuel_requests_requester_user_id_fkey"
-            columns: ["requester_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -1651,13 +1502,6 @@ export type Database = {
             columns: ["reviewer_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fuel_reviews_reviewer_user_id_fkey"
-            columns: ["reviewer_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -1871,13 +1715,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "profiles_manager_user_id_fkey"
-            columns: ["manager_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "profiles_sector_id_fkey"
             columns: ["sector_id"]
             isOneToOne: false
@@ -1934,24 +1771,18 @@ export type Database = {
           approved_value: number | null
           attachments: Json
           category: string
-          confirmed_at: string | null
-          confirmed_by: string | null
           cost_center: string | null
           created_at: string
           deleted_at: string | null
-          delivery_address: string | null
-          delivery_date: string | null
           description: string
           estimated_value: number
           id: string
           justification: string | null
           priority: string
-          purchase_notes: string | null
           purchase_number: string | null
           requester_user_id: string
           status: string
           supplier: string | null
-          tracking_code: string | null
           updated_at: string
         }
         Insert: {
@@ -1959,24 +1790,18 @@ export type Database = {
           approved_value?: number | null
           attachments?: Json
           category: string
-          confirmed_at?: string | null
-          confirmed_by?: string | null
           cost_center?: string | null
           created_at?: string
           deleted_at?: string | null
-          delivery_address?: string | null
-          delivery_date?: string | null
           description: string
           estimated_value?: number
           id?: string
           justification?: string | null
           priority?: string
-          purchase_notes?: string | null
           purchase_number?: string | null
           requester_user_id: string
           status?: string
           supplier?: string | null
-          tracking_code?: string | null
           updated_at?: string
         }
         Update: {
@@ -1984,24 +1809,18 @@ export type Database = {
           approved_value?: number | null
           attachments?: Json
           category?: string
-          confirmed_at?: string | null
-          confirmed_by?: string | null
           cost_center?: string | null
           created_at?: string
           deleted_at?: string | null
-          delivery_address?: string | null
-          delivery_date?: string | null
           description?: string
           estimated_value?: number
           id?: string
           justification?: string | null
           priority?: string
-          purchase_notes?: string | null
           purchase_number?: string | null
           requester_user_id?: string
           status?: string
           supplier?: string | null
-          tracking_code?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2013,31 +1832,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "purchases_confirmed_by_fkey"
-            columns: ["confirmed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchases_confirmed_by_fkey"
-            columns: ["confirmed_by"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "purchases_requester_user_id_fkey"
             columns: ["requester_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchases_requester_user_id_fkey"
-            columns: ["requester_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -2232,24 +2030,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "sectors_responsible_user_id_fkey"
-            columns: ["responsible_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "sectors_substitute_user_id_fkey"
             columns: ["substitute_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sectors_substitute_user_id_fkey"
-            columns: ["substitute_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -2335,76 +2119,6 @@ export type Database = {
           },
         ]
       }
-      termination_requests: {
-        Row: {
-          collaborator_id: string
-          created_at: string
-          data_prevista: string
-          gestor_imediato: string | null
-          id: string
-          matricula: string | null
-          motivo: string
-          observacoes: string | null
-          requester_user_id: string
-          status: Database["public"]["Enums"]["termination_status"]
-          tipo_desligamento: Database["public"]["Enums"]["termination_type"]
-          ultimo_dia_trabalhado: string | null
-          updated_at: string
-        }
-        Insert: {
-          collaborator_id: string
-          created_at?: string
-          data_prevista: string
-          gestor_imediato?: string | null
-          id?: string
-          matricula?: string | null
-          motivo: string
-          observacoes?: string | null
-          requester_user_id?: string
-          status?: Database["public"]["Enums"]["termination_status"]
-          tipo_desligamento: Database["public"]["Enums"]["termination_type"]
-          ultimo_dia_trabalhado?: string | null
-          updated_at?: string
-        }
-        Update: {
-          collaborator_id?: string
-          created_at?: string
-          data_prevista?: string
-          gestor_imediato?: string | null
-          id?: string
-          matricula?: string | null
-          motivo?: string
-          observacoes?: string | null
-          requester_user_id?: string
-          status?: Database["public"]["Enums"]["termination_status"]
-          tipo_desligamento?: Database["public"]["Enums"]["termination_type"]
-          ultimo_dia_trabalhado?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "termination_requests_collaborator_id_fkey"
-            columns: ["collaborator_id"]
-            isOneToOne: false
-            referencedRelation: "collaborators"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "termination_requests_requester_user_id_fkey"
-            columns: ["requester_user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "termination_requests_requester_user_id_fkey"
-            columns: ["requester_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_effective_permissions: {
         Row: {
           action_id: string
@@ -2450,13 +2164,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_effective_permissions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -2505,13 +2212,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "user_permission_overrides_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "user_permission_overrides_module_id_fkey"
             columns: ["module_id"]
             isOneToOne: false
@@ -2525,38 +2225,7 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "user_permission_overrides_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
         ]
-      }
-      user_preferences: {
-        Row: {
-          created_at: string
-          preferences: Json
-          updated_at: string
-          user_id: string
-          version: number
-        }
-        Insert: {
-          created_at?: string
-          preferences?: Json
-          updated_at?: string
-          user_id: string
-          version?: number
-        }
-        Update: {
-          created_at?: string
-          preferences?: Json
-          updated_at?: string
-          user_id?: string
-          version?: number
-        }
-        Relationships: []
       }
       user_role_assignments: {
         Row: {
@@ -2589,13 +2258,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "user_role_assignments_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "user_role_assignments_role_id_fkey"
             columns: ["role_id"]
             isOneToOne: false
@@ -2607,13 +2269,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_role_assignments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -2719,45 +2374,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "admission_requests_requester_user_id_fkey"
-            columns: ["requester_user_id"]
-            isOneToOne: false
-            referencedRelation: "vw_employee_directory"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      vw_employee_directory: {
-        Row: {
-          active: boolean | null
-          avatar: string | null
-          display_name: string | null
-          id: string | null
-          sector_id: string | null
-        }
-        Insert: {
-          active?: boolean | null
-          avatar?: string | null
-          display_name?: string | null
-          id?: string | null
-          sector_id?: string | null
-        }
-        Update: {
-          active?: boolean | null
-          avatar?: string | null
-          display_name?: string | null
-          id?: string | null
-          sector_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_sector_id_fkey"
-            columns: ["sector_id"]
-            isOneToOne: false
-            referencedRelation: "sectors"
-            referencedColumns: ["id"]
-          },
         ]
       }
       vw_fuel_metrics: {
@@ -2775,14 +2391,6 @@ export type Database = {
       }
     }
     Functions: {
-      _update_entity_status: {
-        Args: {
-          p_entity_id: string
-          p_module_code: string
-          p_new_status: string
-        }
-        Returns: undefined
-      }
       admin_purge_test_data: {
         Args: { _confirm?: boolean; _scope: string }
         Returns: Json
@@ -2796,39 +2404,8 @@ export type Database = {
         }
         Returns: Json
       }
-      advance_purchase_to_oc: {
-        Args: {
-          p_approved_value: number
-          p_delivery_address?: string
-          p_delivery_date?: string
-          p_notes?: string
-          p_oc_number: string
-          p_request_id: string
-          p_supplier: string
-          p_tracking_code?: string
-        }
-        Returns: Json
-      }
       cancel_purchase_request: {
         Args: { p_reason?: string; p_request_id: string }
-        Returns: Json
-      }
-      confirm_purchase_delivery: {
-        Args: {
-          p_delivery_address?: string
-          p_delivery_date?: string
-          p_notes?: string
-          p_request_id: string
-          p_tracking_code?: string
-        }
-        Returns: Json
-      }
-      confirm_purchase_payment: {
-        Args: { p_notes?: string; p_request_id: string }
-        Returns: Json
-      }
-      confirm_purchase_receipt: {
-        Args: { p_notes?: string; p_request_id: string }
         Returns: Json
       }
       current_has_role: {
@@ -2840,25 +2417,6 @@ export type Database = {
         Returns: boolean
       }
       current_user_id: { Args: never; Returns: string }
-      execute_entity_action:
-        | {
-            Args: {
-              p_action: string
-              p_additional_data?: Json
-              p_comments?: string
-              p_entity_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_action: string
-              p_entity_id: string
-              p_module_key: string
-              p_payload?: Json
-            }
-            Returns: Json
-          }
       fuel_set_status: {
         Args: {
           _metadata?: Json
@@ -2869,48 +2427,6 @@ export type Database = {
         Returns: Json
       }
       get_dashboard_metrics: { Args: never; Returns: Json }
-      get_entity_action_context: {
-        Args: { p_entity_id: string; p_module_key: string }
-        Returns: Database["public"]["CompositeTypes"]["entity_action_context"]
-        SetofOptions: {
-          from: "*"
-          to: "entity_action_context"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
-      get_my_approval_queue: {
-        Args: never
-        Returns: {
-          created_at: string
-          current_approver_user_id: string | null
-          current_step_order: number | null
-          ended_at: string | null
-          flow_id: string
-          id: string
-          module_id: string
-          reference_id: string
-          requester_user_id: string
-          status: string
-          updated_at: string
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "approval_requests"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
-      get_my_permissions: {
-        Args: never
-        Returns: {
-          permission: string
-        }[]
-      }
-      get_request_approval_status: {
-        Args: { p_request_id: string }
-        Returns: Json
-      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
@@ -2950,25 +2466,15 @@ export type Database = {
         Args: { _reason?: string; _request_id: string }
         Returns: Json
       }
-      start_approval_flow:
-        | { Args: { p_entity_id: string; p_module_key: string }; Returns: Json }
-        | {
-            Args: {
-              p_entity_id: string
-              p_module_key: string
-              p_requester_user_id: string
-            }
-            Returns: Json
-          }
-      submit_purchase_request: { Args: { p_request_id: string }; Returns: Json }
-      termination_set_status: {
+      start_approval_flow: {
         Args: {
-          _reason?: string
-          _request_id: string
-          _to_status: Database["public"]["Enums"]["termination_status"]
+          p_module_code: string
+          p_reference_id: string
+          p_requester_user_id: string
         }
         Returns: Json
       }
+      submit_purchase_request: { Args: { p_request_id: string }; Returns: Json }
       user_participates_in_approval: {
         Args: { p_approval_request_id: string; p_user_id: string }
         Returns: boolean
@@ -2988,7 +2494,6 @@ export type Database = {
         | "concluido"
         | "cancelado"
         | "arquivado"
-        | "em_aprovacao"
       app_role:
         | "diretoria"
         | "administrativo"
@@ -3025,46 +2530,9 @@ export type Database = {
         | "pago"
       notification_channel: "in_app" | "email"
       review_decision: "approved" | "rejected" | "needs_revision"
-      termination_status:
-        | "rascunho"
-        | "em_aprovacao"
-        | "aprovado"
-        | "reprovado"
-        | "retornado"
-        | "desligamento_concluido"
-        | "cancelado"
-      termination_type:
-        | "pedido_demissao"
-        | "demissao_sem_justa_causa"
-        | "demissao_por_justa_causa"
-        | "acordo"
-        | "termino_contrato"
-        | "experiencia"
-        | "aposentadoria"
-        | "falecimento"
-        | "outros"
     }
     CompositeTypes: {
-      entity_action_context: {
-        module_key: string | null
-        entity_id: string | null
-        current_status: string | null
-        current_step: string | null
-        current_approver_user_id: string | null
-        is_current_actor: boolean | null
-        allowed_actions: Json | null
-        blocked_reasons: string[] | null
-        next_step: string | null
-        requester_user_id: string | null
-        sla_deadline: string | null
-        flow_version: string | null
-        current_step_order: number | null
-        current_step_name: string | null
-        next_step_order: number | null
-        next_step_name: string | null
-        next_responsible_rule: string | null
-        overdue: boolean | null
-      }
+      [_ in never]: never
     }
   }
 }
@@ -3187,9 +2655,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       admission_status: [
@@ -3205,7 +2670,6 @@ export const Constants = {
         "concluido",
         "cancelado",
         "arquivado",
-        "em_aprovacao",
       ],
       app_role: [
         "diretoria",
@@ -3246,27 +2710,6 @@ export const Constants = {
       ],
       notification_channel: ["in_app", "email"],
       review_decision: ["approved", "rejected", "needs_revision"],
-      termination_status: [
-        "rascunho",
-        "em_aprovacao",
-        "aprovado",
-        "reprovado",
-        "retornado",
-        "desligamento_concluido",
-        "cancelado",
-      ],
-      termination_type: [
-        "pedido_demissao",
-        "demissao_sem_justa_causa",
-        "demissao_por_justa_causa",
-        "acordo",
-        "termino_contrato",
-        "experiencia",
-        "aposentadoria",
-        "falecimento",
-        "outros",
-      ],
     },
   },
 } as const
-
