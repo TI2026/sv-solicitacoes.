@@ -38,3 +38,7 @@ blob-report/
 
 # Busca temporaria criada durante auditorias do Gemini
 /findstr_15_2f.txt
+
+# Variaveis locais de ambiente
+.env
+!.env.example
