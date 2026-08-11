@@ -42,3 +42,9 @@ blob-report/
 # Variaveis locais de ambiente
 .env
 !.env.example
+
+# Artefatos temporarios removidos em Sprint 15.2H2
+/security_inventory_out.txt
+/eslint_report.txt
+/ts_unused_report.txt
+/useQueryClient_findstr.txt
