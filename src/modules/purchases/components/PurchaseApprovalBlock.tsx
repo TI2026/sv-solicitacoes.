@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { ApprovalContextData } from '@/modules/fleet/hooks/useApprovalContext';
+import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
 import { usePurchaseOperationalActions } from '../hooks/usePurchaseOperationalActions';
 
 interface PurchaseApprovalBlockProps {
@@ -189,6 +190,7 @@ export function PurchaseApprovalBlock({
         <CardContent className="space-y-4">
 
           {/* Informação de Etapa */}
+          <ApprovalContextSummary ctx={approvalCtx} />
           {approvalCtx.is_in_flow && approvalCtx.flow?.current_step_name && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
