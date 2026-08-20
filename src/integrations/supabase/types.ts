@@ -2781,6 +2781,45 @@ export type Database = {
       }
     }
     Functions: {
+      _engine_activate_next: {
+        Args: { p_from_order: number; p_request_id: string }
+        Returns: Json
+      }
+      _engine_can_view: {
+        Args: {
+          p_entity_id: string
+          p_module: string
+          p_requester: string
+          p_uid: string
+        }
+        Returns: boolean
+      }
+      _engine_entity_read: {
+        Args: { p_entity_id: string; p_lock?: boolean; p_module: string }
+        Returns: {
+          requester_user_id: string
+          status: string
+        }[]
+      }
+      _engine_module_norm: { Args: { p_module: string }; Returns: string }
+      _engine_pick_actor: {
+        Args: {
+          p_current: string
+          p_primary: string
+          p_requester: string
+          p_substitute: string
+        }
+        Returns: string
+      }
+      _engine_process_v2: {
+        Args: {
+          p_action: string
+          p_actor: string
+          p_comments: string
+          p_request_id: string
+        }
+        Returns: Json
+      }
       _update_entity_status: {
         Args: {
           p_entity_id: string
@@ -3042,6 +3081,12 @@ export type Database = {
         next_step_name: string | null
         next_responsible_rule: string | null
         overdue: boolean | null
+        approval_request_id: string | null
+        flow_id: string | null
+        current_step_code: string | null
+        current_step_kind: string | null
+        next_step_code: string | null
+        can_edit: boolean | null
       }
     }
   }
