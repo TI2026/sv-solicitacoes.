@@ -2811,6 +2811,14 @@ export type Database = {
         }
         Returns: string
       }
+      _engine_process_v1: {
+        Args: {
+          p_action: string
+          p_approval_request_id: string
+          p_comments?: string
+        }
+        Returns: Json
+      }
       _engine_process_v2: {
         Args: {
           p_action: string
@@ -2820,6 +2828,11 @@ export type Database = {
         }
         Returns: Json
       }
+      _engine_reactivate_returned: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      _engine_sla_sweep: { Args: never; Returns: Json }
       _update_entity_status: {
         Args: {
           p_entity_id: string
