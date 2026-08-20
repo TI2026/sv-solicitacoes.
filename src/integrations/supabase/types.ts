@@ -2714,6 +2714,16 @@ export type Database = {
         Returns: Json
       }
       get_dashboard_metrics: { Args: never; Returns: Json }
+      get_entity_action_context: {
+        Args: { p_entity_id: string; p_module_key: string }
+        Returns: Database["public"]["CompositeTypes"]["entity_action_context"]
+        SetofOptions: {
+          from: "*"
+          to: "entity_action_context"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_my_approval_queue: {
         Args: never
         Returns: {
