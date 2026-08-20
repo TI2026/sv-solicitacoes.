@@ -2821,6 +2821,7 @@ export type Database = {
         | "concluido"
         | "cancelado"
         | "arquivado"
+        | "em_aprovacao"
       app_role:
         | "diretoria"
         | "administrativo"
@@ -3034,6 +3035,7 @@ export const Constants = {
         "concluido",
         "cancelado",
         "arquivado",
+        "em_aprovacao",
       ],
       app_role: [
         "diretoria",
