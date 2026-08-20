@@ -191,17 +191,11 @@ export function PurchaseApprovalBlock({
 
           {/* Informação de Etapa */}
           <ApprovalContextSummary ctx={approvalCtx} />
-          {approvalCtx.is_in_flow && approvalCtx.flow?.current_step_name && (
+          {approvalCtx.meta?.reason_blocked && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <span className="font-medium">Etapa {approvalCtx.flow.current_step}/{approvalCtx.flow.total_steps}:</span>{' '}
-                {approvalCtx.flow.current_step_name}
-                {approvalCtx.meta?.reason_blocked && (
-                  <span className="block text-xs text-muted-foreground mt-1">
-                    {approvalCtx.meta.reason_blocked}
-                  </span>
-                )}
+              <AlertDescription className="text-xs">
+                {approvalCtx.meta.reason_blocked}
               </AlertDescription>
             </Alert>
           )}
