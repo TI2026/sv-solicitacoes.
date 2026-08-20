@@ -19,9 +19,9 @@ SELECT plan(27);
 -- SETUP: Usuários e Setor
 -- ============================================================
 
--- Setor de teste
-INSERT INTO public.sectors (id, name, active)
-VALUES ('b0000000-0000-0000-0000-000000000001', 'Setor Teste B2R2', true)
+-- Setor de teste (public.sectors.code é NOT NULL — fixture deve fornecer code)
+INSERT INTO public.sectors (id, code, name, active)
+VALUES ('b0000000-0000-0000-0000-000000000001', 'TST-B2R2', 'Setor Teste B2R2', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Manager / aprovador gestor_imediato
