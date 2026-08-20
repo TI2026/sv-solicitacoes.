@@ -605,45 +605,90 @@ export type Database = {
       approval_request_steps: {
         Row: {
           action_at: string | null
+          activated_at: string | null
           approval_request_id: string
           approver_role_key: string | null
           approver_rule: string | null
           approver_user_id: string
+          assignment_mode: string | null
           comments: string | null
+          completion_action: string | null
+          escalated_at: string | null
           flow_step_id: string | null
+          flow_version: string | null
           id: string
+          next_step_activation: string | null
+          overdue: boolean
+          primary_user_id: string | null
           resolved_from_user_id: string | null
           resolved_sector_id: string | null
+          sla_deadline: string | null
+          sla_hours: number | null
+          source_sector_id: string | null
           status: string
+          step_code: string | null
+          step_kind: string | null
+          step_name: string | null
           step_order: number
+          substitute_user_id: string | null
         }
         Insert: {
           action_at?: string | null
+          activated_at?: string | null
           approval_request_id: string
           approver_role_key?: string | null
           approver_rule?: string | null
           approver_user_id: string
+          assignment_mode?: string | null
           comments?: string | null
+          completion_action?: string | null
+          escalated_at?: string | null
           flow_step_id?: string | null
+          flow_version?: string | null
           id?: string
+          next_step_activation?: string | null
+          overdue?: boolean
+          primary_user_id?: string | null
           resolved_from_user_id?: string | null
           resolved_sector_id?: string | null
+          sla_deadline?: string | null
+          sla_hours?: number | null
+          source_sector_id?: string | null
           status?: string
+          step_code?: string | null
+          step_kind?: string | null
+          step_name?: string | null
           step_order: number
+          substitute_user_id?: string | null
         }
         Update: {
           action_at?: string | null
+          activated_at?: string | null
           approval_request_id?: string
           approver_role_key?: string | null
           approver_rule?: string | null
           approver_user_id?: string
+          assignment_mode?: string | null
           comments?: string | null
+          completion_action?: string | null
+          escalated_at?: string | null
           flow_step_id?: string | null
+          flow_version?: string | null
           id?: string
+          next_step_activation?: string | null
+          overdue?: boolean
+          primary_user_id?: string | null
           resolved_from_user_id?: string | null
           resolved_sector_id?: string | null
+          sla_deadline?: string | null
+          sla_hours?: number | null
+          source_sector_id?: string | null
           status?: string
+          step_code?: string | null
+          step_kind?: string | null
+          step_name?: string | null
           step_order?: number
+          substitute_user_id?: string | null
         }
         Relationships: [
           {
