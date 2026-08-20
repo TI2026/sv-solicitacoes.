@@ -134,10 +134,32 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
     ],
   });
 
-  // [Sprint Final 1] Recebe a AÇÃO canônica do motor, não um status.
-  const handleStatusChange = async (action: string, reason?: string) => {
+  /**
+   * [Sprint Final 1] Convergência V2.
+   * Etapas operacionais de Admissões vão pelo executor único, na ação
+   * canônica `avancar_etapa` (o backend valida a transição).
+   * `cancelado` é a ação canônica `cancelar`.
+   */
+  const handleStatusChange = async (toStatus: string, reason?: string) => {
     if (!id) return;
-    await statusMutation.mutateAsync({ requestId: id, action, reason });
+    if (toStatus === 'cancelado' || toStatus === 'arquivado') {
+      await statusMutation.mutateAsync({
+        requestId: id,
+        action: 'cancelar',
+        reason: reason && reason.trim().length >= 10 ? reason : 'Cancelado pelo responsável do processo',
+      });
+      return;
+    }
+    if (toStatus === 'aguardando_triagem') {
+      await statusMutation.mutateAsync({ requestId: id, action: 'enviar', successMessage: 'Vaga enviada para aprovação' });
+      return;
+    }
+    await statusMutation.mutateAsync({
+      requestId: id,
+      action: 'avancar_etapa',
+      payload: { to_status: toStatus, ...(reason ? { notes: reason } : {}) },
+      successMessage: 'Etapa atualizada',
+    });
   };
 
   const cpfDigits = candidateForm.cpf.replace(/\D/g, '');
