@@ -220,12 +220,13 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
       ].join('\n');
       finalComments = comments ? `${checklistSummary}\n\n${comments}` : checklistSummary;
     }
+    // Convergência V2: executor único (execute_entity_action).
     await approvalAction.mutateAsync({
-      approvalRequestId: approvalRequest.id,
+      moduleKey: reqType,
+      entityId: id,
       action,
+      completionAction: approvalCtx?.meta?.step_action ?? undefined,
       comments: finalComments || undefined,
-      fuelRequestId: id,
-      fuelRequestType: reqType,
     });
     // Garantir que o approvalCtx seja invalidado imediatamente após qualquer ação de aprovação
     refreshApprovalData(qc, id);
