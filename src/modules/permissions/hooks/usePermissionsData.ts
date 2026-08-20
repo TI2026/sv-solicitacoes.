@@ -171,20 +171,39 @@ export function useAllApprovalRequests() {
   });
 }
 
+/**
+ * [Sprint Final 1] Convergência V2 — executor único.
+ * Não chama mais process_approval_action. Recebe módulo + entidade.
+ */
 export function useProcessApproval() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (params: { approvalRequestId: string; action: string; comments?: string }) => {
-      const { data, error } = await supabase.rpc('process_approval_action', {
-        p_approval_request_id: params.approvalRequestId,
-        p_action: params.action,
-        p_comments: params.comments || null,
+    mutationFn: async (params: {
+      moduleKey: string;
+      entityId: string;
+      action: 'approve' | 'reject' | 'return';
+      completionAction?: string;
+      comments?: string;
+    }) => {
+      const canonical =
+        params.action === 'approve'
+          ? params.completionAction || 'aprovar'
+          : params.action === 'reject'
+            ? 'rejeitar'
+            : 'devolver';
+      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
+        p_module_key: params.moduleKey,
+        p_entity_id:  params.entityId,
+        p_action:     canonical,
+        p_payload:    params.comments ? { comments: params.comments } : {},
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       const result = data as any;
-      if (result?.error) throw new Error(result.error);
+      if (!result) throw new Error('ENGINE_NO_RESULT');
+      if (result.error) throw new Error(result.error);
+      if (result.success === false) throw new Error(result.message || 'ENGINE_ACTION_FAILED');
       return result;
     },
     onSuccess: () => {
@@ -192,6 +211,7 @@ export function useProcessApproval() {
       qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
       qc.invalidateQueries({ queryKey: ['approval_flows'] });
       qc.invalidateQueries({ queryKey: ['approval_request_for'] });
+      qc.invalidateQueries({ queryKey: ['approval_context'] });
       qc.invalidateQueries({ queryKey: ['fuel_requests'] });
       qc.invalidateQueries({ queryKey: ['fuel_request'] });
       toast({ title: 'Ação registrada com sucesso' });

@@ -19,6 +19,12 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   returned_for_adjustment: { label: 'Devolvido', variant: 'secondary' },
   returned_to_requester: { label: 'Devolvido ao solicitante', variant: 'secondary' },
   pending_approval: { label: 'Pendente', variant: 'outline' },
+  // ── Contrato V2 ──
+  awaiting_step: { label: 'Aguardando etapa', variant: 'outline' },
+  waiting_operational: { label: 'Aguardando comprovantes', variant: 'secondary' },
+  returned: { label: 'Devolvido', variant: 'secondary' },
+  completed: { label: 'Concluído', variant: 'default' },
+  cancelled: { label: 'Cancelado', variant: 'secondary' },
 };
 
 function getApprovalLastActivityDate(approval: any) {
@@ -34,8 +40,10 @@ function getApprovalLastActivityDate(approval: any) {
 }
 
 function getStatusBadge(status: string) {
+  // [Sprint Final 1] Contrato V2. `awaiting_step_N` é legado V1 e permanece
+  // apenas para as requests V1 que ainda estão em curso.
   if (status.startsWith('awaiting_step_')) {
-    return { label: `Etapa ${status.replace('awaiting_step_', '')}`, variant: 'outline' as const };
+    return { label: `Etapa ${status.replace('awaiting_step_', '')} (V1)`, variant: 'outline' as const };
   }
   return STATUS_CONFIG[status] || { label: status, variant: 'outline' as const };
 }
@@ -46,7 +54,7 @@ export default function MyApprovalsTab() {
   const { data: approvals, isLoading } = useMyApprovals(user?.id);
   const { data: pendingFuel, isLoading: loadingFuel } = usePendingFuelRequests();
   const processAction = useProcessApproval();
-  const [actionDialog, setActionDialog] = useState<{ id: string; type: 'reject' | 'return' } | null>(null);
+  const [actionDialog, setActionDialog] = useState<{ moduleKey: string; entityId: string; type: 'reject' | 'return' } | null>(null);
   const [actionReason, setActionReason] = useState('');
   const sortedApprovals = [...(Array.isArray(approvals) ? approvals : [])]
     .filter((a: any) => a.status !== 'cancelled')
@@ -70,8 +78,10 @@ export default function MyApprovalsTab() {
     return a.approval_request_steps?.some((s: any) => s.approver_user_id === user?.id);
   });
 
-  const handleApprove = (id: string) => {
-    processAction.mutate({ approvalRequestId: id, action: 'approve' });
+  const handleApprove = (a: any) => {
+    const moduleKey = a.approval_modules?.code as string | undefined;
+    if (!moduleKey || !a.reference_id) return;
+    processAction.mutate({ moduleKey, entityId: a.reference_id, action: 'approve' });
   };
 
   const buildRoute = (a: any) => {
@@ -87,7 +97,7 @@ export default function MyApprovalsTab() {
   const handleActionConfirm = () => {
     if (!actionDialog || actionReason.trim().length < 5) return;
     processAction.mutate(
-      { approvalRequestId: actionDialog.id, action: actionDialog.type === 'reject' ? 'reject' : 'return', comments: actionReason },
+      { moduleKey: actionDialog.moduleKey, entityId: actionDialog.entityId, action: actionDialog.type === 'reject' ? 'reject' : 'return', comments: actionReason },
       { onSuccess: () => { setActionDialog(null); setActionReason(''); } }
     );
   };
