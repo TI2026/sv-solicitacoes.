@@ -35,7 +35,15 @@ export interface ApprovalContextData {
   meta: {
     reason_blocked?: string | null;
     last_action_at?: string | null;
+    /** Ação canônica que conclui a etapa atual (ex.: aprovar, pagar, concluir_revisao). */
+    step_action?: string | null;
+    /** Rótulo informativo quando o usuário não pode agir (nunca deixar tela vazia). */
+    waiting_label?: string | null;
+    sla_deadline?: string | null;
+    overdue?: boolean;
   };
+  /** Contrato bruto do Motor V2 — fonte de verdade para telas novas. */
+  raw: EntityActionContextRaw;
 }
 
 /** Contrato bruto V2 devolvido por get_entity_action_context. */
