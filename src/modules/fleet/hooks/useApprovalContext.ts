@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { approvalKeys } from '@/lib/approvalKeys';
 
 export interface ApprovalContextPermissions {
   approve: boolean;
@@ -35,6 +36,36 @@ export interface ApprovalContextData {
     reason_blocked?: string | null;
     last_action_at?: string | null;
   };
+}
+
+/** Contrato bruto V2 devolvido por get_entity_action_context. */
+export interface EntityActionContextRaw {
+  module_key: string;
+  entity_id: string;
+  current_status: string;
+  requester_user_id: string;
+  requester_name: string | null;
+  approval_request_id: string | null;
+  flow_id: string | null;
+  flow_version: string | null;
+  current_step: string | null;
+  current_step_name: string | null;
+  current_step_code: string | null;
+  current_step_kind: string | null;
+  current_step_order: number | null;
+  total_steps: number | null;
+  current_approver_user_id: string | null;
+  current_approver_name: string | null;
+  next_step_name: string | null;
+  next_step_code: string | null;
+  next_step_order: number | null;
+  sla_deadline: string | null;
+  overdue: boolean;
+  is_current_actor: boolean;
+  can_edit: boolean;
+  allowed_actions: string[];
+  blocked_reasons: string[] | null;
+  waiting_label: string | null;
 }
 
 // ENGINE_CONTEXT_ERROR: never silently swallow a missing context.
