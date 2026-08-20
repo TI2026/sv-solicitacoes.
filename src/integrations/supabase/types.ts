@@ -344,6 +344,7 @@ export type Database = {
           approver_role_key: string | null
           approver_type: string
           approver_user_id: string | null
+          assignment_mode: string | null
           closes_workflow: boolean | null
           completion_action: string | null
           created_at: string
@@ -370,6 +371,7 @@ export type Database = {
           approver_role_key?: string | null
           approver_type?: string
           approver_user_id?: string | null
+          assignment_mode?: string | null
           closes_workflow?: boolean | null
           completion_action?: string | null
           created_at?: string
@@ -396,6 +398,7 @@ export type Database = {
           approver_role_key?: string | null
           approver_type?: string
           approver_user_id?: string | null
+          assignment_mode?: string | null
           closes_workflow?: boolean | null
           completion_action?: string | null
           created_at?: string
