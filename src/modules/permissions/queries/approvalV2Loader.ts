@@ -53,6 +53,14 @@ export interface V2Health {
   overall: HealthStatus;
   flows_total: number;
   steps_total: number;
+  template: {
+    ok: boolean;
+    expected_flows: number;
+    expected_steps: number;
+    missing_steps: Array<{ module_code: string; step_order: number; step_code: string }>;
+    extra_steps: Array<{ module_code: string; step_order: number; step_code: string }>;
+    divergent_steps: Array<{ module_code: string; step_order: number; expected: any; found: any }>;
+  };
   modules: V2ModuleHealth[];
   steps: V2StepHealth[];
 }
@@ -80,6 +88,9 @@ export interface V2CutoverStatus {
 export async function loadApprovalV2Health(): Promise<V2Health> {
   const { data, error } = await (supabase as any).rpc('get_approval_configuration_health');
   if (error) throw error;
+  if (data?.error === 'FORBIDDEN_MASTER_ONLY') {
+    throw new Error('Somente o perfil Master pode visualizar a configuração de aprovação.');
+  }
   if (data?.error) throw new Error(data.error);
   return data as V2Health;
 }

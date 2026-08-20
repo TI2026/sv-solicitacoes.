@@ -19,6 +19,8 @@ import {
 const ASSIGNMENT_ERROR_LABELS: Record<string, string> = {
   FORBIDDEN_MASTER_ONLY: 'Apenas o perfil Master pode alterar a configuração de aprovação.',
   STEP_NOT_FOUND: 'Etapa não encontrada.',
+  STEP_NOT_V2: 'Esta etapa pertence ao motor anterior (V1) e não pode ser alterada.',
+  SUBSTITUTE_REQUIRED: 'Informe um substituto — o fluxo empresarial exige contingência.',
   INVALID_ASSIGNMENT_MODE: 'Tipo de responsável inválido.',
   INVALID_SLA: 'Prazo inválido. Informe um valor entre 1 e 8760 horas.',
   PRIMARY_REQUIRED: 'Selecione o responsável principal.',
