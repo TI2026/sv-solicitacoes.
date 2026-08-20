@@ -2877,7 +2877,26 @@ export type Database = {
         | "outros"
     }
     CompositeTypes: {
-      [_ in never]: never
+      entity_action_context: {
+        module_key: string | null
+        entity_id: string | null
+        current_status: string | null
+        current_step: string | null
+        current_approver_user_id: string | null
+        is_current_actor: boolean | null
+        allowed_actions: Json | null
+        blocked_reasons: string[] | null
+        next_step: string | null
+        requester_user_id: string | null
+        sla_deadline: string | null
+        flow_version: string | null
+        current_step_order: number | null
+        current_step_name: string | null
+        next_step_order: number | null
+        next_step_name: string | null
+        next_responsible_rule: string | null
+        overdue: boolean | null
+      }
     }
   }
 }
