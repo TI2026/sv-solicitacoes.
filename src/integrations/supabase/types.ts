@@ -2119,6 +2119,69 @@ export type Database = {
           },
         ]
       }
+      termination_requests: {
+        Row: {
+          collaborator_id: string
+          created_at: string
+          data_prevista: string
+          gestor_imediato: string | null
+          id: string
+          matricula: string | null
+          motivo: string
+          observacoes: string | null
+          requester_user_id: string
+          status: Database["public"]["Enums"]["termination_status"]
+          tipo_desligamento: Database["public"]["Enums"]["termination_type"]
+          ultimo_dia_trabalhado: string | null
+          updated_at: string
+        }
+        Insert: {
+          collaborator_id: string
+          created_at?: string
+          data_prevista: string
+          gestor_imediato?: string | null
+          id?: string
+          matricula?: string | null
+          motivo: string
+          observacoes?: string | null
+          requester_user_id?: string
+          status?: Database["public"]["Enums"]["termination_status"]
+          tipo_desligamento: Database["public"]["Enums"]["termination_type"]
+          ultimo_dia_trabalhado?: string | null
+          updated_at?: string
+        }
+        Update: {
+          collaborator_id?: string
+          created_at?: string
+          data_prevista?: string
+          gestor_imediato?: string | null
+          id?: string
+          matricula?: string | null
+          motivo?: string
+          observacoes?: string | null
+          requester_user_id?: string
+          status?: Database["public"]["Enums"]["termination_status"]
+          tipo_desligamento?: Database["public"]["Enums"]["termination_type"]
+          ultimo_dia_trabalhado?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "termination_requests_collaborator_id_fkey"
+            columns: ["collaborator_id"]
+            isOneToOne: false
+            referencedRelation: "collaborators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "termination_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_effective_permissions: {
         Row: {
           action_id: string
@@ -2475,6 +2538,14 @@ export type Database = {
         Returns: Json
       }
       submit_purchase_request: { Args: { p_request_id: string }; Returns: Json }
+      termination_set_status: {
+        Args: {
+          _reason?: string
+          _request_id: string
+          _to_status: Database["public"]["Enums"]["termination_status"]
+        }
+        Returns: Json
+      }
       user_participates_in_approval: {
         Args: { p_approval_request_id: string; p_user_id: string }
         Returns: boolean
@@ -2530,6 +2601,24 @@ export type Database = {
         | "pago"
       notification_channel: "in_app" | "email"
       review_decision: "approved" | "rejected" | "needs_revision"
+      termination_status:
+        | "rascunho"
+        | "em_aprovacao"
+        | "aprovado"
+        | "reprovado"
+        | "retornado"
+        | "desligamento_concluido"
+        | "cancelado"
+      termination_type:
+        | "pedido_demissao"
+        | "demissao_sem_justa_causa"
+        | "demissao_por_justa_causa"
+        | "acordo"
+        | "termino_contrato"
+        | "experiencia"
+        | "aposentadoria"
+        | "falecimento"
+        | "outros"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2710,6 +2799,26 @@ export const Constants = {
       ],
       notification_channel: ["in_app", "email"],
       review_decision: ["approved", "rejected", "needs_revision"],
+      termination_status: [
+        "rascunho",
+        "em_aprovacao",
+        "aprovado",
+        "reprovado",
+        "retornado",
+        "desligamento_concluido",
+        "cancelado",
+      ],
+      termination_type: [
+        "pedido_demissao",
+        "demissao_sem_justa_causa",
+        "demissao_por_justa_causa",
+        "acordo",
+        "termino_contrato",
+        "experiencia",
+        "aposentadoria",
+        "falecimento",
+        "outros",
+      ],
     },
   },
 } as const
