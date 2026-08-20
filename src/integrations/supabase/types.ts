@@ -158,6 +158,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "admission_interviews_conducted_by_fkey"
+            columns: ["conducted_by"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       admission_public_links: {
@@ -321,6 +328,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "admission_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       approval_flow_steps: {
@@ -366,6 +380,13 @@ export type Database = {
             columns: ["approver_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_flow_steps_approver_user_id_fkey"
+            columns: ["approver_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
           {
@@ -436,6 +457,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "approval_flows_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "approval_flows_module_id_fkey"
             columns: ["module_id"]
             isOneToOne: false
@@ -484,6 +512,13 @@ export type Database = {
             columns: ["action_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_history_action_by_fkey"
+            columns: ["action_by"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
           {
@@ -578,6 +613,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "approval_request_steps_approver_user_id_fkey"
+            columns: ["approver_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "approval_request_steps_flow_step_id_fkey"
             columns: ["flow_step_id"]
             isOneToOne: false
@@ -635,6 +677,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "approval_requests_current_approver_user_id_fkey"
+            columns: ["current_approver_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "approval_requests_flow_id_fkey"
             columns: ["flow_id"]
             isOneToOne: false
@@ -653,6 +702,13 @@ export type Database = {
             columns: ["requester_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -1126,6 +1182,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "epi_deliveries_delivered_by_user_id_fkey"
+            columns: ["delivered_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "epi_deliveries_epi_item_id_fkey"
             columns: ["epi_item_id"]
             isOneToOne: false
@@ -1292,6 +1355,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "epi_movements_moved_by_user_id_fkey"
+            columns: ["moved_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       fuel_attachments: {
@@ -1456,10 +1526,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fuel_requests_assigned_to_user_id_fkey"
+            columns: ["assigned_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fuel_requests_requester_user_id_fkey"
             columns: ["requester_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -1502,6 +1586,13 @@ export type Database = {
             columns: ["reviewer_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_reviews_reviewer_user_id_fkey"
+            columns: ["reviewer_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -1715,6 +1806,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "profiles_manager_user_id_fkey"
+            columns: ["manager_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profiles_sector_id_fkey"
             columns: ["sector_id"]
             isOneToOne: false
@@ -1836,6 +1934,13 @@ export type Database = {
             columns: ["requester_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -2030,10 +2135,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sectors_responsible_user_id_fkey"
+            columns: ["responsible_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sectors_substitute_user_id_fkey"
             columns: ["substitute_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sectors_substitute_user_id_fkey"
+            columns: ["substitute_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -2180,6 +2299,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "termination_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_effective_permissions: {
@@ -2229,6 +2355,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_effective_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_permission_overrides: {
@@ -2275,6 +2408,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "user_permission_overrides_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_permission_overrides_module_id_fkey"
             columns: ["module_id"]
             isOneToOne: false
@@ -2288,7 +2428,38 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_permission_overrides_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          preferences: Json
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          preferences?: Json
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          preferences?: Json
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
       }
       user_role_assignments: {
         Row: {
@@ -2321,6 +2492,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "user_role_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_role_assignments_role_id_fkey"
             columns: ["role_id"]
             isOneToOne: false
@@ -2332,6 +2510,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_role_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -2437,6 +2622,45 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "admission_requests_requester_user_id_fkey"
+            columns: ["requester_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_employee_directory: {
+        Row: {
+          active: boolean | null
+          avatar: string | null
+          display_name: string | null
+          id: string | null
+          sector_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          avatar?: string | null
+          display_name?: string | null
+          id?: string | null
+          sector_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          avatar?: string | null
+          display_name?: string | null
+          id?: string | null
+          sector_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
         ]
       }
       vw_fuel_metrics: {
@@ -2490,6 +2714,38 @@ export type Database = {
         Returns: Json
       }
       get_dashboard_metrics: { Args: never; Returns: Json }
+      get_my_approval_queue: {
+        Args: never
+        Returns: {
+          created_at: string
+          current_approver_user_id: string | null
+          current_step_order: number | null
+          ended_at: string | null
+          flow_id: string
+          id: string
+          module_id: string
+          reference_id: string
+          requester_user_id: string
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "approval_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_my_permissions: {
+        Args: never
+        Returns: {
+          permission: string
+        }[]
+      }
+      get_request_approval_status: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
