@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { refreshApprovalData } from '@/lib/refreshApprovalData';
+import { STEP_COMPLETION_ACTIONS } from '@/lib/approvalKeys';
 
 export function useFlowControlBatch(userId?: string) {
   const qc = useQueryClient();
@@ -52,7 +53,7 @@ export function useFlowControlBatch(userId?: string) {
               ? 'rejeitar'
               : action === 'return' || action === 'devolver'
                 ? 'devolver'
-                : allowed.find((a) => STEP_COMPLETION_ACTIONS.includes(a)) ?? 'aprovar';
+                : allowed.find((a) => (STEP_COMPLETION_ACTIONS as readonly string[]).includes(a)) ?? 'aprovar';
           if (!allowed.includes(canonical)) { fail++; continue; }
           const { data: result, error } = await (supabase as any).rpc('execute_entity_action', {
             p_module_key: moduleKey,

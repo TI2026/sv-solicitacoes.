@@ -18,3 +18,14 @@ export const approvalKeys = {
   v2Health: () => ['approval_v2_health'] as const,
   v2Cutover: () => ['approval_v2_cutover'] as const,
 } as const;
+
+/** Ações canônicas que concluem a etapa atual no Motor V2. */
+export const STEP_COMPLETION_ACTIONS = [
+  'aprovar',
+  'pagar',
+  'confirmar_horas',
+  'concluir_revisao',
+  'concluir_triagem',
+  'concluir_processamento_rh',
+  'concluir',
+] as const;

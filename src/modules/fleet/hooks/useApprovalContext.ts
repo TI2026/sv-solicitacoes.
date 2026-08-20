@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { approvalKeys } from '@/lib/approvalKeys';
+import { approvalKeys, STEP_COMPLETION_ACTIONS } from '@/lib/approvalKeys';
 
 export interface ApprovalContextPermissions {
   approve: boolean;
@@ -112,18 +112,9 @@ export function useApprovalContext(referenceId: string | undefined, moduleCode?:
 
       // Ações que concluem a etapa atual no motor V2 (contrato: cada etapa tem
       // uma ação canônica própria — "aprovar" é apenas o caso mais comum).
-      const STEP_COMPLETION_ACTIONS = [
-        'aprovar',
-        'pagar',
-        'confirmar_horas',
-        'concluir_revisao',
-        'concluir_triagem',
-        'concluir_processamento_rh',
-        'concluir',
-      ];
       const isStepActor = !!result.current_step_order && !!result.approval_request_id;
       const stepAction: string | undefined = isStepActor
-        ? allowed.find((a: string) => STEP_COMPLETION_ACTIONS.includes(a))
+        ? allowed.find((a: string) => (STEP_COMPLETION_ACTIONS as readonly string[]).includes(a))
         : undefined;
 
       // Mapeamento para o formato consumido pelas telas.
