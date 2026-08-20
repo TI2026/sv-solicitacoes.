@@ -36,8 +36,10 @@ import type { QueryClient } from '@tanstack/react-query';
 
 function refreshApprovalContext(qc: QueryClient, referenceId?: string) {
   qc.invalidateQueries({ queryKey: ['my_approvals'] });
+  // Chaves de contexto são escopadas por módulo (['approval_context', module, id]).
+  // Invalidamos por prefixo para cobrir todos os módulos sem duplicar regra.
+  qc.invalidateQueries({ queryKey: ['approval_context'] });
   if (referenceId) {
-    qc.invalidateQueries({ queryKey: ['approval_context', referenceId] });
     qc.invalidateQueries({ queryKey: ['approval_request_for', referenceId] });
     qc.invalidateQueries({ queryKey: ['approval_flow_steps', referenceId] });
   }

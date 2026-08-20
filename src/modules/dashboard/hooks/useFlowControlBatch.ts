@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { refreshApprovalData } from '@/lib/refreshApprovalData';
+import { STEP_COMPLETION_ACTIONS } from '@/lib/approvalKeys';
 
 export function useFlowControlBatch(userId?: string) {
   const qc = useQueryClient();
@@ -29,22 +30,36 @@ export function useFlowControlBatch(userId?: string) {
 
     for (const itemId of referenceIds) {
       try {
+        // [Sprint Final 1] Lote também converge no executor único.
+        // O contexto informa o módulo e a ação canônica da etapa atual.
         const { data: ar } = await supabase
           .from('approval_requests')
-          .select('id, current_approver_user_id, ended_at')
+          .select('id, current_approver_user_id, ended_at, approval_modules(code)')
           .eq('reference_id', itemId)
           .is('ended_at', null)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
 
-        if (ar && ar.current_approver_user_id === userId) {
-          const { data: result } = await supabase.rpc('process_approval_action', {
-            p_approval_request_id: ar.id,
-            p_action: action,
-            p_comments: comments,
+        const moduleKey = (ar as any)?.approval_modules?.code as string | undefined;
+        if (ar && ar.current_approver_user_id === userId && moduleKey) {
+          const { data: ctx } = await (supabase as any).rpc('get_entity_action_context', {
+            p_module_key: moduleKey,
+            p_entity_id: itemId,
           });
-          if ((result as any)?.success) {
+          const allowed: string[] = (ctx as any)?.allowed_actions ?? [];
+          const canonical =
+            action === 'reject'
+              ? 'rejeitar'
+              : allowed.find((a) => (STEP_COMPLETION_ACTIONS as readonly string[]).includes(a)) ?? 'aprovar';
+          if (!allowed.includes(canonical)) { fail++; continue; }
+          const { data: result, error } = await (supabase as any).rpc('execute_entity_action', {
+            p_module_key: moduleKey,
+            p_entity_id:  itemId,
+            p_action:     canonical,
+            p_payload:    comments ? { comments } : {},
+          });
+          if (!error && (result as any)?.success && !(result as any)?.error) {
             ok++;
           } else {
             fail++;

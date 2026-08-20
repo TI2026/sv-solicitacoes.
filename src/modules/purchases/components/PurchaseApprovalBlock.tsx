@@ -77,20 +77,19 @@ export function PurchaseApprovalBlock({
     try {
       switch (actionDialog) {
         case 'approve':
-          if (!approvalRequestId) throw new Error('ID do fluxo de aprovação ausente');
           await actions.approvalAction.mutateAsync({
-            approvalRequestId,
+            entityId: purchaseId,
             action: 'approve',
+            completionAction: approvalCtx.meta?.step_action ?? undefined,
             comments,
           });
           toast.success('Compra aprovada com sucesso!');
           break;
 
         case 'reject':
-          if (!approvalRequestId) throw new Error('ID do fluxo de aprovação ausente');
           if (!comments.trim()) { toast.error('Justificativa obrigatória para rejeitar.'); return; }
           await actions.approvalAction.mutateAsync({
-            approvalRequestId,
+            entityId: purchaseId,
             action: 'reject',
             comments,
           });
@@ -98,10 +97,9 @@ export function PurchaseApprovalBlock({
           break;
 
         case 'return':
-          if (!approvalRequestId) throw new Error('ID do fluxo de aprovação ausente');
           if (!comments.trim()) { toast.error('Justificativa obrigatória para devolver.'); return; }
           await actions.approvalAction.mutateAsync({
-            approvalRequestId,
+            entityId: purchaseId,
             action: 'return',
             comments,
           });

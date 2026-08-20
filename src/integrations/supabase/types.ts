@@ -3100,6 +3100,10 @@ export type Database = {
         current_step_kind: string | null
         next_step_code: string | null
         can_edit: boolean | null
+        total_steps: number | null
+        requester_name: string | null
+        current_approver_name: string | null
+        waiting_label: string | null
       }
     }
   }

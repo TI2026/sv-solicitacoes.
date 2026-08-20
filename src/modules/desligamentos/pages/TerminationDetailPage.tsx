@@ -88,17 +88,17 @@ export default function TerminationDetailPage() {
     if (!user) return;
     setStatusMutation.mutate({
       requestId: item.id,
-      toStatus: 'em_aprovacao',
-      startApproval: { requesterUserId: user.id },
+      action: 'enviar',
+      successMessage: 'Desligamento enviado para aprovação',
     });
   };
 
   const handleConclude = () => {
-    setStatusMutation.mutate({ requestId: item.id, toStatus: 'desligamento_concluido' });
+    setStatusMutation.mutate({ requestId: item.id, action: 'concluir' });
   };
 
   const handleCancel = () => {
-    setStatusMutation.mutate({ requestId: item.id, toStatus: 'cancelado', reason: 'Cancelado manualmente' });
+    setStatusMutation.mutate({ requestId: item.id, action: 'cancelar', reason: 'Cancelado manualmente' });
   };
 
   return (

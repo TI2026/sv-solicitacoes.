@@ -2,44 +2,26 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-import { formatApprovalError } from '@/lib/formatApprovalError';
+import { useEntityAction } from '@/hooks/useEntityAction';
 
-/** Start an approval flow for a module reference */
+/**
+ * [Sprint Final 1] Convergência V2.
+ *
+ * `start_approval_flow` NÃO é mais chamado pelo frontend.
+ * O envio de uma solicitação é a ação canônica `enviar` do executor único.
+ */
 export function useStartApprovalFlow() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (params: { moduleCode: string; referenceId: string; requesterUserId: string }) => {
-      const { data, error } = await supabase.rpc('start_approval_flow', {
-        p_module_code: params.moduleCode,
-        p_reference_id: params.referenceId,
-        p_requester_user_id: params.requesterUserId,
-      });
-      if (error) throw error;
-      const result = data as any;
-      if (result?.error) {
-        throw new Error(result.error);
-      }
-      return result;
-    },
-    onSuccess: (result) => {
-      if (result?.success) {
-        qc.invalidateQueries({ queryKey: ['my_approvals'] });
-        qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
-        qc.invalidateQueries({ queryKey: ['approval_request_for'] });
-      }
-    },
-    onError: (err: Error) => {
-      // [P1-11] Correção: tornar erro visível — IP-PLAN Onda 2
-      toast({
-        title: 'Erro ao iniciar aprovação',
-        description: formatApprovalError(err.message),
-        variant: 'destructive',
-        duration: 0, // permanece até fechar manualmente
-      });
-    },
-  });
+  const exec = useEntityAction();
+  return {
+    ...exec,
+    mutateAsync: (params: { moduleCode: string; referenceId: string }) =>
+      exec.mutateAsync({
+        moduleKey: params.moduleCode,
+        entityId: params.referenceId,
+        action: 'enviar',
+        successMessage: 'Solicitação enviada para aprovação',
+      }),
+  };
 }
 
 /** Fetch ALL approval_requests for a specific reference_id (all cycles) */

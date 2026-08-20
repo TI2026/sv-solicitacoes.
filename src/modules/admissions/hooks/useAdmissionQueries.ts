@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { refreshApprovalData } from '@/lib/refreshApprovalData';
+import { useModuleWorkflowAction } from '@/hooks/useEntityAction';
 
 export function useAdmissionRequests() {
   return useQuery({
@@ -58,38 +59,16 @@ export function useCreateAdmission() {
   });
 }
 
+/**
+ * [Sprint Final 1] Convergência V2.
+ *
+ * Removido o padrão legado `admission_set_status` → `start_approval_flow`.
+ * Toda mutação de workflow de Admissões passa pelo executor único.
+ *
+ * Etapas: 1 aprovacao_vaga → 2 processamento_rh → 3 validacao_final_rh.
+ * Ações: enviar | aprovar | devolver | rejeitar | concluir_triagem | concluir.
+ * Edição NÃO é workflow action — usar context.can_edit.
+ */
 export function useAdmissionSetStatus() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  return useMutation({
-    mutationFn: async ({ requestId, toStatus, reason, startApproval }: {
-      requestId: string;
-      toStatus: string;
-      reason?: string;
-      startApproval?: { requesterUserId: string };
-    }) => {
-      const { data, error } = await supabase.rpc('admission_set_status' as any, {
-        _request_id: requestId,
-        _to_status: toStatus,
-        _reason: reason ?? null,
-      } as any);
-      if (error) throw error;
-      if (startApproval) {
-        // Tipagem 'as any' mantida na função pois o supabase/types pode não estar 100% atualizado localmente para essa RPC
-        const flowResult = await supabase.rpc('start_approval_flow' as any, {
-          p_module_code: 'admissions',
-          p_reference_id: requestId,
-          p_requester_user_id: startApproval.requesterUserId,
-        });
-        if (flowResult.error) throw flowResult.error;
-        const resultData = flowResult.data as any;
-        if (resultData?.error) throw new Error(resultData.error);
-      }
-      return data;
-    },
-    onSuccess: (_d, vars) => {
-      refreshApprovalData(qc, vars.requestId);
-    },
-    onError: (e: any) => toast({ title: 'Erro ao atualizar status', description: e.message, variant: 'destructive' }),
-  });
+  return useModuleWorkflowAction('admissoes');
 }

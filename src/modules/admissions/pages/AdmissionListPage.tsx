@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AdmissionProcessCard } from '../components/AdmissionProcessCard';
 import { AdmissionsFiltersBar, type AdmissionsFilters } from '../components/AdmissionsFiltersBar';
 import { mapAdmissionListItem, type AdmissionListItem } from '../adapters/mapAdmissionListItem';
-import { canEditAdmission, canAdvanceAdmission, canDeleteAdmission, getNextStatus, getNextStatusLabel } from '../utils/admissionPermissions';
+import { canEditAdmission, canAdvanceAdmission, canDeleteAdmission, getNextStatusLabel } from '../utils/admissionPermissions';
 import { useAdmissionSetStatus } from '../hooks/useAdmissionQueries';
 import { PageHeader } from '@/components/PageHeader';
 import { FiltersBar } from '@/components/FiltersBar';
@@ -84,16 +84,20 @@ export default function AdmissionListPage() {
     ],
   });
 
+  // [Sprint Final 1] A lista só executa o envio (ação canônica `enviar`).
+  // Avanços de etapa acontecem no detalhe, sempre via Action Context.
   const handleAdvance = useCallback((id: string) => {
     const item = items?.find(i => i.id === id);
     if (!item) return;
-    const next = getNextStatus(item.status);
-    if (!next) return;
-    setStatusMutation.mutate({ requestId: id, toStatus: next });
-  }, [items, setStatusMutation]);
+    if (item.status !== 'rascunho' && item.status !== 'retornado') {
+      navigate(`/admissions/${id}`);
+      return;
+    }
+    setStatusMutation.mutate({ requestId: id, action: 'enviar', successMessage: 'Vaga enviada para aprovação' });
+  }, [items, setStatusMutation, navigate]);
 
   const handleDelete = useCallback((id: string) => {
-    setStatusMutation.mutate({ requestId: id, toStatus: 'arquivado', reason: 'Vaga excluída pelo usuário' });
+    setStatusMutation.mutate({ requestId: id, action: 'cancelar', reason: 'Vaga excluída pelo usuário' });
   }, [setStatusMutation]);
 
   const hasMore = (items?.length || 0) === PAGE_SIZE;
@@ -154,7 +158,7 @@ export default function AdmissionListPage() {
               canEdit={canEditAdmission(user, item)}
               canAdvance={canAdvanceAdmission(user, item)}
               canDelete={canDeleteAdmission(user)}
-              nextStatusLabel={getNextStatusLabel(item.status)}
+              nextStatusLabel={item.status === 'rascunho' || item.status === 'retornado' ? 'Enviar para Aprovação' : getNextStatusLabel(item.status)}
               onAdvance={handleAdvance}
               onDelete={handleDelete}
               deleting={setStatusMutation.isPending}
