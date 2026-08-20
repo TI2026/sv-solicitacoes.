@@ -162,28 +162,34 @@ export function usePurchaseOperationalActions(purchaseId: string | undefined) {
     onSuccess: invalidate,
   });
 
-  // ── Aprovação (via motor canônico process_approval_action) ───
-  // Note: the component only passes approvalRequestId (from the view),
-  // but execute_entity_action needs the entity ID! Wait. 
-  // We can change the component to pass entityId instead, or we can look it up.
-  // Actually, let's keep calling execute_entity_action but we must fix the component to pass entityId instead.
-  // Wait, I will just call execute_entity_action if I have the entityId, or I can call process_approval_action directly here!
-  // It's safer to keep process_approval_action here because the component has approvalRequestId.
+  // ── Aprovação — Sprint Final 1: executor único (execute_entity_action) ───
+  // process_approval_action não é mais chamado pelo frontend.
   const approvalAction = useMutation({
     mutationFn: async (params: {
-      approvalRequestId: string;
+      /** ID da COMPRA (entidade), não da approval_request. */
+      entityId: string;
       action: 'approve' | 'reject' | 'return';
+      /** Ação canônica de conclusão da etapa, vinda do Action Context. */
+      completionAction?: string;
       comments?: string;
     }) => {
-      const actionName = params.action === 'approve' ? 'aprovar' : params.action === 'reject' ? 'rejeitar' : 'devolver';
-      const { data, error } = await (supabase as any).rpc('process_approval_action', {
-        p_approval_request_id: params.approvalRequestId,
-        p_action:              actionName,
-        p_comments:            params.comments ?? null,
+      const actionName =
+        params.action === 'approve'
+          ? params.completionAction || 'aprovar'
+          : params.action === 'reject'
+            ? 'rejeitar'
+            : 'devolver';
+      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
+        p_module_key: 'compras',
+        p_entity_id:  params.entityId,
+        p_action:     actionName,
+        p_payload:    params.comments ? { comments: params.comments } : {},
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       const result = data as any;
-      if (result?.error) throw new Error(result.error);
+      if (!result) throw new Error('ENGINE_NO_RESULT');
+      if (result.error) throw new Error(result.error);
+      if (result.success === false) throw new Error(result.message || 'ENGINE_ACTION_FAILED');
       return result;
     },
     onSuccess: invalidate,
