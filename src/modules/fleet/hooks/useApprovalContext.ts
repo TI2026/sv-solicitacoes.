@@ -70,28 +70,44 @@ export function useApprovalContext(referenceId: string | undefined, moduleCode?:
 
       const allowed = result.allowed_actions || [];
 
+      // Ações que concluem a etapa atual no motor V2 (contrato: cada etapa tem
+      // uma ação canônica própria — "aprovar" é apenas o caso mais comum).
+      const STEP_COMPLETION_ACTIONS = [
+        'aprovar',
+        'pagar',
+        'confirmar_horas',
+        'concluir_revisao',
+        'concluir_triagem',
+        'concluir_processamento_rh',
+        'concluir',
+      ];
+      const isStepActor = !!result.current_step_order && !!result.approval_request_id;
+      const stepAction: string | undefined = isStepActor
+        ? allowed.find((a: string) => STEP_COMPLETION_ACTIONS.includes(a))
+        : undefined;
+
       // Mapear resultado para o formato esperado pelo frontend legado
       const legacyCtx: ApprovalContextData = {
         is_in_flow: !!result.current_step,
         status: result.current_status,
         flow: {
-          id: null,
+          id: result.flow_id ?? null,
           name: null,
-          current_step: 1,
-          total_steps: 1,
-          current_step_name: result.current_step,
+          current_step: result.current_step_order ?? 1,
+          total_steps: result.next_step_order ?? result.current_step_order ?? 1,
+          current_step_name: result.current_step_name ?? result.current_step,
         },
         current_approver: result.current_approver_user_id ? { id: result.current_approver_user_id, name: 'Aprovador' } : null,
         requester: { id: result.requester_user_id, name: 'Solicitante' },
         visibility: { mode: 'self' },
         permissions: {
-          approve: allowed.includes('aprovar'),
+          approve: !!stepAction,
           reject: allowed.includes('rejeitar'),
           return: allowed.includes('devolver'),
-          edit: allowed.includes('editar'),
+          edit: result.can_edit === true || allowed.includes('editar'),
           cancel: allowed.includes('cancelar'),
           generate_oc: allowed.includes('gerar_oc'),
-          confirm_payment: allowed.includes('pagar'),
+          confirm_payment: allowed.includes('pagar') && !stepAction,
           allowed_actions: allowed, // o componente novo consome isso diretamente (e.g. inform_delivery, etc)
         },
         meta: {
