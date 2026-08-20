@@ -1,0 +1,1 @@
+ALTER VIEW public.vw_employee_directory SET (security_invoker = true);
