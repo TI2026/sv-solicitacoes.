@@ -340,39 +340,81 @@ export type Database = {
       approval_flow_steps: {
         Row: {
           active: boolean
+          approval_request_status_after: string | null
           approver_role_key: string | null
           approver_type: string
           approver_user_id: string | null
+          closes_workflow: boolean | null
+          completion_action: string | null
           created_at: string
+          default_sla_hours: number | null
+          entity_status_on_entry: string | null
+          entity_status_on_success: string | null
           fixed_sector_id: string | null
           flow_id: string
           id: string
           is_required: boolean
+          next_step_activation: string | null
+          purpose: string | null
+          rejection_entity_status: string | null
+          return_entity_status: string | null
+          step_code: string | null
+          step_kind: string | null
+          step_name: string | null
           step_order: number
+          substitute_user_id: string | null
         }
         Insert: {
           active?: boolean
+          approval_request_status_after?: string | null
           approver_role_key?: string | null
           approver_type?: string
           approver_user_id?: string | null
+          closes_workflow?: boolean | null
+          completion_action?: string | null
           created_at?: string
+          default_sla_hours?: number | null
+          entity_status_on_entry?: string | null
+          entity_status_on_success?: string | null
           fixed_sector_id?: string | null
           flow_id: string
           id?: string
           is_required?: boolean
+          next_step_activation?: string | null
+          purpose?: string | null
+          rejection_entity_status?: string | null
+          return_entity_status?: string | null
+          step_code?: string | null
+          step_kind?: string | null
+          step_name?: string | null
           step_order: number
+          substitute_user_id?: string | null
         }
         Update: {
           active?: boolean
+          approval_request_status_after?: string | null
           approver_role_key?: string | null
           approver_type?: string
           approver_user_id?: string | null
+          closes_workflow?: boolean | null
+          completion_action?: string | null
           created_at?: string
+          default_sla_hours?: number | null
+          entity_status_on_entry?: string | null
+          entity_status_on_success?: string | null
           fixed_sector_id?: string | null
           flow_id?: string
           id?: string
           is_required?: boolean
+          next_step_activation?: string | null
+          purpose?: string | null
+          rejection_entity_status?: string | null
+          return_entity_status?: string | null
+          step_code?: string | null
+          step_kind?: string | null
+          step_name?: string | null
           step_order?: number
+          substitute_user_id?: string | null
         }
         Relationships: [
           {
@@ -419,6 +461,7 @@ export type Database = {
           require_rejection_reason: boolean
           return_mode: string | null
           updated_at: string
+          version: string | null
         }
         Insert: {
           active?: boolean
@@ -433,6 +476,7 @@ export type Database = {
           require_rejection_reason?: boolean
           return_mode?: string | null
           updated_at?: string
+          version?: string | null
         }
         Update: {
           active?: boolean
@@ -447,6 +491,7 @@ export type Database = {
           require_rejection_reason?: boolean
           return_mode?: string | null
           updated_at?: string
+          version?: string | null
         }
         Relationships: [
           {
