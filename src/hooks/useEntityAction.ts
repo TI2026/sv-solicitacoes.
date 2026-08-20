@@ -79,3 +79,42 @@ export function useEntityAction() {
     },
   });
 }
+
+export interface ModuleWorkflowActionParams {
+  requestId: string;
+  action: CanonicalAction | string;
+  payload?: Record<string, unknown>;
+  /** Justificativa — enviada como `comments` ao motor. */
+  reason?: string;
+  successMessage?: string;
+}
+
+/**
+ * Açúcar sintático para módulos cuja entidade é a própria solicitação.
+ * Mantém o executor único como caminho real (executeEntityAction).
+ */
+export function useModuleWorkflowAction(moduleKey: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (vars: ModuleWorkflowActionParams) =>
+      executeEntityAction({
+        moduleKey,
+        entityId: vars.requestId,
+        action: vars.action,
+        payload: { ...(vars.payload ?? {}), ...(vars.reason ? { comments: vars.reason } : {}) },
+      }),
+    onSuccess: (_result, vars) => {
+      refreshApprovalData(qc, vars.requestId);
+      toast({ title: vars.successMessage ?? 'Ação registrada com sucesso' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Não foi possível concluir a ação',
+        description: formatApprovalError(err.message),
+        variant: 'destructive',
+      });
+    },
+  });
+}
