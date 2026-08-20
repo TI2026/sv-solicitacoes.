@@ -4,7 +4,7 @@
 -- V1/V2, semântica de etapas e invariantes de encerramento.
 -- ============================================================
 BEGIN;
-SELECT plan(24);
+SELECT plan(25);
 
 -- 1..4 Contrato do action context ampliado
 SELECT has_type('public', 'entity_action_context', 'tipo de contexto existe');
