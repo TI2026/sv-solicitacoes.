@@ -2734,6 +2734,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      activate_approval_v2: { Args: never; Returns: Json }
       admin_purge_test_data: {
         Args: { _confirm?: boolean; _scope: string }
         Returns: Json
@@ -2778,6 +2779,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_approval_configuration_health: { Args: never; Returns: Json }
       get_dashboard_metrics: { Args: never; Returns: Json }
       get_entity_action_context: {
         Args: { p_entity_id: string; p_module_key: string }
@@ -2825,6 +2827,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
       }
+      get_v2_cutover_status: { Args: never; Returns: Json }
       has_permission: {
         Args: {
           p_action_code: string
@@ -2840,6 +2843,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_master: { Args: { _uid?: string }; Returns: boolean }
       process_approval_action: {
         Args: {
           p_action: string
@@ -2854,6 +2858,17 @@ export type Database = {
       }
       replace_approval_flow_steps: {
         Args: { p_flow_id: string; p_steps: Json }
+        Returns: Json
+      }
+      save_approval_step_assignment: {
+        Args: {
+          p_assignment_mode: string
+          p_primary_user_id?: string
+          p_sector_id?: string
+          p_sla_hours?: number
+          p_step_id: string
+          p_substitute_user_id?: string
+        }
         Returns: Json
       }
       soft_delete_request: {
