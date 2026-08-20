@@ -197,14 +197,14 @@ export default function MyApprovalsTab() {
                             <ExternalLink className="w-4 h-4" /> Detalhes
                           </Button>
                         )}
-                        <Button size="default" onClick={() => handleApprove(a.id)} disabled={processAction.isPending} className="gap-1.5 font-semibold">
+                        <Button size="default" onClick={() => handleApprove(a)} disabled={processAction.isPending} className="gap-1.5 font-semibold">
                           <CheckCircle2 className="w-4 h-4" /> Aprovar
                         </Button>
-                        <Button size="default" variant="destructive" onClick={() => { setActionDialog({ id: a.id, type: 'reject' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1.5 font-semibold">
+                        <Button size="default" variant="destructive" onClick={() => { setActionDialog({ moduleKey: a.approval_modules?.code, entityId: a.reference_id, type: 'reject' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1.5 font-semibold">
                           <XCircle className="w-4 h-4" /> Reprovar
                         </Button>
                         {canReturn && (
-                          <Button size="default" variant="outline" onClick={() => { setActionDialog({ id: a.id, type: 'return' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1.5">
+                          <Button size="default" variant="outline" onClick={() => { setActionDialog({ moduleKey: a.approval_modules?.code, entityId: a.reference_id, type: 'return' }); setActionReason(''); }} disabled={processAction.isPending} className="gap-1.5">
                             <RotateCcw className="w-4 h-4" /> Devolver
                           </Button>
                         )}
