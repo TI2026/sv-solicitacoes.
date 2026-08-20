@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, XCircle, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
+import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
 
 export function FleetApprovalAction() {
   const {
@@ -40,6 +41,11 @@ export function FleetApprovalAction() {
 
   return (
     <>
+      {/* Contexto real do motor: etapa/total, solicitante, responsável e rótulo de espera */}
+      <div className="mt-4">
+        <ApprovalContextSummary ctx={approvalCtx} />
+      </div>
+
       {/* [Sprint 2 — Onda 2] Botões de ação: ctx.permissions.approve é a fonte de verdade */}
       {canApprove && (
         <div className="space-y-3 mt-4">
