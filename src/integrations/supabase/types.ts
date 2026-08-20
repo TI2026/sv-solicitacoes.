@@ -2628,6 +2628,16 @@ export type Database = {
       }
     }
     Views: {
+      v_approval_v2_canonical_steps: {
+        Row: {
+          completion_action: string | null
+          module_code: string | null
+          step_code: string | null
+          step_kind: string | null
+          step_order: number | null
+        }
+        Relationships: []
+      }
       vw_admission_metrics: {
         Row: {
           cancelados: number | null
