@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { ApprovalContextData } from '@/modules/fleet/hooks/useApprovalContext';
+import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
 import { usePurchaseOperationalActions } from '../hooks/usePurchaseOperationalActions';
 
 interface PurchaseApprovalBlockProps {
@@ -189,17 +190,12 @@ export function PurchaseApprovalBlock({
         <CardContent className="space-y-4">
 
           {/* Informação de Etapa */}
-          {approvalCtx.is_in_flow && approvalCtx.flow?.current_step_name && (
+          <ApprovalContextSummary ctx={approvalCtx} />
+          {approvalCtx.meta?.reason_blocked && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <span className="font-medium">Etapa {approvalCtx.flow.current_step}/{approvalCtx.flow.total_steps}:</span>{' '}
-                {approvalCtx.flow.current_step_name}
-                {approvalCtx.meta?.reason_blocked && (
-                  <span className="block text-xs text-muted-foreground mt-1">
-                    {approvalCtx.meta.reason_blocked}
-                  </span>
-                )}
+              <AlertDescription className="text-xs">
+                {approvalCtx.meta.reason_blocked}
               </AlertDescription>
             </Alert>
           )}

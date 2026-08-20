@@ -1,4 +1,4 @@
-import { openSecureWindow } from "@/utils/urlSecurity";
+import { openLocalBlob } from "@/utils/urlSecurity";
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -82,9 +82,12 @@ export function ExportReportDialog({ open, onOpenChange }: ExportReportDialogPro
         // Open HTML in new window for printing as PDF
         const html = decodeURIComponent(escape(atob(data.base64)));
         const blob = new Blob([html], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        openSecureWindow(url);
-        toast.success('Relatório aberto para impressão/PDF');
+        const opened = openLocalBlob(blob);
+        if (opened) {
+          toast.success('Relatório aberto para impressão/PDF');
+        } else {
+          toast.error('Permita pop-ups para abrir o relatório em PDF');
+        }
       } else if (data?.base64) {
         // Download XLSX
         const byteChars = atob(data.base64);

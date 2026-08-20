@@ -20,7 +20,7 @@ export function AdmissionMetricsBlock({ metrics, canSeeFinancials }: { metrics: 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard icon={Users} label="Total Solicitadas" value={metrics.total} gradientClass="bg-indigo-500" onClick={() => navigate('/admissions')} />
         <MetricCard icon={UserPlus} label="Em Andamento" value={metrics.em_andamento} gradientClass="bg-cyan-500" onClick={() => navigate('/admissions')} />
-        <MetricCard icon={FileCheck} label="Aguardando Registros" value={metrics.aguardando_registros} gradientClass="bg-rose-500" onClick={() => navigate('/admissions')} />
+        <MetricCard icon={FileCheck} label="Concluídas" value={metrics.concluidas} gradientClass="bg-rose-500" onClick={() => navigate('/admissions')} />
         {canSeeFinancials && (
           <MetricCard icon={DollarSign} label="Custo Ativo (Salários)" value={formatCurrency(metrics.active_cost || 0)} gradientClass="bg-fuchsia-500" />
         )}

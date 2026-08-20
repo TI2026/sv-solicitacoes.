@@ -33,3 +33,21 @@ export function openSecureWindow(url: string) {
     console.error('Tentativa de abrir URL insegura bloqueada:', url);
   }
 }
+
+/**
+ * Abre um Blob gerado localmente (mesma origem) em nova aba.
+ *
+ * `openSecureWindow` só aceita http(s) — blobs locais são bloqueados por ela.
+ * Este helper é o caminho correto para conteúdo produzido pela própria app
+ * (relatórios, PDFs), sem afrouxar a validação de URLs externas.
+ * O objeto é revogado após a abertura para não vazar memória.
+ */
+export function openLocalBlob(blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!win) {
+    console.error('Pop-up bloqueado ao abrir relatório.');
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return !!win;
+}

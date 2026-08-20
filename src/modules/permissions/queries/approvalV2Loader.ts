@@ -143,3 +143,16 @@ export async function saveStepAssignment(params: {
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
 }
+
+/**
+ * Cutover real do Motor V2 (Master-only, protegido por advisory lock no backend).
+ * Nunca força ativação: o backend recusa enquanto houver blockers.
+ */
+export async function activateApprovalV2(): Promise<{ activated: boolean; message?: string }> {
+  const { data, error } = await (supabase as any).rpc('activate_approval_v2');
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('ACTIVATION_NO_RESULT');
+  if (data.error) throw new Error(data.error);
+  return { activated: data.activated !== false, message: data.message ?? undefined };
+}
+

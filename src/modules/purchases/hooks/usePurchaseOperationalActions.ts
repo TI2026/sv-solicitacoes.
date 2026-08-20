@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { approvalKeys } from '@/lib/approvalKeys';
 import { refreshApprovalData } from '@/lib/refreshApprovalData';
 
 /**
@@ -67,7 +68,7 @@ export function usePurchaseOperationalActions(purchaseId: string | undefined) {
     if (purchaseId) {
       refreshApprovalData(qc, purchaseId);
       qc.invalidateQueries({ queryKey: ['purchase', purchaseId] });
-      qc.invalidateQueries({ queryKey: ['approval_context', purchaseId] });
+      qc.invalidateQueries({ queryKey: approvalKeys.context('compras', purchaseId) });
     }
     qc.invalidateQueries({ queryKey: ['purchases_list'] });
     qc.invalidateQueries({ queryKey: ['my_requests'] });

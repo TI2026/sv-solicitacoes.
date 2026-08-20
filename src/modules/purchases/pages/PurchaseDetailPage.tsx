@@ -134,6 +134,7 @@ export default function PurchaseDetailPage() {
         <div className={hasActiveFlow || (approvalCtx && !isEditable) ? 'lg:col-span-2' : ''}>
           {isEditable ? (
             <PurchaseForm
+              purchaseId={purchase.id}
               initialData={purchase}
               onSubmit={handleUpdate}
               isLoading={isUpdating}

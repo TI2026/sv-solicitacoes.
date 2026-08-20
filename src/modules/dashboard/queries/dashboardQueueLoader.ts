@@ -46,6 +46,18 @@ export async function loadDashboardQueue(userId: string): Promise<{
   items: QueueItem[];
   summary: QueueSummary;
 }> {
+  void userId; // escopo real vem de auth.uid() dentro do RPC
+  // Fonte única da fila: get_my_approval_queue() — mesma regra usada pelo
+  // Dashboard, pela página de Pendências e pelo motor (V2 = awaiting_step;
+  // compatibilidade V1 isolada no próprio RPC).
+  const { data: queue, error: queueError } = await (supabase as any).rpc('get_my_approval_queue');
+  if (queueError) throw queueError;
+
+  const ids: string[] = (Array.isArray(queue) ? queue : []).map((r: any) => r.id);
+  if (ids.length === 0) {
+    return { items: [], summary: { total: 0, urgent: 0, returned: 0 } };
+  }
+
   const { data, error } = await supabase
     .from('approval_requests')
     .select(`
@@ -57,11 +69,11 @@ export async function loadDashboardQueue(userId: string): Promise<{
       approval_modules(code, name),
       profiles!approval_requests_requester_user_id_fkey(full_name)
     `)
-    .eq('current_approver_user_id', userId)
-    .is('ended_at', null)
+    .in('id', ids)
     .order('created_at', { ascending: true });
 
   if (error) throw error;
+
 
   const items: QueueItem[] = (Array.isArray(data) ? data : []).map((row: any) => ({
     id: row.id,

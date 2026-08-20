@@ -14,6 +14,9 @@ import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { MoneyInput } from '@/components/MoneyInput';
 import { useState, useEffect } from 'react';
 import { maskCurrency } from '@/lib/masks';
+import { PurchaseAttachments } from './PurchaseAttachments';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Paperclip } from 'lucide-react';
 
 const formSchema = z.object({
   category: z.string().min(1, 'A categoria é obrigatória'),
@@ -28,12 +31,14 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface Props {
+  /** Presente apenas na edição de rascunho/retornado — habilita anexos. */
+  purchaseId?: string;
   initialData?: Partial<FormValues> & { attachments?: PurchaseAttachment[] };
   onSubmit: (data: Partial<FormValues> & { attachments: PurchaseAttachment[] }) => Promise<void>;
   isLoading?: boolean;
 }
 
-export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
+export function PurchaseForm({ purchaseId, initialData, onSubmit, isLoading }: Props) {
   const navigate = useNavigate();
   const [valorFormatted, setValorFormatted] = useState(
     initialData?.estimated_value ? maskCurrency(String(Math.round((initialData.estimated_value as number) * 100))) : ''
@@ -226,6 +231,22 @@ export function PurchaseForm({ initialData, onSubmit, isLoading }: Props) {
             </Form>
           </CardContent>
         </Card>
+
+        {/* Anexos — mesmo componente e mesmo bucket privado usados no detalhe. */}
+        {purchaseId ? (
+          <PurchaseAttachments
+            purchaseId={purchaseId}
+            attachments={initialData?.attachments || []}
+            canEdit
+          />
+        ) : (
+          <Alert>
+            <Paperclip className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              Salve o rascunho para anexar comprovantes, orçamentos e links.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
     </div>
   );
