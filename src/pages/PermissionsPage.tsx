@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 import RolesPermissionsTab from '@/modules/permissions/components/RolesPermissionsTab';
 import UsersManagementTab from '@/modules/permissions/components/UsersManagementTab';
-import ApprovalChainsTab from '@/modules/permissions/components/ApprovalChainsTab';
+import ApprovalV2ConfigTab from '@/modules/permissions/components/ApprovalV2ConfigTab';
 import MyApprovalsTab from '@/modules/permissions/components/MyApprovalsTab';
 import { Shield, Users, GitBranch, ClipboardCheck, ListChecks, Clock, User, Info, Send } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -261,7 +261,7 @@ export default function PermissionsPage() {
 
         {canManageSettings && <TabsContent value="roles"><RolesPermissionsTab /></TabsContent>}
         {canManageSettings && <TabsContent value="users"><UsersManagementTab /></TabsContent>}
-        {canManageSettings && <TabsContent value="chains"><ApprovalChainsTab /></TabsContent>}
+        {canManageSettings && <TabsContent value="chains"><ApprovalV2ConfigTab /></TabsContent>}
         <TabsContent value="my-approvals"><MyApprovalsTab /></TabsContent>
       </Tabs>
     </div>
