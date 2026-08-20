@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { refreshApprovalData } from '@/lib/refreshApprovalData';
-import { useEntityAction } from '@/hooks/useEntityAction';
+import { useModuleWorkflowAction } from '@/hooks/useEntityAction';
 
 export function useAdmissionRequests() {
   return useQuery({
@@ -70,15 +70,5 @@ export function useCreateAdmission() {
  * Edição NÃO é workflow action — usar context.can_edit.
  */
 export function useAdmissionSetStatus() {
-  const exec = useEntityAction();
-  return {
-    ...exec,
-    mutateAsync: (vars: { requestId: string; action: string; payload?: Record<string, unknown>; reason?: string }) =>
-      exec.mutateAsync({
-        moduleKey: 'admissoes',
-        entityId: vars.requestId,
-        action: vars.action,
-        payload: { ...(vars.payload ?? {}), ...(vars.reason ? { comments: vars.reason } : {}) },
-      }),
-  };
+  return useModuleWorkflowAction('admissoes');
 }

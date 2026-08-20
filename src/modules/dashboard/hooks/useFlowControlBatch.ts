@@ -49,11 +49,9 @@ export function useFlowControlBatch(userId?: string) {
           });
           const allowed: string[] = (ctx as any)?.allowed_actions ?? [];
           const canonical =
-            action === 'reject' || action === 'rejeitar'
+            action === 'reject'
               ? 'rejeitar'
-              : action === 'return' || action === 'devolver'
-                ? 'devolver'
-                : allowed.find((a) => (STEP_COMPLETION_ACTIONS as readonly string[]).includes(a)) ?? 'aprovar';
+              : allowed.find((a) => (STEP_COMPLETION_ACTIONS as readonly string[]).includes(a)) ?? 'aprovar';
           if (!allowed.includes(canonical)) { fail++; continue; }
           const { data: result, error } = await (supabase as any).rpc('execute_entity_action', {
             p_module_key: moduleKey,

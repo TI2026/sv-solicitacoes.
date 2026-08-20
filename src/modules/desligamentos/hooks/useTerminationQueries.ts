@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { refreshApprovalData } from '@/lib/refreshApprovalData';
-import { useEntityAction } from '@/hooks/useEntityAction';
+import { useModuleWorkflowAction } from '@/hooks/useEntityAction';
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -72,15 +72,5 @@ export function useCreateTermination() {
  * Offboarding irreversível ocorre SOMENTE no step 3, no backend.
  */
 export function useTerminationSetStatus() {
-  const exec = useEntityAction();
-  return {
-    ...exec,
-    mutateAsync: (vars: { requestId: string; action: string; payload?: Record<string, unknown>; reason?: string }) =>
-      exec.mutateAsync({
-        moduleKey: 'desligamentos',
-        entityId: vars.requestId,
-        action: vars.action,
-        payload: { ...(vars.payload ?? {}), ...(vars.reason ? { comments: vars.reason } : {}) },
-      }),
-  };
+  return useModuleWorkflowAction('desligamentos');
 }

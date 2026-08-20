@@ -83,8 +83,8 @@ export default function AdmissionNewPage() {
       if (send && result?.id) {
         await statusMutation.mutateAsync({
           requestId: result.id,
-          toStatus: 'aguardando_triagem',
-          startApproval: { requesterUserId: user.id },
+          action: 'enviar',
+          successMessage: 'Vaga enviada para aprovação',
         });
       }
       navigate('/admissions');

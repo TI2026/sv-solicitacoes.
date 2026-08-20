@@ -89,11 +89,11 @@ export default function AdmissionListPage() {
     if (!item) return;
     const next = getNextStatus(item.status);
     if (!next) return;
-    setStatusMutation.mutate({ requestId: id, toStatus: next });
+    setStatusMutation.mutate({ requestId: id, action: next });
   }, [items, setStatusMutation]);
 
   const handleDelete = useCallback((id: string) => {
-    setStatusMutation.mutate({ requestId: id, toStatus: 'arquivado', reason: 'Vaga excluída pelo usuário' });
+    setStatusMutation.mutate({ requestId: id, action: 'cancelar', reason: 'Vaga excluída pelo usuário' });
   }, [setStatusMutation]);
 
   const hasMore = (items?.length || 0) === PAGE_SIZE;

@@ -86,8 +86,8 @@ export default function TerminationNewPage() {
       if (send && result?.id) {
         await statusMutation.mutateAsync({
           requestId: result.id,
-          toStatus: 'em_aprovacao',
-          startApproval: { requesterUserId: user.id },
+          action: 'enviar',
+          successMessage: 'Desligamento enviado para aprovação',
         });
       }
       navigate('/desligamentos');

@@ -134,9 +134,10 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
     ],
   });
 
-  const handleStatusChange = async (toStatus: string, reason?: string) => {
+  // [Sprint Final 1] Recebe a AÇÃO canônica do motor, não um status.
+  const handleStatusChange = async (action: string, reason?: string) => {
     if (!id) return;
-    await statusMutation.mutateAsync({ requestId: id, toStatus, reason });
+    await statusMutation.mutateAsync({ requestId: id, action, reason });
   };
 
   const cpfDigits = candidateForm.cpf.replace(/\D/g, '');

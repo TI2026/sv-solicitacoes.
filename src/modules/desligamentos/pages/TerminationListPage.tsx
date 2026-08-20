@@ -53,7 +53,7 @@ export default function TerminationListPage() {
   });
 
   const handleCancel = (id: string) => {
-    setStatusMutation.mutate({ requestId: id, toStatus: 'cancelado', reason: 'Cancelado pelo usuário' });
+    setStatusMutation.mutate({ requestId: id, action: 'cancelar', reason: 'Cancelado pelo usuário' });
   };
 
   return (
