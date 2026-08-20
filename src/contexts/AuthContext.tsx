@@ -57,6 +57,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const userWithRoles = await fetchUserWithRoles(authUser);
+      // Governança: perfil inativado no backend encerra a sessão imediatamente.
+      // A subscription de realtime em `profiles` reexecuta este carregamento,
+      // então a desativação tem efeito sem exigir novo login do usuário.
+      if (userWithRoles && (userWithRoles as unknown as { active?: boolean }).active === false) {
+        setUser(null);
+        setLoading(false);
+        await supabase.auth.signOut();
+        return;
+      }
       setUser(userWithRoles);
     } catch (err) {
       console.error('Error loading user profile:', err);
@@ -64,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(false);
   }, []);
+
 
   useEffect(() => {
     // Set up auth state listener FIRST
