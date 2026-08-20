@@ -24,6 +24,7 @@ import { AdmissionMetricsBlock } from '@/modules/dashboard/components/AdmissionM
 // B5 Fix Sprint 15: PurchaseMetricsBlock reativado — dados já existem em get_dashboard_metrics()
 import { PurchaseMetricsBlock } from '@/modules/dashboard/components/PurchaseMetricsBlock';
 import { FlowControlPanel } from '@/modules/dashboard/components/FlowControlPanel';
+import { mapDashboardMetrics } from '@/modules/dashboard/adapters/mapDashboardMetrics';
 
 export default function DashboardPage() {
   const { user, hasAnyRole, isMaster } = useAuth();
@@ -69,23 +70,25 @@ export default function DashboardPage() {
   });
 
   // ─── Métricas (RPC existente) ─────────────────────────────────────────────
-  const { data: metricsObj, isLoading: metricsLoading } = useQuery({
+  // Contrato real do RPC → adapter. Falha NÃO vira zero fake: a query lança o erro
+  // e a tela mostra "dados indisponíveis" com retry.
+  const {
+    data: metrics,
+    isLoading: metricsLoading,
+    isError: metricsError,
+    refetch: refetchMetrics,
+    isFetching: metricsFetching,
+  } = useQuery({
     queryKey: ['dashboard_metrics'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_dashboard_metrics' as any);
-      if (error || !data) {
-        return {
-          isError: true,
-          fuel: { total: 0, pendentes: 0, aprovados: 0, valor_total: 0, aguardando_oc: 0, aguardando_pagamento: 0, em_revisao_admin: 0, by_status: [], by_type: [] },
-          admission: { total: 0, em_andamento: 0, aguardando_registros: 0, active_cost: 0, by_status: [] },
-        };
-      }
-      return { isError: false, ...data } as any;
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error('DASHBOARD_METRICS_EMPTY');
+      return mapDashboardMetrics(data as any);
     },
     enabled: !!user,
+    retry: false,
   });
-
-  const metrics = metricsObj || { fuel: null, admission: null, isError: false };
 
   if (!user) return <div className="flex h-64 items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
@@ -166,15 +169,23 @@ export default function DashboardPage() {
       {isAdmin && <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} />}
 
       {/* ── Aviso de compatibilidade da RPC ───────────────────────────────── */}
-      {metrics?.isError && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl flex items-start gap-3 shadow-sm">
-          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" />
-          <div>
-            <h4 className="font-semibold text-sm">Dashboard em modo de compatibilidade</h4>
-            <p className="text-xs mt-1 text-amber-700/90">
-              A função de alta performance (RPC) ainda não foi detectada. Os indicadores estão em modo demonstração.
+      {metricsError && (
+        <div className="bg-destructive/5 border border-destructive/30 text-destructive px-4 py-3 rounded-xl flex items-start gap-3 shadow-sm">
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-semibold text-sm">Indicadores indisponíveis</h4>
+            <p className="text-xs mt-1 text-destructive/80">
+              Não foi possível carregar os indicadores agora. Nenhum valor é exibido para evitar leitura incorreta.
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchMetrics()}
+            disabled={metricsFetching}
+          >
+            {metricsFetching ? 'Tentando…' : 'Tentar novamente'}
+          </Button>
         </div>
       )}
 
@@ -249,7 +260,7 @@ export default function DashboardPage() {
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={false} />
               )}
-              <PurchaseMetricsBlock metrics={(metrics as any)?.purchase} canSeeFinancials={false} />
+              <PurchaseMetricsBlock metrics={metrics?.purchases} canSeeFinancials={false} />
             </div>
           )}
         </TabsContent>
@@ -308,7 +319,7 @@ export default function DashboardPage() {
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={canSeeFinancials} />
               )}
-              <PurchaseMetricsBlock metrics={(metrics as any)?.purchase} canSeeFinancials={canSeeFinancials} />
+              <PurchaseMetricsBlock metrics={metrics?.purchases} canSeeFinancials={canSeeFinancials} />
             </div>
           )}
           <section className="space-y-3">
