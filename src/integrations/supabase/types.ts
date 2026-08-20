@@ -2712,6 +2712,15 @@ export type Database = {
         Returns: boolean
       }
       current_user_id: { Args: never; Returns: string }
+      execute_entity_action: {
+        Args: {
+          p_action: string
+          p_entity_id: string
+          p_module_key: string
+          p_payload?: Json
+        }
+        Returns: Json
+      }
       fuel_set_status: {
         Args: {
           _metadata?: Json
