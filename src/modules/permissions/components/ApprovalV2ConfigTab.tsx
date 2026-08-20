@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import { useEligibleApprovers } from '../hooks/usePermissionsData';
 import {
-  useApprovalV2Health, useSaveStepAssignment, useSectorsWithResponsibles, useV2CutoverStatus,
+  useActivateApprovalV2, useApprovalV2Health, useSaveStepAssignment,
+  useSectorsWithResponsibles, useV2CutoverStatus,
 } from '../hooks/useApprovalV2Config';
 import type { HealthStatus, V2StepHealth } from '../queries/approvalV2Loader';
 
@@ -38,6 +39,7 @@ export default function ApprovalV2ConfigTab() {
   const { data: approvers } = useEligibleApprovers();
   const { data: sectors } = useSectorsWithResponsibles();
   const saveMutation = useSaveStepAssignment();
+  const activateMutation = useActivateApprovalV2();
 
   const [editing, setEditing] = useState<V2StepHealth | null>(null);
   const [mode, setMode] = useState<'person' | 'sector'>('person');
@@ -67,7 +69,14 @@ export default function ApprovalV2ConfigTab() {
 
   const selectedSector = sectors?.find(s => s.id === sectorId);
 
-  const canSave = mode === 'person' ? !!primaryId : !!sectorId;
+  // Contrato V2: Pessoa exige responsável + substituto + SLA; Setor exige setor
+  // com responsável/substituto válidos + SLA. Nada é opcional.
+  const sectorAssignable = !!selectedSector?.responsible_name && !!selectedSector?.substitute_name;
+  const canSave =
+    sla > 0 &&
+    (mode === 'person'
+      ? !!primaryId && !!substituteId && primaryId !== substituteId
+      : !!sectorId && sectorAssignable);
 
   const handleSave = () => {
     if (!editing || !canSave) return;
@@ -76,7 +85,7 @@ export default function ApprovalV2ConfigTab() {
         stepId: editing.step_id,
         assignmentMode: mode,
         primaryUserId: mode === 'person' ? primaryId : null,
-        substituteUserId: mode === 'person' && substituteId ? substituteId : null,
+        substituteUserId: mode === 'person' ? substituteId : null,
         sectorId: mode === 'sector' ? sectorId : null,
         slaHours: sla,
       },
@@ -133,10 +142,21 @@ export default function ApprovalV2ConfigTab() {
                 </AlertDescription>
               </Alert>
             )}
-            <Button disabled={!cutover.can_activate} className="gap-2">
-              <Lock className="w-4 h-4" />
-              Ativar Motor V2
+            <Button
+              className="gap-2"
+              disabled={!cutover.can_activate || activateMutation.isPending}
+              onClick={() => activateMutation.mutate()}
+            >
+              {activateMutation.isPending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Lock className="w-4 h-4" />}
+              {activateMutation.isPending ? 'Ativando…' : 'Ativar Motor V2'}
             </Button>
+            {!cutover.can_activate && (
+              <p className="text-xs text-muted-foreground">
+                Ativação bloqueada enquanto houver pendências de configuração ou solicitações do motor anterior.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -226,11 +246,10 @@ export default function ApprovalV2ConfigTab() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Substituto (opcional)</Label>
-                  <Select value={substituteId || 'none'} onValueChange={v => setSubstituteId(v === 'none' ? '' : v)}>
-                    <SelectTrigger className="text-sm"><SelectValue placeholder="Sem substituto" /></SelectTrigger>
+                  <Label className="text-xs">Substituto (obrigatório)</Label>
+                  <Select value={substituteId} onValueChange={setSubstituteId}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecionar substituto" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none" className="text-sm">Sem substituto</SelectItem>
                       {(approvers || []).filter((p: any) => p.id !== primaryId).map((p: any) => (
                         <SelectItem key={p.id} value={p.id} className="text-sm">{p.full_name}</SelectItem>
                       ))}
@@ -259,9 +278,9 @@ export default function ApprovalV2ConfigTab() {
                     <p className="text-xs text-muted-foreground">
                       Substituto atual: <span className="text-foreground">{selectedSector.substitute_name || '— não configurado'}</span>
                     </p>
-                    {!selectedSector.responsible_name && (
+                    {(!selectedSector.responsible_name || !selectedSector.substitute_name) && (
                       <p className="text-xs text-destructive">
-                        Este setor não possui responsável válido — a etapa permanecerá bloqueada.
+                        Este setor precisa ter responsável e substituto válidos — a etapa permanecerá bloqueada.
                       </p>
                     )}
                   </div>
