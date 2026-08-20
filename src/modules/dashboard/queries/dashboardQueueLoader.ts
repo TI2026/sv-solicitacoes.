@@ -46,6 +46,7 @@ export async function loadDashboardQueue(userId: string): Promise<{
   items: QueueItem[];
   summary: QueueSummary;
 }> {
+  void userId; // escopo real vem de auth.uid() dentro do RPC
   // Fonte única da fila: get_my_approval_queue() — mesma regra usada pelo
   // Dashboard, pela página de Pendências e pelo motor (V2 = awaiting_step;
   // compatibilidade V1 isolada no próprio RPC).
