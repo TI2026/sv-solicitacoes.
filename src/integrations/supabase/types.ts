@@ -2678,6 +2678,14 @@ export type Database = {
       }
     }
     Functions: {
+      _update_entity_status: {
+        Args: {
+          p_entity_id: string
+          p_module_code: string
+          p_new_status: string
+        }
+        Returns: undefined
+      }
       admin_purge_test_data: {
         Args: { _confirm?: boolean; _scope: string }
         Returns: Json
