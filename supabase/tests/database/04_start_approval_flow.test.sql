@@ -25,9 +25,11 @@ INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, appr
 INSERT INTO public.purchases (id, requester_user_id, status, category, description)
 VALUES ('e0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'rascunho', 'IT', 'Teste') ON CONFLICT DO NOTHING;
 
--- Set user to requester
+-- start_approval_flow is an internal helper in the final V2 contract.
+-- Keep the JWT actor but execute the unit test as the database owner; grants
+-- for authenticated/anon are validated separately in 09_engine_v2_core.
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000001", "role":"authenticated"}', true);
-SELECT set_config('role', 'authenticated', true);
+SELECT set_config('role', 'postgres', true);
 
 -- Teste 2: Módulo inválido
 SELECT is(
@@ -88,7 +90,7 @@ DELETE FROM public.approval_flows WHERE module_id = '00000000-0001-0000-0000-000
 INSERT INTO public.approval_flows (id, module_id, name, active, version, approval_type) VALUES ('e0000000-0000-0000-0000-000000000002', '00000000-0001-0000-0000-000000000002', 'Abastecimento v1', true, 'v1', 'sequential');
 INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, approver_user_id, step_code, active) VALUES ('e0000000-0000-0000-0000-000000000002', 1, 'usuario_fixo', '10000000-0000-0000-0000-000000000002', 'S1', true);
 
-SELECT set_config('role', 'authenticated', true);
+SELECT set_config('role', 'postgres', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000001", "role":"authenticated"}', true);
 
 -- Teste 9: Discriminator inválido
@@ -114,12 +116,12 @@ INSERT INTO public.approval_flows (id, module_id, name, active, version, approva
 INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, approver_user_id, step_code, active) VALUES ('e0f30000-0000-0000-0000-000000000003', 1, 'usuario_fixo', '10000000-0000-0000-0000-000000000001', 'S1', true);
 INSERT INTO public.fuel_requests (id, type, requester_user_id, status, valor) VALUES ('e00d0000-0000-0000-0000-000000000001', 'diaria', '10000000-0000-0000-0000-000000000001', 'rascunho', 100) ON CONFLICT DO NOTHING;
 
-SELECT set_config('role', 'authenticated', true);
+SELECT set_config('role', 'postgres', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000001", "role":"authenticated"}', true);
 
-SELECT is(
-  (public.start_approval_flow('diaria', 'e00d0000-0000-0000-0000-000000000001'))->>'success',
-  'false',
+SELECT throws_ok(
+  $$SELECT public.start_approval_flow('diaria', 'e00d0000-0000-0000-0000-000000000001')$$,
+  'WORKFLOW_NO_ELIGIBLE_APPROVER',
   'Deve falhar por autoaprovação (se único aprovador for o solicitante, falha ao resolver)'
 );
 
@@ -128,7 +130,7 @@ SELECT set_config('role', 'postgres', true);
 INSERT INTO public.purchases (id, requester_user_id, status, category, description) VALUES ('e0020000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'rascunho', 'IT', 'Teste') ON CONFLICT DO NOTHING;
 
 -- Mudar jwt para o aprovador
-SELECT set_config('role', 'authenticated', true);
+SELECT set_config('role', 'postgres', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000002", "role":"authenticated"}', true);
 SELECT is(
   (public.start_approval_flow('compras', 'e0020000-0000-0000-0000-000000000002'))->>'success',
@@ -142,7 +144,7 @@ SELECT set_config('role', 'postgres', true);
 INSERT INTO public.roles (id, key, name) VALUES ('e1000000-0000-0000-0000-000000000001', 'master', 'Master') ON CONFLICT DO NOTHING;
 INSERT INTO public.user_role_assignments (user_id, role_id) VALUES ('10000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000001') ON CONFLICT DO NOTHING;
 
-SELECT set_config('role', 'authenticated', true);
+SELECT set_config('role', 'postgres', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000002", "role":"authenticated"}', true);
 
 SELECT is(
@@ -181,7 +183,7 @@ INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, appr
 INSERT INTO public.fuel_requests (id, type, requester_user_id, status, valor) VALUES ('e00d0000-0000-0000-0000-000000000002', 'diaria', '10000000-0000-0000-0000-000000000001', 'rascunho', 100) ON CONFLICT DO NOTHING;
 
 
-SELECT set_config('role', 'authenticated', true);
+SELECT set_config('role', 'postgres', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000001", "role":"authenticated"}', true);
 
 -- Teste 14: Diaria Válido (desde que o passo resolva para alguém não-solicitante)
@@ -229,9 +231,13 @@ DELETE FROM public.approval_flows WHERE module_id = '00000000-0001-0000-0000-000
 INSERT INTO public.approval_flows (id, module_id, name, active, version, approval_type) VALUES ('e0f50000-0000-0000-0000-000000000005', '00000000-0001-0000-0000-000000000005', 'Admissoes', true, 'v1', 'sequential');
 INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, step_code, active) VALUES ('e0f50000-0000-0000-0000-000000000005', 1, 'gestor_imediato', 'S1', true); -- Não existe gestor configurado para 10000000-0000-0000-0000-000000000001
 
-SELECT set_config('role', 'authenticated', true);
+SELECT set_config('role', 'postgres', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000001", "role":"authenticated"}', true);
-SELECT is((public.start_approval_flow('admissoes', 'e00a0000-0000-0000-0000-000000000002'))->>'success', 'false', 'Falha ao resolver responsável (Rollback)');
+SELECT throws_ok(
+  $$SELECT public.start_approval_flow('admissoes', 'e00a0000-0000-0000-0000-000000000002')$$,
+  'WORKFLOW_NO_ELIGIBLE_APPROVER',
+  'Falha ao resolver responsável (Rollback)'
+);
 SELECT set_config('role', 'postgres', true);
 SELECT is((SELECT count(*)::int FROM public.approval_requests WHERE reference_id = 'e00a0000-0000-0000-0000-000000000002'), 0, 'Nenhuma request criada devido ao rollback');
 SELECT is((SELECT status::text FROM public.admission_requests WHERE id = 'e00a0000-0000-0000-0000-000000000002'), 'rascunho', 'Status mantido em rascunho devido ao rollback');

@@ -86,11 +86,20 @@ SELECT is((SELECT COUNT(*)::integer FROM public.approval_flows WHERE active = tr
 -- 15. Exatamente 12 etapas canônicas
 SELECT is((SELECT COUNT(*)::integer FROM public.approval_flow_steps WHERE flow_id IN (SELECT id FROM public.approval_flows WHERE active = true)), 12, 'Existem exatamente 12 etapas canônicas');
 
--- 16 a 24. Validar preservacao das 12 etapas canônicas originais sem alteracoes indevidas
--- Como o setup tem seed, sabemos os codes originais. O mais facil eh checar que campos novos estao NULL 
--- para TODAS as 12 etapas do seed.
-SELECT is((SELECT COUNT(*)::integer FROM public.approval_flow_steps WHERE step_kind IS NOT NULL), 0, 'step_kind permanece NULL nas 12 etapas');
-SELECT is((SELECT COUNT(*)::integer FROM public.approval_flow_steps WHERE completion_action IS NOT NULL), 0, 'completion_action permanece NULL nas 12 etapas');
+-- 16 a 24. Preservar as 12 etapas V1 ativas sem confundi-las com os 17
+-- templates V2, que deliberadamente possuem semântica canônica preenchida.
+SELECT is((
+  SELECT COUNT(*)::integer
+  FROM public.approval_flow_steps s
+  JOIN public.approval_flows f ON f.id = s.flow_id
+  WHERE f.version = 'v1' AND f.active AND s.step_kind IS NOT NULL
+), 0, 'step_kind permanece NULL nas 12 etapas V1 ativas');
+SELECT is((
+  SELECT COUNT(*)::integer
+  FROM public.approval_flow_steps s
+  JOIN public.approval_flows f ON f.id = s.flow_id
+  WHERE f.version = 'v1' AND f.active AND s.completion_action IS NOT NULL
+), 0, 'completion_action permanece NULL nas 12 etapas V1 ativas');
 
 -- Verificar se order, step_code etc não foram corrompidos
 SELECT is((SELECT COUNT(*)::integer FROM public.approval_flow_steps WHERE step_code IS NULL), 0, 'step_code preservado (nenhum NULL)');

@@ -13,7 +13,8 @@
 
 BEGIN;
 
-SELECT plan(27);
+-- 23 assertions are present below; keep the TAP plan exact.
+SELECT plan(23);
 
 -- ============================================================
 -- SETUP: Usuários e Setor
@@ -49,6 +50,16 @@ VALUES ('b0000000-0000-0000-0000-000000000099', 'Colaborador Teste', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Aprovadores para cargo_perfil (diretoria, rh, administrativo, supervisor, financeiro)
+-- O reset local não semeia public.roles. A fixture cria explicitamente os
+-- papéis usados pelas etapas V1 antes de vincular os atores B/C/D.
+INSERT INTO public.roles (id, key, name, is_master) VALUES
+  ('b0000000-0000-0000-0010-000000000010', 'diretoria', 'Diretoria 2BR2', false),
+  ('b0000000-0000-0000-0010-000000000011', 'rh', 'RH 2BR2', false),
+  ('b0000000-0000-0000-0010-000000000012', 'administrativo', 'Administrativo 2BR2', false),
+  ('b0000000-0000-0000-0010-000000000013', 'financeiro', 'Financeiro 2BR2', false),
+  ('b0000000-0000-0000-0010-000000000014', 'supervisor', 'Supervisor 2BR2', false)
+ON CONFLICT (key) DO NOTHING;
+
 -- Diretoria
 INSERT INTO auth.users (id, email)  VALUES ('b0000000-0000-0000-0001-000000000010', 'diretoria_2br2@test.com') ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.profiles (id, full_name, email, active, sector_id)
@@ -94,10 +105,11 @@ INSERT INTO public.user_role_assignments (user_id, role_id)
 SELECT 'b0000000-0000-0000-0001-000000000014', id FROM public.roles WHERE key = 'supervisor'
 ON CONFLICT DO NOTHING;
 
--- Autenticar como solicitante
+-- start_approval_flow is private in the final V2 RPC contract. Preserve the
+-- requester JWT while invoking this engine unit test as the database owner.
 SELECT set_config('request.jwt.claims',
   '{"sub":"b0000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
-SELECT set_config('role', 'authenticated', true);
+SELECT set_config('role', 'postgres', true);
 
 -- ============================================================
 -- MÓDULO 1: COMPRAS
@@ -317,8 +329,8 @@ SELECT set_config('role', 'authenticated', true);
 
 SELECT is(
   (SELECT COUNT(*)::int FROM public.get_my_approval_queue()),
-  1,
-  'get_my_approval_queue retorna 1 request para o gestor (compras)'
+  4,
+  'get_my_approval_queue retorna as 4 requests cuja etapa 1 usa o gestor'
 );
 
 SELECT finish();
