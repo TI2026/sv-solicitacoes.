@@ -33,7 +33,7 @@ export function useApprovalAction() {
           params.action === 'approve'
             ? params.completionAction || 'aprovar'
             : ACTION_MAP[params.action],
-        payload: params.comments ? { comments: params.comments } : {},
+        payload: params.comments ? { notes: params.comments } : {},
         successMessage: 'Ação de aprovação processada!',
       }),
   };

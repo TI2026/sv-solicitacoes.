@@ -17,6 +17,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { requestDetailRoute } from '@/modules/fleet/requestRoutes';
 
 export type CriticalPendingKind =
   | 'retornada'          // fuel_request devolvida ao solicitante
@@ -35,8 +36,8 @@ export interface CriticalPending {
 
 const MODULE_ROUTE: Record<string, string> = {
   abastecimento: '/fleet',
-  reembolso: '/fleet',
-  diaria: '/fleet',
+  reembolso: '/reembolsos',
+  diaria: '/diarias',
   admissions: '/admissions',
   desligamentos: '/desligamentos',
   // B6 Fix: rota de Compras reativada na Sprint 15
@@ -53,13 +54,14 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
   const results: CriticalPending[] = [];
 
   // 1. Solicitações devolvidas ao solicitante (fuel_requests)
-  const { data: returnedFuel } = await supabase
+  const { data: returnedFuel, error: returnedFuelError } = await supabase
     .from('fuel_requests')
     .select('id, type, status, created_at')
     .eq('status', 'retornado')
     .is('deleted_at', null)
     .order('created_at', { ascending: true })
     .limit(20);
+  if (returnedFuelError) throw returnedFuelError;
 
   for (const row of returnedFuel || []) {
     results.push({
@@ -68,18 +70,20 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
       kind: 'retornada',
       description: `Solicitação de ${row.type ?? 'frota'} devolvida — aguardando ação do solicitante`,
       created_at: row.created_at,
-      route: `/fleet/${row.id}`,
+      route: requestDetailRoute(row.type, row.id),
     });
   }
 
   // 2. Approval requests ativas sem current_approver_user_id
-  const { data: noApprover } = await supabase
+  const { data: noApprover, error: noApproverError } = await supabase
     .from('approval_requests')
     .select('id, reference_id, status, created_at, approval_modules(code, name)')
     .is('ended_at', null)
     .is('current_approver_user_id', null)
+    .or('status.eq.awaiting_step,status.like.awaiting_step_%')
     .order('created_at', { ascending: true })
     .limit(20);
+  if (noApproverError) throw noApproverError;
 
   for (const row of noApprover || []) {
     results.push({
@@ -94,14 +98,15 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
 
   // 3. Approval requests ativas sem current_step_order
   // B4 Fix: incluir 'returned_for_adjustment' além de 'returned_to_requester' pois o motor usa ambos em versões distintas
-  const { data: noStep } = await supabase
+  const { data: noStep, error: noStepError } = await supabase
     .from('approval_requests')
     .select('id, reference_id, status, created_at, approval_modules(code, name)')
     .is('ended_at', null)
     .is('current_step_order', null)
-    .not('status', 'in', '("approved","rejected","returned_to_requester","returned_for_adjustment")')
+    .or('status.eq.awaiting_step,status.like.awaiting_step_%')
     .order('created_at', { ascending: true })
     .limit(20);
+  if (noStepError) throw noStepError;
 
   for (const row of noStep || []) {
     results.push({
@@ -118,13 +123,14 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
   // B3 Fix: o motor NUNCA escreve 'pending_approval'. Ele usa 'awaiting_step_1', 'awaiting_step_2', etc.
   // A inconsistência real é: fluxo em etapa ativa (awaiting_step_%) porém ended_at já está preenchido,
   // indicando que foi encerrado prematuramente sem transição correta de status.
-  const { data: inconsistent } = await supabase
+  const { data: inconsistent, error: inconsistentError } = await supabase
     .from('approval_requests')
     .select('id, reference_id, status, created_at, approval_modules(code, name)')
-    .like('status', 'awaiting_step_%')
+    .or('status.eq.awaiting_step,status.like.awaiting_step_%')
     .not('ended_at', 'is', null)
     .order('created_at', { ascending: true })
     .limit(20);
+  if (inconsistentError) throw inconsistentError;
 
   for (const row of inconsistent || []) {
     results.push({

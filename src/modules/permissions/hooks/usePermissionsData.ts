@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { AppRole } from '@/types';
 import { toBackendApproverType } from '@/lib/approvalLabels';
+import { executeEntityAction } from '@/hooks/useEntityAction';
 
 export * from './usePermissionsSession';
 export * from './usePermissionsAdmin';
@@ -29,6 +30,7 @@ export function useApprovalFlows() {
       const { data, error } = await supabase
         .from('approval_flows')
         .select('*, approval_modules(code, name), approval_flow_steps(*, profiles!approval_flow_steps_approver_user_id_fkey(full_name, email), sectors:fixed_sector_id(id, name))')
+        .eq('active', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -98,11 +100,14 @@ export function useSaveApprovalFlow() {
           substitute_user_id: s.substituteUserId || null,
           default_sla_hours: s.defaultSlaHours || 48
         };
-        const { error: updErr } = await supabase
+        const { data: persistedStep, error: updErr } = await supabase
           .from('approval_flow_steps')
           .update(updatePayload)
-          .eq('id', s.id);
+          .eq('id', s.id)
+          .select('id')
+          .single();
         if (updErr) throw updErr;
+        if (!persistedStep) throw new Error('FLOW_STEP_NOT_PERSISTED');
       }
       
       const replaceResult = null;
@@ -110,8 +115,9 @@ export function useSaveApprovalFlow() {
 
       return { flowId: flowId!, versioned };
     },
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ['approval_flows'] });
+    onSuccess: async (result) => {
+      await qc.invalidateQueries({ queryKey: ['approval_flows'] });
+      await qc.refetchQueries({ queryKey: ['approval_flows'], type: 'active' });
       if (result.versioned) {
         toast({ title: 'Nova versão do fluxo criada', description: 'O fluxo anterior foi preservado para histórico. Novas solicitações usarão esta versão.' });
       } else {
@@ -193,18 +199,12 @@ export function useProcessApproval() {
           : params.action === 'reject'
             ? 'rejeitar'
             : 'devolver';
-      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
-        p_module_key: params.moduleKey,
-        p_entity_id:  params.entityId,
-        p_action:     canonical,
-        p_payload:    params.comments ? { comments: params.comments } : {},
+      return executeEntityAction({
+        moduleKey: params.moduleKey,
+        entityId: params.entityId,
+        action: canonical,
+        payload: params.comments ? { notes: params.comments } : {},
       });
-      if (error) throw new Error(error.message);
-      const result = data as any;
-      if (!result) throw new Error('ENGINE_NO_RESULT');
-      if (result.error) throw new Error(result.error);
-      if (result.success === false) throw new Error(result.message || 'ENGINE_ACTION_FAILED');
-      return result;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my_approvals'] });

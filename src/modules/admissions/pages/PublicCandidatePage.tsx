@@ -33,7 +33,7 @@ export default function PublicCandidatePage() {
   const [data, setData] = useState<TokenData | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
 
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'zeaerqlvhrbcuubueolh';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
   useEffect(() => {
     if (!token) return;
@@ -44,7 +44,7 @@ export default function PublicCandidatePage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/admissions-validate-token?token=${token}`,
+        `${supabaseUrl}/functions/v1/admissions-validate-token?token=${token}`,
         { headers: { 'Content-Type': 'application/json' } }
       );
       if (!res.ok) {
@@ -73,7 +73,7 @@ export default function PublicCandidatePage() {
       fd.append('filename', file.name);
       fd.append('candidate_document_id', candidateDocId);
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/admissions-create-signed-upload`,
+        `${supabaseUrl}/functions/v1/admissions-create-signed-upload`,
         { method: 'POST', body: fd }
       );
       if (!res.ok) {

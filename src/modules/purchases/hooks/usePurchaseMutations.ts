@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { refreshApprovalData } from '@/lib/refreshApprovalData';
 import { PurchaseRequest } from '../queries/purchaseLoader';
+import { executeEntityAction } from '@/hooks/useEntityAction';
 
 export function usePurchaseMutations() {
   const queryClient = useQueryClient();
@@ -44,37 +45,7 @@ export function usePurchaseMutations() {
   });
 
   const submitMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
-        p_module_key: 'purchases',
-        p_entity_id: id,
-        p_action: 'enviar'
-      });
-      
-      if (error) throw error;
-      const result = data as any;
-      if (result && !result.success) {
-        throw new Error(result.error || 'Erro ao enviar para aprovação');
-      }
-      return result;
-    },
-    onSuccess: (_, id) => {
-      refreshApprovalData(queryClient, id);
-    },
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await (supabase as any).rpc('cancel_purchase_request', {
-        p_request_id: id,
-      });
-      if (error) throw error;
-      const result = data as any;
-      if (result && result.code) {
-        throw new Error(result.message || 'Erro ao cancelar solicitação');
-      }
-      return result;
-    },
+    mutationFn: (id: string) => executeEntityAction({ moduleKey: 'compras', entityId: id, action: 'enviar' }),
     onSuccess: (_, id) => {
       refreshApprovalData(queryClient, id);
     },
@@ -84,10 +55,8 @@ export function usePurchaseMutations() {
     createPurchase: createMutation.mutateAsync,
     updatePurchase: updateMutation.mutateAsync,
     submitPurchase: submitMutation.mutateAsync,
-    cancelPurchase: cancelMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isSubmitting: submitMutation.isPending,
-    isCanceling: cancelMutation.isPending,
   };
 }

@@ -11,8 +11,6 @@ export interface RequestLimit {
   updated_at: string;
 }
 
-const DEFAULT_LIMIT = 5;
-
 export function useRequestLimits() {
   return useQuery({
     queryKey: ['request_limits'],
@@ -30,7 +28,7 @@ export function useRequestLimits() {
 export function useDailyLimitForRole(roles: string[] | undefined, requestType: string) {
   const { data: limits } = useRequestLimits();
 
-  if (!limits || !roles?.length) return DEFAULT_LIMIT;
+  if (!limits || !roles?.length) return null;
 
   // Find the most permissive (highest) limit among user's roles
   let maxLimit = -1;
@@ -41,7 +39,7 @@ export function useDailyLimitForRole(roles: string[] | undefined, requestType: s
     }
   }
 
-  return maxLimit >= 0 ? maxLimit : DEFAULT_LIMIT;
+  return maxLimit >= 0 ? maxLimit : null;
 }
 
 export function useCheckDailyLimit() {
@@ -54,10 +52,9 @@ export function useCheckDailyLimit() {
         .in('role', roles)
         .eq('request_type', requestType);
 
-      let maxLimit = DEFAULT_LIMIT;
-      if (limits && limits.length > 0) {
-        maxLimit = Math.max(...limits.map((l: any) => l.daily_limit));
-      }
+      const maxLimit = limits && limits.length > 0
+        ? Math.max(...limits.map((l: any) => l.daily_limit))
+        : null;
 
       // 2. Count today's requests
       const today = new Date().toISOString().split('T')[0];
@@ -75,7 +72,7 @@ export function useCheckDailyLimit() {
       return {
         limit: maxLimit,
         used: count || 0,
-        canCreate: (count || 0) < maxLimit,
+        canCreate: maxLimit === null || (count || 0) < maxLimit,
       };
     },
   });

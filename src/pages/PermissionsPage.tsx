@@ -189,9 +189,9 @@ export function ApprovalInProgressTab() {
 }
 
 export default function PermissionsPage() {
-  const { hasAnyRole, isMaster } = useAuth();
-  // Master e Diretoria têm o mesmo nível de gestão de permissões.
-  const canManageSettings = isMaster || hasAnyRole(['diretoria']);
+  const { isMaster } = useAuth();
+  // Configuração global e matriz RBAC são exclusivas de Master.
+  const canManageSettings = isMaster;
 
   // Sincroniza a aba ativa com ?tab=... — permite que o sidebar (e qualquer link
   // externo) force a abertura de uma aba específica como "minhas-aprovacoes".

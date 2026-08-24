@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCheckDailyLimit } from '@/hooks/useRequestLimits';
-import { useCreateFuelRequest, useFuelSetStatus } from '../hooks/useFleetQueries';
+import { useCreateFuelRequest } from '../hooks/useFleetQueries';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,20 +22,23 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useEntityAction } from '@/hooks/useEntityAction';
+import { requestDetailRoute, requestListRoute } from '../requestRoutes';
+import { validateFileMagicNumber } from '@/lib/fileValidation';
 
-export default function FleetNewPage() {
+export default function FleetNewPage({ requestType }: { requestType?: 'abastecimento' | 'diaria' | 'reembolso' }) {
   const { user, hasAnyRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const initialType = searchParams.get('type') || 'abastecimento';
+  const initialType = requestType || searchParams.get('type') || 'abastecimento';
   const createMutation = useCreateFuelRequest();
-  const statusMutation = useFuelSetStatus();
+  const statusMutation = useEntityAction();
   const checkLimit = useCheckDailyLimit();
   const [submitting, setSubmitting] = useState(false);
 
   const [type] = useState(initialType);
-  const backRoute = type === 'diaria' ? '/diarias' : type === 'reembolso' ? '/reembolsos' : '/fleet';
+  const backRoute = requestListRoute(type);
   const typeLabels: Record<string, string> = { abastecimento: 'Abastecimento', reembolso: 'Reembolso', diaria: 'Diária' };
   const { data: vehiclesList } = useVehicles({ onlyActive: true });
   const [placaPopoverOpen, setPlacaPopoverOpen] = useState(false);
@@ -57,6 +60,7 @@ export default function FleetNewPage() {
   const [bankName, setBankName] = useState('');
   const [bankAgency, setBankAgency] = useState('');
   const [bankAccount, setBankAccount] = useState('');
+  const [reimbursementProof, setReimbursementProof] = useState<File | null>(null);
 
   // Diária
   const [dailyCategory, setDailyCategory] = useState('');
@@ -186,13 +190,15 @@ export default function FleetNewPage() {
     return false;
   };
 
-  const isValid = () => {
+  const isValid = (forSend = false) => {
     if (!isDateValid()) return false;
     if (type === 'abastecimento') {
       return valorNum > 0 && valorNum <= 50000 && !!placa && isValidPlate(placa) && !!data && !!motivo.trim();
     }
     if (type === 'reembolso') {
-      return valorNum > 0 && valorNum <= 50000 && !!categoria && !!data && (paymentMethod === 'pix' ? isPixValid() : !!bankName) && !!notes.trim();
+      return valorNum > 0 && valorNum <= 50000 && !!categoria && !!data &&
+        (paymentMethod === 'pix' ? isPixValid() : !!bankName.trim() && !!bankAgency && !!bankAccount) && !!notes.trim() &&
+        (!forSend || !!reimbursementProof);
     }
     if (type === 'diaria') {
       return !!dailyCategory && !!personName && dailyValueNum > 0 && dailyValueNum <= 50000 && !!data;
@@ -201,7 +207,16 @@ export default function FleetNewPage() {
   };
 
   const handleSubmit = async (sendImmediately: boolean) => {
-    if (!user || !isValid()) return;
+    if (!user || !isValid(sendImmediately)) {
+      toast({
+        title: 'Revise os campos obrigatórios',
+        description: type === 'reembolso' && sendImmediately && !reimbursementProof
+          ? 'Anexe o comprovante da despesa antes de enviar.'
+          : 'Preencha os campos destacados e verifique a data informada.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSubmitting(true);
     try {
       // Check daily limit
@@ -252,8 +267,30 @@ export default function FleetNewPage() {
       }
 
       const result = await createMutation.mutateAsync(payload);
-      if (sendImmediately && result?.id && type !== 'diaria') {
-        await statusMutation.mutateAsync({ requestId: result.id, toStatus: 'enviado' });
+      if (result?.id && type === 'reembolso' && reimbursementProof) {
+        const { data: signedData, error: fnError } = await supabase.functions.invoke('fleet-create-signed-upload', {
+          body: {
+            fuel_request_id: result.id,
+            file_type: reimbursementProof.type,
+            file_name: reimbursementProof.name,
+            file_size: reimbursementProof.size,
+            attachment_type: 'nota_fiscal',
+          },
+        });
+        if (fnError || signedData?.error) throw new Error(signedData?.error || fnError?.message || 'Erro ao preparar comprovante');
+        const { error: uploadError } = await supabase.storage
+          .from('fleet')
+          .uploadToSignedUrl(signedData.path, signedData.token, reimbursementProof);
+        if (uploadError) throw uploadError;
+        const { error: attachmentError } = await supabase.from('fuel_attachments').insert({
+          fuel_request_id: result.id,
+          type: 'nota_fiscal',
+          file_path: signedData.path,
+        });
+        if (attachmentError) throw attachmentError;
+      }
+      if (sendImmediately && result?.id) {
+        await statusMutation.mutateAsync({ moduleKey: type, entityId: result.id, action: 'enviar' });
       }
       clearDraft();
       navigate(backRoute);
@@ -291,7 +328,7 @@ export default function FleetNewPage() {
           <AlertDescription>
             Você tem uma solicitação em rascunho. Deseja continuar de onde parou?
             <div className="flex gap-2 mt-2">
-              <Button size="sm" onClick={() => navigate(`/fleet/${existingDbDraft.id}`)}>Abrir rascunho</Button>
+              <Button size="sm" onClick={() => navigate(requestDetailRoute(type, existingDbDraft.id))}>Abrir rascunho</Button>
               <Button size="sm" variant="ghost" onClick={() => setShowDbDraft(false)}>Criar nova</Button>
             </div>
           </AlertDescription>
@@ -394,9 +431,9 @@ export default function FleetNewPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} min={minDateToday()} />
-                  {data && data < minDateToday() && (
-                    <p className="text-xs text-destructive">A data do abastecimento deve ser hoje ou uma data futura.</p>
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} min={minDateToday()} max={todayBR()} />
+                  {data && data !== todayBR() && (
+                    <p className="text-xs text-destructive">A data do abastecimento deve ser hoje.</p>
                   )}
                 </div>
               </div>
@@ -428,7 +465,8 @@ export default function FleetNewPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} />
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} max={todayBR()} />
+                  {data && data > todayBR() && <p className="text-xs text-destructive">Data futura não é permitida para reembolso.</p>}
                 </div>
               </div>
               <div className="space-y-2">
@@ -476,7 +514,7 @@ export default function FleetNewPage() {
                     <Input value={bankName} onChange={e => setBankName(e.target.value.slice(0, 50))} placeholder="Banco" maxLength={50} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Agência</Label>
+                    <Label>Agência *</Label>
                     <Input
                       value={bankAgency}
                       onChange={e => setBankAgency(maskAgency(e.target.value))}
@@ -486,7 +524,7 @@ export default function FleetNewPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Conta</Label>
+                    <Label>Conta *</Label>
                     <Input
                       value={bankAccount}
                       onChange={e => setBankAccount(maskAccount(e.target.value))}
@@ -497,6 +535,28 @@ export default function FleetNewPage() {
                   </div>
                 </div>
               )}
+              <div className="space-y-2">
+                <Label>Comprovante da despesa *</Label>
+                <Input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    if (!file) { setReimbursementProof(null); return; }
+                    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
+                    if (file.size > 10 * 1024 * 1024 || !allowed.includes(file.type as any) || !(await validateFileMagicNumber(file, allowed as any))) {
+                      setReimbursementProof(null);
+                      event.target.value = '';
+                      toast({ title: 'Comprovante inválido', description: 'Use JPEG, PNG, WebP ou PDF de até 10MB.', variant: 'destructive' });
+                      return;
+                    }
+                    setReimbursementProof(file);
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {reimbursementProof ? reimbursementProof.name : 'Obrigatório para enviar; o rascunho pode ser salvo sem comprovante.'}
+                </p>
+              </div>
             </>
           )}
 
@@ -556,14 +616,14 @@ export default function FleetNewPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} />
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} min={todayBR()} />
                 </div>
               </div>
             </>
           )}
 
           <div className="space-y-2">
-            <Label>Observações</Label>
+            <Label>{type === 'reembolso' ? 'Descrição / justificativa *' : 'Observações'}</Label>
             <Textarea
               value={notes}
               onChange={e => setNotes(e.target.value.slice(0, 500))}
@@ -575,11 +635,11 @@ export default function FleetNewPage() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !isValid()}>
+            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !isValid(false)}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Salvar Rascunho
             </Button>
-            <Button onClick={() => handleSubmit(true)} disabled={submitting || !isValid()} className="gap-2">
+            <Button onClick={() => handleSubmit(true)} disabled={submitting || !isValid(true)} className="gap-2">
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               <Send className="w-4 h-4" /> Enviar
             </Button>

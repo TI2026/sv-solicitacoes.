@@ -176,7 +176,7 @@ export default function TerminationDetailPage() {
             )}
           </div>
 
-          {hasAction('processar') && (
+          {hasAction('concluir_processamento_rh') && (
             <FinalReviewChecklist
               description="Confirme os itens de RH antes de concluir o desligamento."
               items={[

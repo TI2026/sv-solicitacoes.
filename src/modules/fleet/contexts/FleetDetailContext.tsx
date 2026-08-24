@@ -11,7 +11,6 @@ import { useVehicleByPlate } from '../hooks/useVehicles';
 import { 
   useFuelRequest, 
   useFuelAttachments, 
-  useFuelSetStatus, 
   useSoftDeleteRequest 
 } from '../hooks/useFleetQueries';
 import { useApprovalAction } from '../hooks/useApprovalAction';
@@ -21,6 +20,7 @@ import {
 } from '@/hooks/useApprovalFlow';
 // [Sprint 2 — Onda 1] Contrato canônico do Motor de Aprovação
 import { useApprovalContext, type ApprovalContextData } from '../hooks/useApprovalContext';
+import { useEntityAction } from '@/hooks/useEntityAction';
 
 interface FleetDetailContextData {
   id: string;
@@ -62,15 +62,9 @@ interface FleetDetailContextData {
   deleteReason: string;
   setDeleteReason: (v: string) => void;
 
-  // OC / Payment
-  ocNumber: string;
-  setOcNumber: (v: string) => void;
-  ocNotes: string;
-  setOcNotes: (v: string) => void;
+  // Payment
   paymentNotes: string;
   setPaymentNotes: (v: string) => void;
-  showOcDialog: boolean;
-  setShowOcDialog: (v: boolean) => void;
   showPaymentDialog: boolean;
   setShowPaymentDialog: (v: boolean) => void;
 
@@ -102,7 +96,6 @@ interface FleetDetailContextData {
   // Handlers
   handleStatusChange: (toStatus: string, reason?: string, metadata?: Record<string, any>) => Promise<void>;
   handleApprovalAction: (action: 'approve' | 'reject' | 'return', comments?: string) => Promise<void>;
-  handleOcSubmit: () => Promise<void>;
   handlePaymentConfirm: () => Promise<void>;
   handleUpload: (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal') => Promise<void>;
   openInlinePreview: (path: string, label: string) => Promise<void>;
@@ -124,7 +117,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   
-  const statusMutation = useFuelSetStatus();
+  const statusMutation = useEntityAction();
   const softDelete = useSoftDeleteRequest();
   const approvalAction = useApprovalAction();
 
@@ -142,10 +135,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
 
-  const [ocNumber, setOcNumber] = useState('');
-  const [ocNotes, setOcNotes] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
-  const [showOcDialog, setShowOcDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   const [reviewKmReal, setReviewKmReal] = useState('');
@@ -191,16 +181,21 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const notaFiscal = attachments?.filter((a: any) => a.type === 'nota_fiscal') || [];
   // canUpload e canSendToReview usam a comparação direta: regras de UX de upload,
   // não de aprovação. Não dependem do approvalCtx.
-  const canUpload = (req?.requester_user_id === user?.id) && ['aguardando_fotos', 'retornado'].includes(req?.status);
+  const canUpload = (req?.requester_user_id === user?.id) && (
+    approvalCtx?.raw?.can_edit === true
+    || approvalCtx?.permissions.allowed_actions.includes('enviar_comprovantes')
+  );
   const canSendToReview = (req?.requester_user_id === user?.id) && req?.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
   const isPending = statusMutation.isPending || approvalAction.isPending || softDelete.isPending;
 
-  const handleStatusChange = async (toStatus: string, reason?: string, metadata?: Record<string, any>) => {
+  const handleStatusChange = async (action: string, reason?: string, metadata?: Record<string, any>) => {
     if (!id || statusMutation.isPending) return;
-    const startApproval = toStatus === 'em_aprovacao' && req
-      ? { moduleCode: reqType, requesterUserId: req.requester_user_id }
-      : undefined;
-    await statusMutation.mutateAsync({ requestId: id, toStatus, reason, startApproval });
+    await statusMutation.mutateAsync({
+      moduleKey: reqType,
+      entityId: id,
+      action,
+      payload: { ...(metadata ?? {}), ...(reason ? { notes: reason } : {}) },
+    });
     // Garantir que o approvalCtx seja invalidado imediatamente após qualquer mudança de status
     refreshApprovalData(qc, id);
     setShowReasonDialog(null);
@@ -234,31 +229,15 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     setActionReason('');
   };
 
-  const handleOcSubmit = async () => {
-    if (!id || statusMutation.isPending) return;
-    try {
-      const { data: result, error } = await supabase.rpc('register_oc_and_advance' as any, {
-        _request_id: id,
-        _oc_number: ocNumber.trim(),
-        _oc_notes: ocNotes.trim() || null,
-      } as any);
-      if (error) throw error;
-      if ((result as any)?.error) throw new Error((result as any).error);
-
-      toast({ title: 'OC registrada com sucesso!' });
-      setShowOcDialog(false);
-      setOcNumber('');
-      setOcNotes('');
-      refreshApprovalData(qc, id);
-    } catch (err: any) {
-      toast({ title: 'Erro ao registrar OC', description: err.message, variant: 'destructive' });
-    }
-  };
-
   const handlePaymentConfirm = async () => {
     if (!id || statusMutation.isPending) return;
     try {
-      await statusMutation.mutateAsync({ requestId: id, toStatus: 'pago', reason: paymentNotes });
+      await statusMutation.mutateAsync({
+        moduleKey: reqType,
+        entityId: id,
+        action: 'pagar',
+        payload: paymentNotes ? { notes: paymentNotes } : {},
+      });
       toast({ title: 'Pagamento confirmado!' });
       setShowPaymentDialog(false);
       setPaymentNotes('');
@@ -334,13 +313,13 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     canSendToReview, isPending, canUpload, hodometro, notaFiscal,
     uploading, setUploading, actionReason, setActionReason, showReasonDialog, setShowReasonDialog,
     showDeleteDialog, setShowDeleteDialog, deleteReason, setDeleteReason,
-    ocNumber, setOcNumber, ocNotes, setOcNotes, paymentNotes, setPaymentNotes, showOcDialog, setShowOcDialog,
+    paymentNotes, setPaymentNotes,
     showPaymentDialog, setShowPaymentDialog,
     reviewKmReal, setReviewKmReal, reviewKmOk, setReviewKmOk, reviewNfReal, setReviewNfReal,
     reviewNfOk, setReviewNfOk, reviewDivergenceReason, setReviewDivergenceReason,
     previewUrl, setPreviewUrl, previewType, setPreviewType, previewTitle, setPreviewTitle,
     reembChecklist, setReembChecklist, reembChecklistComplete,
-    handleStatusChange, handleApprovalAction, handleOcSubmit, handlePaymentConfirm, handleUpload, openInlinePreview, getSignedUrl
+    handleStatusChange, handleApprovalAction, handlePaymentConfirm, handleUpload, openInlinePreview, getSignedUrl
   };
 
   return <FleetDetailContext.Provider value={value}>{children}</FleetDetailContext.Provider>;

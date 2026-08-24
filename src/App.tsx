@@ -130,7 +130,11 @@ const AppRoutes = () => (
 
     {/* Diárias e Reembolsos */}
     <Route path="/reembolsos" element={<ProtectedRoute><ReembolsosListPage /></ProtectedRoute>} />
+    <Route path="/reembolsos/new" element={<ProtectedRoute><FleetNewPage requestType="reembolso" /></ProtectedRoute>} />
+    <Route path="/reembolsos/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
     <Route path="/diarias" element={<ProtectedRoute><DiariasListPage /></ProtectedRoute>} />
+    <Route path="/diarias/new" element={<ProtectedRoute><FleetNewPage requestType="diaria" /></ProtectedRoute>} />
+    <Route path="/diarias/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
 
     {/* Fleet */}
     <Route path="/fleet" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />

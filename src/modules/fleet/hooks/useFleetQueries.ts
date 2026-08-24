@@ -168,49 +168,6 @@ export function useCreateFuelRequest() {
   });
 }
 
-export function useFuelSetStatus() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (params: { requestId: string; toStatus: string; reason?: string; startApproval?: { moduleCode: string; requesterUserId: string } }) => {
-      // Mapeamento simplificado de status para ações do novo motor
-      let action = '';
-      if (params.toStatus === 'enviado' || params.toStatus === 'em_aprovacao') action = 'enviar';
-      else if (params.toStatus === 'aguardando_fotos') action = 'informar_abastecimento';
-      else if (params.toStatus === 'em_revisao_admin') action = 'enviar_documentos';
-      else if (params.toStatus === 'aprovado' && params.reason?.includes('conferidos')) action = 'concluir_revisao'; // workaround for review_admin
-      else if (params.toStatus === 'retornado') action = 'devolver';
-      else if (params.toStatus === 'em_revisao') action = 'confirmar_horas'; // daily travel
-      else if (params.toStatus === 'aguardando_pagamento') action = 'confirmar_horas'; // both are valid
-      else if (params.toStatus === 'pago') action = 'pagar';
-      else action = 'editar';
-
-      const { data, error } = await (supabase.rpc as any)('execute_entity_action', {
-        p_module_key: 'fleet',
-        p_entity_id: params.requestId,
-        p_action: action,
-        p_payload: { notes: params.reason || null }
-      });
-      if (error) throw error;
-      const result = data as any;
-      if (result && !result.success) throw new Error(result.error);
-      return result;
-    },
-    onSuccess: (_, params) => {
-      refreshApprovalData(qc, params.requestId);
-      // Invalidar listas que mostram status: afetadas por qualquer transição
-      qc.invalidateQueries({ queryKey: ['fuel_requests'] });
-      qc.invalidateQueries({ queryKey: ['fuel_requests_pending'] });
-      qc.invalidateQueries({ queryKey: ['status_history'] });
-      toast({ title: 'Status atualizado!' });
-    },
-    onError: (err: any) => {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
-    },
-  });
-}
-
 export function useSoftDeleteRequest() {
   const qc = useQueryClient();
   const { toast } = useToast();

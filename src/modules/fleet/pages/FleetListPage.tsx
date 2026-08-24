@@ -8,50 +8,20 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle, Send, FileText, CreditCard, ClipboardCheck, RotateCcw } from 'lucide-react';
+import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/PageHeader';
-import { QuickActionButton } from '@/components/QuickActionButton';
 import { EmptyState } from '@/components/EmptyState';
 import { FiltersBar } from '@/components/FiltersBar';
+import { requestDetailRoute, requestNewRoute } from '../requestRoutes';
 
 const REJECTED_STATUSES = new Set(['reprovado']);
 const COMPLETED_STATUSES = new Set(['aprovado', 'concluido', 'encerrado']);
 const DIARIA_APPROVED_STATUSES = new Set(['aprovado']);
 const DIARIA_COMPLETED_STATUSES = new Set(['concluido', 'encerrado']);
-
-/**
- * Computes the highest-priority quick action for this request based on
- * current user's role + request status. Returns null if nothing to do.
- */
-function getQuickAction(req: any, userId?: string, roles: string[] = []): { label: string; icon: any; tone: 'primary' | 'warning' | 'danger' } | null {
-  if (!req || !userId) return null;
-  const isOwner = req.requester_user_id === userId;
-  const hasRole = (r: string) => roles.includes(r) || roles.includes('master');
-  const isAdmin = hasRole('diretoria') || hasRole('administrativo');
-  const isCompras = hasRole('diretoria') || hasRole('compras');
-  const isFinanceiro = hasRole('diretoria') || hasRole('financeiro');
-
-  // Owner-side actions first
-  if (isOwner && req.status === 'rascunho') return { label: 'Enviar', icon: Send, tone: 'primary' };
-  if (isOwner && req.status === 'retornado') return { label: 'Ajustar e reenviar', icon: RotateCcw, tone: 'warning' };
-  if (isOwner && req.status === 'aguardando_fotos') return { label: 'Anexar fotos', icon: FileText, tone: 'warning' };
-
-  // Approval flow
-  if (req.status === 'em_aprovacao' && req.current_approver_user_id === userId) {
-    return { label: 'Aprovar', icon: ClipboardCheck, tone: 'danger' };
-  }
-
-  // Operational by role
-  if (isAdmin && req.status === 'em_revisao_admin') return { label: 'Revisar', icon: ClipboardCheck, tone: 'primary' };
-  if (isCompras && req.status === 'aguardando_oc') return { label: 'Anexar OC', icon: FileText, tone: 'warning' };
-  if (isFinanceiro && req.status === 'aguardando_pagamento') return { label: 'Confirmar pagamento', icon: CreditCard, tone: 'warning' };
-
-  return null;
-}
 
 function groupRequests(requests: any[] = []) {
   const rejected = requests.filter((request) => REJECTED_STATUSES.has(request.status));
@@ -99,7 +69,7 @@ function InfoCard({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyIcon, emptyText, canDelete, onDelete, userId, roles }: any) {
+function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyIcon, emptyText, canDelete, onDelete }: any) {
   if (isLoading) return (
     <div className="space-y-3">
       {[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
@@ -114,7 +84,7 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
         <Card key={req.id} className="hover:border-primary/30 transition-colors">
           <CardContent className="p-4">
             <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
-              <Link to={`/fleet/${req.id}`} className="flex-1 min-w-0">
+              <Link to={requestDetailRoute(req.type, req.id)} className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-base font-semibold text-foreground">
                     R$ {Number(req.valor || req.daily_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -145,18 +115,6 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
                   </span>
                 </div>
               </Link>
-              {(() => {
-                const action = getQuickAction(req, userId, roles);
-                if (!action) return null;
-                return (
-                  <QuickActionButton
-                    label={action.label}
-                    icon={action.icon}
-                    tone={action.tone}
-                    onClick={(e) => { e.preventDefault(); navigate(`/fleet/${req.id}`); }}
-                  />
-                );
-              })()}
               {canDelete && (
                 <Button variant="ghost" size="icon" className="shrink-0 text-destructive hover:text-destructive" onClick={(e) => { e.preventDefault(); onDelete?.(req); }}>
                   <Trash2 className="w-4 h-4" />
@@ -231,7 +189,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
         title={pageMeta.title}
         subtitle={pageMeta.subtitle}
         actions={(activeTab !== 'diaria' || canCreateDiaria) ? (
-          <Button onClick={() => navigate(`/fleet/new?type=${activeTab}`)} className="gap-2">
+          <Button onClick={() => navigate(requestNewRoute(activeTab))} className="gap-2">
             <PlusCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Nova</span>
           </Button>
@@ -264,7 +222,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
             <p>• Se aprovado: aguarda recarga do cartão (Administrativo)</p>
             <p>• Colaborador anexa foto do hodômetro e nota fiscal</p>
             <p>• Administrativo revisa e conclui</p>
-            <p>• Limite: {abastLimit} solicitações por dia</p>
+            <p>• Limite: {abastLimit === null ? 'sem limite configurado' : `${abastLimit} solicitações por dia`}</p>
           </InfoCard>
 
           {/* Sub-filter: Pendentes / Negados / Concluídos */}
@@ -295,7 +253,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
             <p>• Diretoria aprova ou rejeita</p>
             <p>• Se aprovado: Diretoria/Admin registra pagamento</p>
             <p>• Solicitação é concluída</p>
-            <p>• Limite: {reembolsoLimit} solicitações por dia</p>
+            <p>• Limite: {reembolsoLimit === null ? 'sem limite configurado' : `${reembolsoLimit} solicitações por dia`}</p>
           </InfoCard>
 
           <FiltersBar>

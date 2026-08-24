@@ -42,6 +42,36 @@ export interface EntityActionParams {
   silent?: boolean;
 }
 
+export interface EntityActionResult {
+  code?: number | string;
+  message?: string;
+  data?: unknown;
+  success?: boolean;
+  error?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Contrato único do executor. A RPC pode transportar o código como número ou
+ * string, mas somente 2xx representa sucesso. Respostas legadas com
+ * `success:false` continuam sendo falha.
+ */
+export function parseEntityActionResult(data: unknown): EntityActionResult {
+  if (!data || typeof data !== 'object') throw new Error('ENGINE_NO_RESULT');
+
+  const result = data as EntityActionResult;
+  if (result.error) throw new Error(result.message || result.error);
+  if (result.success === false) throw new Error(result.message || 'ENGINE_ACTION_FAILED');
+
+  if (result.code !== undefined && result.code !== null) {
+    const code = Number(result.code);
+    if (!Number.isInteger(code)) throw new Error(result.message || 'ENGINE_INVALID_CODE');
+    if (code < 200 || code >= 300) throw new Error(result.message || `ENGINE_HTTP_${code}`);
+  }
+
+  return result;
+}
+
 export async function executeEntityAction(params: EntityActionParams) {
   const { data, error } = await (supabase as any).rpc('execute_entity_action', {
     p_module_key: params.moduleKey,
@@ -50,12 +80,7 @@ export async function executeEntityAction(params: EntityActionParams) {
     p_payload: params.payload ?? {},
   });
   if (error) throw new Error(error.message);
-  const result = data as any;
-  // Erro nunca pode virar sucesso.
-  if (!result) throw new Error('ENGINE_NO_RESULT');
-  if (result.error) throw new Error(result.error);
-  if (result.success === false) throw new Error(result.message || 'ENGINE_ACTION_FAILED');
-  return result;
+  return parseEntityActionResult(data);
 }
 
 export function useEntityAction() {
@@ -84,7 +109,7 @@ export interface ModuleWorkflowActionParams {
   requestId: string;
   action: CanonicalAction | string;
   payload?: Record<string, unknown>;
-  /** Justificativa — enviada como `comments` ao motor. */
+  /** Justificativa — enviada como `notes` ao motor. */
   reason?: string;
   successMessage?: string;
 }
@@ -103,7 +128,7 @@ export function useModuleWorkflowAction(moduleKey: string) {
         moduleKey,
         entityId: vars.requestId,
         action: vars.action,
-        payload: { ...(vars.payload ?? {}), ...(vars.reason ? { comments: vars.reason } : {}) },
+        payload: { ...(vars.payload ?? {}), ...(vars.reason ? { notes: vars.reason } : {}) },
       }),
     onSuccess: (_result, vars) => {
       refreshApprovalData(qc, vars.requestId);

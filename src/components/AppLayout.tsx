@@ -11,9 +11,10 @@ import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import logo from '@/assets/logo.png';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
+import { requestDetailRoute } from '@/modules/fleet/requestRoutes';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, signOut, hasAnyRole } = useAuth();
+  const { user, signOut, hasAnyRole, isMaster } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -22,27 +23,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // permite fechar mesmo estando em /epis).
   const [epiMenuOpen, setEpiMenuOpen] = useState<boolean>(() => location.pathname.startsWith('/epis'));
 
-  // Lazy Timeout Check (Sprint 13)
-  useEffect(() => {
-    if (user) {
-      (supabase as any).rpc('check_and_escalate_timeouts').then(({ data, error }: any) => {
-        if (!error && data && Number(data) > 0) {
-          queryClient.invalidateQueries({ queryKey: ['my_approvals'] });
-        }
-      });
-    }
-  }, [user, queryClient]);
-
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(30);
+      if (error) throw error;
       return data || [];
     },
     enabled: !!user,
@@ -76,7 +67,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, queryClient, navigate]);
 
   const canManage = hasAnyRole(['diretoria', 'administrativo']);
@@ -93,12 +83,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     queryKey: ['sidebar_my_pending_approvals', user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { count } = await supabase
-        .from('approval_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('current_approver_user_id', user!.id)
-        .is('ended_at', null);
-      return count ?? 0;
+      const { data, error } = await (supabase as any).rpc('get_my_approval_queue');
+      if (error) throw error;
+      return Array.isArray(data) ? data.length : 0;
     },
   });
 
@@ -182,8 +169,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     {
       label: 'Configurações',
       items: [
-        { to: '/permissoes?tab=chains', label: 'Fluxos', icon: GitBranch, show: canManage },
-        { to: '/permissoes?tab=roles', label: 'Permissões', icon: Shield, show: canManage },
+        { to: '/permissoes?tab=chains', label: 'Fluxos', icon: GitBranch, show: isMaster },
+        { to: '/permissoes?tab=roles', label: 'Permissões', icon: Shield, show: isMaster },
         { to: '/auditoria', label: 'Auditoria', icon: CheckSquare, show: canManage },
         { to: '/configuracoes', label: 'Configurações Gerais', icon: Settings2, show: canManage },
       ],
@@ -255,12 +242,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   const getNotificationLink = (metadata: any): string | null => {
+    if (typeof metadata?.link === 'string' && metadata.link.startsWith('/')) return metadata.link;
     const entityType = metadata?.entity_type;
     const entityId = metadata?.entity_id;
     if (!entityId) return null;
-    if (entityType === 'fuel_requests') return `/fleet/${entityId}`;
+    const moduleKey = metadata?.module_key || entityType;
+    if (['abastecimento', 'diaria', 'reembolso'].includes(moduleKey)) return requestDetailRoute(moduleKey, entityId);
+    if (entityType === 'fuel_requests') return requestDetailRoute(metadata?.request_type || 'abastecimento', entityId);
+    if (['compras', 'purchases'].includes(moduleKey)) return `/purchases/${entityId}`;
     if (entityType === 'admission_requests') return `/admissions/${entityId}`;
-    if (entityType === 'approval_request') return `/fleet`;
+    if (['admissoes', 'admissions'].includes(moduleKey)) return `/admissions/${entityId}`;
+    if (moduleKey === 'desligamentos') return `/desligamentos/${entityId}`;
+    if (entityType === 'approval_request') return '/pendencias';
     return null;
   };
 
