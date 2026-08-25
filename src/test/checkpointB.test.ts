@@ -107,4 +107,21 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     expect(form).toContain('uploadToSignedUrl');
     expect(detail).toContain("handleStatusChange('relatar_divergencia', notes)");
   });
+
+  it('permite data futura apenas no contrato de Abastecimento/Diária', () => {
+    const source = readFileSync(resolve('src/modules/fleet/pages/FleetNewPage.tsx'), 'utf8');
+    expect(source).toContain("if (type === 'abastecimento') return data >= today;");
+    expect(source).toContain("if (type === 'diaria') return data >= today;");
+    expect(source).toContain("if (type === 'reembolso') return data <= today;");
+    expect(source).not.toContain('min={minDateToday()} max={todayBR()}');
+  });
+
+  it('renderiza actions canônicas sem botão Aprovar duplicado ou genérico', () => {
+    const source = readFileSync(resolve('src/modules/fleet/components/FleetApprovalAction.tsx'), 'utf8');
+    expect(source).toContain("const showPrimaryAction = stepAction === 'aprovar'");
+    expect(source).toContain("? 'Resolver divergência'");
+    expect(source).toContain("? 'Concluir revisão'");
+    expect(source).toContain('canApprove && showPrimaryAction');
+    expect(source).toContain("reqType === 'reembolso' && stepAction === 'aprovar'");
+  });
 });

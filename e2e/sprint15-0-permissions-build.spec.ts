@@ -25,15 +25,17 @@ test.describe('Sprint 15.0 - Permissions Build', () => {
     });
 
     await page.route('**/rest/v1/profiles*', async (route) => {
+      const profile = {
+        id: 'mock-user-id',
+        role,
+        is_master: isMaster,
+        full_name: 'Mocked User'
+      };
+      const wantsSingle = route.request().headers()['accept']?.includes('application/vnd.pgrst.object+json');
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([{
-          id: 'mock-user-id',
-          role: role,
-          is_master: isMaster,
-          full_name: 'Mocked User'
-        }])
+        body: JSON.stringify(wantsSingle ? profile : [profile])
       });
     });
 
@@ -44,7 +46,7 @@ test.describe('Sprint 15.0 - Permissions Build', () => {
     
     // Configura o localStorage
     await page.addInitScript(() => {
-      window.localStorage.setItem('sb-zeaerqlvhrbcuubueolh-auth-token', JSON.stringify({
+      window.localStorage.setItem('sb-127-auth-token', JSON.stringify({
         access_token: 'fake-access-token',
         expires_in: 3600,
         expires_at: Math.floor(Date.now() / 1000) + 3600,

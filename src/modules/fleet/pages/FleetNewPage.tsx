@@ -178,13 +178,13 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
     return digits.length === 10 || digits.length === 11;
   };
 
-  // Abastecimento: somente de hoje.
+  // Abastecimento: atual ou futura.
   // Diária: atual ou futura.
   // Reembolso: atual ou passada.
   const isDateValid = () => {
     if (!data) return false;
     const today = todayBR();
-    if (type === 'abastecimento') return data === today;
+    if (type === 'abastecimento') return data >= today;
     if (type === 'diaria') return data >= today;
     if (type === 'reembolso') return data <= today;
     return false;
@@ -431,9 +431,9 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
                 </div>
                 <div className="space-y-2">
                   <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} min={minDateToday()} max={todayBR()} />
-                  {data && data !== todayBR() && (
-                    <p className="text-xs text-destructive">A data do abastecimento deve ser hoje.</p>
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} min={minDateToday()} />
+                  {data && data < todayBR() && (
+                    <p className="text-xs text-destructive">A data do abastecimento deve ser hoje ou futura.</p>
                   )}
                 </div>
               </div>

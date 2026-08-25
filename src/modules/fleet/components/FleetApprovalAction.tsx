@@ -27,6 +27,17 @@ export function FleetApprovalAction() {
   const isGlobalViewer = approvalCtx?.visibility.mode === 'global';
   const isInFlow   = approvalCtx?.is_in_flow ?? false;
   const reasonBlocked = approvalCtx?.meta.reason_blocked;
+  const stepAction = approvalCtx?.meta.step_action;
+  const isReimbursementDivergence = reqType === 'reembolso'
+    && req.status === 'em_revisao'
+    && stepAction === 'concluir_revisao';
+  const showPrimaryAction = stepAction === 'aprovar'
+    || (reqType === 'reembolso' && stepAction === 'concluir_revisao');
+  const primaryActionLabel = isReimbursementDivergence
+    ? 'Resolver divergência'
+    : stepAction === 'concluir_revisao'
+      ? 'Concluir revisão'
+      : 'Aprovar';
 
   const handleReasonConfirm = () => {
     if (!showReasonDialog) return;
@@ -49,7 +60,7 @@ export function FleetApprovalAction() {
       {/* [Sprint 2 — Onda 2] Botões de ação: ctx.permissions.approve é a fonte de verdade */}
       {canApprove && (
         <div className="space-y-3 mt-4">
-          {reqType === 'reembolso' && (
+          {reqType === 'reembolso' && stepAction === 'aprovar' && (
             <div className="space-y-2 border border-amber-300/60 rounded-lg p-3 bg-amber-50 dark:bg-amber-950/20">
               <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -79,13 +90,13 @@ export function FleetApprovalAction() {
             </div>
           )}
           <div className="flex flex-wrap gap-2">
-            {canApprove && (
+            {canApprove && showPrimaryAction && (
               <Button
                 onClick={() => handleApprovalAction('approve')}
-                disabled={isPending || (reqType === 'reembolso' && !reembChecklistComplete)}
+                disabled={isPending || (reqType === 'reembolso' && stepAction === 'aprovar' && !reembChecklistComplete)}
                 className="gap-2"
               >
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Aprovar
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} {primaryActionLabel}
               </Button>
             )}
             {canReject && (
