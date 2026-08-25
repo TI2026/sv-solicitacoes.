@@ -11,6 +11,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { requestDetailRoute } from '@/modules/fleet/requestRoutes';
 
 export type RequestGroup = 'em_aprovacao' | 'devolvida' | 'concluida' | 'cancelada' | 'outra';
 
@@ -55,7 +56,7 @@ async function fetchFuelRequests(userId: string): Promise<MyRequest[]> {
     created_at: row.created_at,
     valor: row.valor,
     description: row.description,
-    route: `/fleet/${row.id}`,
+    route: requestDetailRoute(row.type, row.id),
   }));
 }
 

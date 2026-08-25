@@ -93,8 +93,8 @@ export default function TerminationDetailPage() {
     });
   };
 
-  const handleConclude = () => {
-    setStatusMutation.mutate({ requestId: item.id, action: 'concluir' });
+  const handleConcludeProcessing = () => {
+    setStatusMutation.mutate({ requestId: item.id, action: 'concluir_processamento_rh' });
   };
 
   const handleCancel = () => {
@@ -188,7 +188,7 @@ export default function TerminationDetailPage() {
             >
               {(allChecked) => (
                 <Button
-                  onClick={handleConclude}
+                  onClick={handleConcludeProcessing}
                   disabled={!allChecked || setStatusMutation.isPending}
                   className="w-full sm:w-auto"
                 >

@@ -68,7 +68,12 @@ export function ApprovalInProgressTab() {
   const { data: pendingFuel, isLoading: loadingFuel } = usePendingFuelRequests();
   const [moduleFilter, setModuleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const isReallyActive = (r: any) => !r.ended_at && !!r.current_approver_user_id && String(r.status || '').startsWith('awaiting_step_');
+  const isReallyActive = (r: any) => {
+    const status = String(r.status || '');
+    return !r.ended_at
+      && !!r.current_approver_user_id
+      && (status === 'awaiting_step' || status.startsWith('awaiting_step_'));
+  };
   const isNotCancelled = (r: any) => r.status !== 'cancelled';
 
   if (isLoading && loadingFuel) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;

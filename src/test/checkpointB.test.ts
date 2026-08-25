@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseEntityActionResult } from '@/hooks/useEntityAction';
-import { requestDetailRoute, requestListRoute, requestNewRoute } from '@/modules/fleet/requestRoutes';
+import { approvalModuleDetailRoute, requestDetailRoute, requestListRoute, requestNewRoute } from '@/modules/fleet/requestRoutes';
 
 describe('Checkpoint B — contrato único do executor', () => {
   it.each(['400', 400, '422', 500])('trata code %s como falha', (code) => {
@@ -29,6 +29,24 @@ describe('Checkpoint B — separação das rotas empresariais', () => {
     expect(requestDetailRoute('diaria', 'id-1')).toBe('/diarias/id-1');
     expect(requestNewRoute('reembolso')).toBe('/reembolsos/new');
     expect(requestDetailRoute('reembolso', 'id-2')).toBe('/reembolsos/id-2');
+  });
+
+  it.each([
+    ['compras', '/purchases/id-1'],
+    ['abastecimento', '/fleet/id-1'],
+    ['diaria', '/diarias/id-1'],
+    ['reembolso', '/reembolsos/id-1'],
+    ['admissoes', '/admissions/id-1'],
+    ['desligamentos', '/desligamentos/id-1'],
+  ])('resolve navegação canônica de %s', (moduleCode, expected) => {
+    expect(approvalModuleDetailRoute(moduleCode, 'id-1')).toBe(expected);
+  });
+
+  it('não mistura os três processos na tela de Abastecimentos', () => {
+    const source = readFileSync(resolve('src/modules/fleet/pages/FleetListPage.tsx'), 'utf8');
+    expect(source).toContain("title: 'Abastecimentos'");
+    expect(source).not.toContain('<TabsTrigger value="reembolso"');
+    expect(source).not.toContain('<TabsTrigger value="diaria"');
   });
 });
 
@@ -78,7 +96,43 @@ describe('Checkpoint B — arquitetura do frontend', () => {
   it('usa a completion action canônica no processamento de desligamento', () => {
     const source = readFileSync(resolve('src/modules/desligamentos/pages/TerminationDetailPage.tsx'), 'utf8');
     expect(source).toContain("hasAction('concluir_processamento_rh')");
+    expect(source).toContain("action: 'concluir_processamento_rh'");
     expect(source).not.toContain("hasAction('processar')");
+  });
+
+  it('Minha Fila usa RPC e Action Context sem inventar aprovação genérica', () => {
+    const source = readFileSync(resolve('src/modules/permissions/components/MyApprovalsTab.tsx'), 'utf8');
+    const mutation = readFileSync(resolve('src/modules/permissions/hooks/usePermissionsData.ts'), 'utf8');
+    expect(source).toContain('useDashboardQueue(user?.id)');
+    expect(source).toContain('useApprovalContext(item.reference_id, moduleKey)');
+    expect(source).toContain("action: 'approve', completionAction");
+    expect(mutation).toContain("if (!canonical) throw new Error('ENGINE_ACTION_CONTEXT_REQUIRED')");
+    expect(mutation).not.toContain("params.completionAction || 'aprovar'");
+  });
+
+  it('não classifica qualquer role diferente de colaborador como aprovador', () => {
+    const source = [
+      'src/components/AppLayout.tsx',
+      'src/pages/PendingRequestsPage.tsx',
+    ].map((file) => readFileSync(resolve(file), 'utf8')).join('\n');
+    expect(source).not.toContain("user.roles.some(r => r !== 'colaborador')");
+    expect(source).not.toContain("role.key !== 'colaborador'");
+  });
+
+  it('mantém atalhos e atividade recente nas rotas canônicas dos processos', () => {
+    const shortcuts = readFileSync(resolve('src/modules/dashboard/components/QuickAccessWidget.tsx'), 'utf8');
+    const activity = readFileSync(resolve('src/modules/dashboard/queries/recentActivityLoader.ts'), 'utf8');
+    const requests = readFileSync(resolve('src/modules/dashboard/queries/myRequestsLoader.ts'), 'utf8');
+    expect(shortcuts).toContain("newRoute: '/diarias/new'");
+    expect(shortcuts).toContain("newRoute: '/reembolsos/new'");
+    expect(shortcuts).not.toContain('/fleet/new?type=');
+    expect(activity).toContain("requestDetailRoute(requestType || 'abastecimento', entityId)");
+    expect(requests).toContain('requestDetailRoute(row.type, row.id)');
+  });
+
+  it('reconhece awaiting_step V2 como aprovação ativa', () => {
+    const source = readFileSync(resolve('src/pages/PermissionsPage.tsx'), 'utf8');
+    expect(source).toContain("status === 'awaiting_step' || status.startsWith('awaiting_step_')");
   });
 
   it('autoriza edição de admissão somente por can_edit do contexto', () => {

@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
@@ -174,7 +174,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
     ? { icon: Briefcase, title: 'Diárias', subtitle: isAdmin ? 'Todas as diárias' : 'Suas diárias' }
     : requestType === 'reembolso'
       ? { icon: Receipt, title: 'Reembolsos', subtitle: isAdmin ? 'Todos os reembolsos' : 'Seus reembolsos' }
-      : { icon: Fuel, title: 'Solicitações', subtitle: isAdmin ? 'Todas as solicitações' : 'Suas solicitações' };
+      : { icon: Fuel, title: 'Abastecimentos', subtitle: isAdmin ? 'Todos os abastecimentos' : 'Seus abastecimentos' };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -196,24 +196,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
         ) : null}
       />
 
-      <Tabs value={activeTab} onValueChange={(v) => {
-        if (!requestType) { setActiveTab(v); setSubFilter('pendentes'); }
-      }} className="w-full">
-        {!requestType && (
-          <TabsList className="w-full sm:w-auto">
-            <TabsTrigger value="abastecimento" className="gap-1.5">
-              <Fuel className="w-3.5 h-3.5" /> Abastecimento
-            </TabsTrigger>
-            <TabsTrigger value="reembolso" className="gap-1.5">
-              <Receipt className="w-3.5 h-3.5" /> Reembolso
-            </TabsTrigger>
-            {canSeeDiaria && (
-              <TabsTrigger value="diaria" className="gap-1.5">
-                <Briefcase className="w-3.5 h-3.5" /> Diária
-              </TabsTrigger>
-            )}
-          </TabsList>
-        )}
+      <Tabs value={activeTab} className="w-full">
 
         <TabsContent value="abastecimento" className="space-y-3 mt-3">
           <InfoCard title="Como funciona o Abastecimento?">

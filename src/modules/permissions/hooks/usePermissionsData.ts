@@ -195,10 +195,11 @@ export function useProcessApproval() {
     }) => {
       const canonical =
         params.action === 'approve'
-          ? params.completionAction || 'aprovar'
+          ? params.completionAction
           : params.action === 'reject'
             ? 'rejeitar'
             : 'devolver';
+      if (!canonical) throw new Error('ENGINE_ACTION_CONTEXT_REQUIRED');
       return executeEntityAction({
         moduleKey: params.moduleKey,
         entityId: params.entityId,
@@ -223,13 +224,9 @@ export function useProcessApproval() {
 }
 
 /**
- * Profiles eligible as approvers.
- * Critério (Fase 1 hardening):
- *   - Apenas `user_role_assignments` (a tabela legada `user_roles` foi descontinuada
- *     como fonte de elegibilidade — ela continua sendo lida apenas pelo
- *     `get_user_roles` RPC para compatibilidade histórica).
- *   - O cargo precisa ser diferente de `colaborador` OU o role precisa ser master.
- *   - O perfil precisa estar ativo (`profiles.active = true`).
+ * Pessoas disponíveis para assignment explícito do workflow.
+ * RBAC não define quem atua na etapa; a configuração salva e o Action Context
+ * são as autoridades. Apenas perfis ativos podem ser selecionados.
  */
 export function useEligibleApprovers() {
   return useQuery({
@@ -241,23 +238,8 @@ export function useEligibleApprovers() {
         .order('full_name');
       if (pErr) throw pErr;
 
-      const { data: assignments, error: aErr } = await supabase
-        .from('user_role_assignments')
-        .select('user_id, roles(key, is_master)');
-      if (aErr) throw aErr;
-
-      const eligibleUserIds = new Set<string>();
-      (assignments || []).forEach((a: any) => {
-        const roleKey = a.roles?.key;
-        const isMaster = !!a.roles?.is_master;
-        if (isMaster || (roleKey && roleKey !== 'colaborador')) {
-          eligibleUserIds.add(a.user_id);
-        }
-      });
-
       return (profiles || [])
-        .filter((p: any) => p.active !== false)
-        .filter((p: any) => eligibleUserIds.has(p.id));
+        .filter((p: any) => p.active !== false);
     },
   });
 }
@@ -277,7 +259,7 @@ export function useProfiles() {
   });
 }
 
-/** Roles eligible as approver profiles (non-colaborador, active) */
+/** Active roles for the legacy read-only chain viewer. */
 export function useApproverRoles() {
   return useQuery({
     queryKey: ['approver_roles'],
@@ -288,7 +270,7 @@ export function useApproverRoles() {
         .eq('active', true)
         .order('name');
       if (error) throw error;
-      return (data || []).filter((r: any) => r.key !== 'colaborador');
+      return data || [];
     },
   });
 }

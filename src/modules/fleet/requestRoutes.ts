@@ -13,3 +13,20 @@ export function requestNewRoute(type: string): string {
 export function requestDetailRoute(type: string, id: string): string {
   return `${requestListRoute(type)}/${id}`;
 }
+
+/** Rota canônica dos seis módulos empresariais do Motor V2. */
+export function approvalModuleDetailRoute(moduleCode: string, id: string): string | null {
+  const routes: Record<string, string> = {
+    compras: '/purchases',
+    purchases: '/purchases',
+    abastecimento: '/fleet',
+    diaria: '/diarias',
+    reembolso: '/reembolsos',
+    admissoes: '/admissions',
+    admissions: '/admissions',
+    desligamentos: '/desligamentos',
+    terminations: '/desligamentos',
+  };
+  const base = routes[moduleCode];
+  return base ? `${base}/${id}` : null;
+}

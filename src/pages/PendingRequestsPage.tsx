@@ -14,7 +14,6 @@ import { ApprovalInProgressTab } from '@/pages/PermissionsPage';
 export default function PendingRequestsPage() {
   const { user, hasAnyRole } = useAuth();
   const canManage = hasAnyRole(['diretoria', 'administrativo', 'supervisor']);
-  const isApprovalUser = !!user && user.roles.some(r => r !== 'colaborador');
 
   if (!user) {
     return (
@@ -36,14 +35,12 @@ export default function PendingRequestsPage() {
         </p>
       </div>
 
-      {isApprovalUser && (
-        <section aria-labelledby="pend-fila" className="space-y-3">
-          <h2 id="pend-fila" className="text-lg font-semibold text-foreground border-b pb-2">
-            Minha Fila de Aprovação
-          </h2>
-          <MyQueueWidget userId={user.id} />
-        </section>
-      )}
+      <section aria-labelledby="pend-fila" className="space-y-3">
+        <h2 id="pend-fila" className="text-lg font-semibold text-foreground border-b pb-2">
+          Minha Fila de Aprovação
+        </h2>
+        <MyQueueWidget userId={user.id} />
+      </section>
 
       <section aria-labelledby="pend-criticas" className="space-y-3">
         <h2 id="pend-criticas" className="text-lg font-semibold text-foreground border-b pb-2">
@@ -52,7 +49,7 @@ export default function PendingRequestsPage() {
         <CriticalPendingWidget canManage={canManage} />
       </section>
 
-      {isApprovalUser && (
+      {canManage && (
         <section aria-labelledby="pend-andamento" className="space-y-3">
           <h2 id="pend-andamento" className="text-lg font-semibold text-foreground border-b pb-2">
             Em Andamento

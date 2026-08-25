@@ -16,6 +16,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { approvalModuleDetailRoute, requestDetailRoute } from '@/modules/fleet/requestRoutes';
 
 export interface ActivityItem {
   id: string;
@@ -29,8 +30,10 @@ export interface ActivityItem {
   route: string | null;
 }
 
-function resolveRoute(entityType: string, entityId: string): string | null {
-  if (entityType === 'fuel_requests') return `/fleet/${entityId}`;
+function resolveRoute(entityType: string, entityId: string, moduleCode?: string | null, requestType?: string | null): string | null {
+  if (entityType === 'fuel_requests') return requestDetailRoute(requestType || 'abastecimento', entityId);
+  const moduleRoute = moduleCode ? approvalModuleDetailRoute(moduleCode, entityId) : null;
+  if (moduleRoute) return moduleRoute;
   if (entityType === 'admission_requests') return `/admissions/${entityId}`;
   // B6 Fix Sprint 15: rota de Compras reativada (estava desabilitada desde Sprint 13.9)
   if (entityType === 'purchases') return `/purchases/${entityId}`;
@@ -44,6 +47,7 @@ export async function loadRecentActivity(): Promise<ActivityItem[]> {
       id,
       entity_id,
       entity_type,
+      module,
       from_status,
       to_status,
       created_at,
@@ -54,6 +58,19 @@ export async function loadRecentActivity(): Promise<ActivityItem[]> {
 
   if (error) throw error;
 
+  const fuelIds = (data || [])
+    .filter((row: any) => row.entity_type === 'fuel_requests')
+    .map((row: any) => row.entity_id);
+  const fuelTypes = new Map<string, string>();
+  if (fuelIds.length > 0) {
+    const { data: fuels, error: fuelError } = await supabase
+      .from('fuel_requests')
+      .select('id, type')
+      .in('id', fuelIds);
+    if (fuelError) throw fuelError;
+    (fuels || []).forEach((fuel: any) => fuelTypes.set(fuel.id, fuel.type));
+  }
+
   return (data || []).map((row: any): ActivityItem => ({
     id: row.id,
     entity_id: row.entity_id,
@@ -62,6 +79,6 @@ export async function loadRecentActivity(): Promise<ActivityItem[]> {
     to_status: row.to_status,
     created_at: row.created_at,
     actor_name: row.profiles?.full_name ?? null,
-    route: resolveRoute(row.entity_type, row.entity_id),
+    route: resolveRoute(row.entity_type, row.entity_id, row.module, fuelTypes.get(row.entity_id)),
   }));
 }

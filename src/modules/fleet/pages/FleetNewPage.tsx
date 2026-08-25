@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCheckDailyLimit } from '@/hooks/useRequestLimits';
 import { useCreateFuelRequest } from '../hooks/useFleetQueries';
@@ -30,8 +30,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
   const { user, hasAnyRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [searchParams] = useSearchParams();
-  const initialType = requestType || searchParams.get('type') || 'abastecimento';
+  const initialType = requestType || 'abastecimento';
   const createMutation = useCreateFuelRequest();
   const statusMutation = useEntityAction();
   const checkLimit = useCheckDailyLimit();
@@ -158,7 +157,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
 
   const canCreateDiaria = hasAnyRole(['diretoria', 'administrativo']);
   if (type === 'diaria' && !canCreateDiaria) {
-    navigate('/fleet');
+    navigate(backRoute);
     return null;
   }
 

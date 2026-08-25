@@ -11,13 +11,15 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { ADMISSION_STATUS_LABELS, FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { ListChecks, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDashboardQueue } from '../hooks/useDashboardQueue';
+import { requestDetailRoute } from '@/modules/fleet/requestRoutes';
 
 export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
   navigate: (p: string) => void; isRH: boolean; canSeeFinancials: boolean;
 }) {
-  const { user, hasAnyRole } = useAuth();
+  const { user } = useAuth();
   const qc = useQueryClient();
-  const isAdminUser = hasAnyRole(['diretoria', 'administrativo']);
+  const { items: approvalQueue } = useDashboardQueue(user?.id);
 
   const { data: fuelData = [], isLoading: fuelLoading } = useQuery({
     queryKey: ['fuel_all_fluxos'],
@@ -60,6 +62,10 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [admData, showFinalized]);
+  const actionableEntityIds = useMemo(
+    () => new Set(approvalQueue.map(item => item.reference_id)),
+    [approvalQueue],
+  );
 
   const formatCurrency = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
@@ -152,7 +158,7 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
                 <div className="space-y-1">
                   {items.slice(0, 5).map((item: any) => (
                     <div key={item.id} className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded px-2 py-1">
-                      {isAdminUser && (
+                      {actionableEntityIds.has(item.id) && (
                         <input
                           type="checkbox"
                           checked={selectedIds.has(item.id)}
@@ -161,7 +167,7 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
                           onClick={e => e.stopPropagation()}
                         />
                       )}
-                      <div className="flex-1 flex items-center justify-between cursor-pointer" onClick={() => navigate(`/fleet/${item.id}`)}>
+                      <div className="flex-1 flex items-center justify-between cursor-pointer" onClick={() => navigate(requestDetailRoute(item.type, item.id))}>
                         <span className="truncate">
                           {canSeeFinancials ? formatCurrency(Number(item.valor || 0)) : '••••••'}
                           {item.type && ` · ${REQUEST_TYPE_LABELS[item.type] || item.type}`}
@@ -176,13 +182,13 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
             </Card>
           ))}
 
-          {isAdminUser && selectedIds.size > 0 && (
+          {selectedIds.size > 0 && (
             <div className="sticky bottom-0 bg-background border border-border rounded-lg p-3 flex items-center justify-between gap-3 shadow-lg">
               <span className="text-sm font-medium text-foreground">{selectedIds.size} selecionada{selectedIds.size > 1 ? 's' : ''}</span>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleBatchApprove} disabled={batchProcessing} className="gap-1">
                   {batchProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                  Aprovar
+                  Executar etapa
                 </Button>
                 <Button size="sm" variant="destructive" onClick={() => setBatchAction('reject')} disabled={batchProcessing} className="gap-1">
                   <ShieldAlert className="w-3.5 h-3.5" /> Reprovar

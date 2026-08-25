@@ -74,8 +74,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const canManageVehicles = hasAnyRole(['diretoria']);
   const canViewEpis = hasAnyRole(['diretoria', 'rh', 'administrativo', 'supervisor']);
   const canViewSectors = hasAnyRole(['diretoria']);
-  // Aprovador = qualquer papel != colaborador (master incluso)
-  const isApprovalUser = !!user && user.roles.some(r => r !== 'colaborador');
   const primaryRole = user?.roles[0];
 
   // Badges reativos
@@ -110,7 +108,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {
         table: 'approval_requests',
         filter: `current_approver_user_id=eq.${user?.id}`,
-        queryKeys: [['sidebar_my_pending_approvals', user?.id]],
+        queryKeys: [['sidebar_my_pending_approvals', user?.id], ['my_approvals', user?.id]],
       },
       {
         table: 'fuel_requests',
@@ -137,7 +135,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       label: 'Dashboard',
       items: [
         { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
-        { to: '/pendencias', label: 'Pendências', icon: AlertTriangle, show: isApprovalUser, badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' as const } : null },
+        { to: '/pendencias', label: 'Pendências', icon: AlertTriangle, show: !!user, badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' as const } : null },
       ],
     },
     {

@@ -139,10 +139,11 @@ export function usePurchaseOperationalActions(purchaseId: string | undefined) {
     }) => {
       const actionName =
         params.action === 'approve'
-          ? params.completionAction || 'aprovar'
+          ? params.completionAction
           : params.action === 'reject'
             ? 'rejeitar'
             : 'devolver';
+      if (!actionName) throw new Error('ENGINE_ACTION_CONTEXT_REQUIRED');
       return executeEntityAction({
         moduleKey: 'compras',
         entityId: params.entityId,

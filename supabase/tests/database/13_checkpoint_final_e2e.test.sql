@@ -100,12 +100,19 @@ SELECT is((SELECT count(*)::integer FROM public.notifications WHERE user_id=auth
 
 -- B conclui etapa 1. Diária entra em execução operacional.
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','aprovar'))->>'code','200','Compras: B aprova necessidade');
+SELECT ok((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','aprovar'))->>'code' <> '200',
+  'double approve: segunda execução não produz nova aprovação');
+SELECT is((SELECT count(*)::integer FROM public.approval_request_steps ars JOIN public.approval_requests ar ON ar.id=ars.approval_request_id WHERE ar.reference_id='fa100000-0000-0000-0000-000000000001' AND ars.step_order=1 AND ars.status='approved'),1,
+  'double approve mantém uma única etapa efetiva');
 SELECT is((public.execute_entity_action('abastecimento','fa200000-0000-0000-0000-000000000001','aprovar'))->>'code','200','Abastecimento: B autoriza');
 SELECT is((public.execute_entity_action('diaria','fa200000-0000-0000-0000-000000000002','aprovar'))->>'code','200','Diária: B autoriza');
 SELECT is((public.execute_entity_action('reembolso','fa200000-0000-0000-0000-000000000003','aprovar'))->>'code','200','Reembolso: B aprova');
 SELECT is((public.execute_entity_action('admissoes','fa300000-0000-0000-0000-000000000001','aprovar'))->>'code','200','Admissões: B aprova vaga');
 SELECT is((public.execute_entity_action('desligamentos','fa410000-0000-0000-0000-000000000001','aprovar'))->>'code','200','Desligamentos: B autoriza');
 SELECT is((SELECT count(*)::integer FROM public.get_my_approval_queue()),0,'fila de B esvazia após suas ações');
+SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000003',true);
+SELECT ok((SELECT count(*) >= 5 FROM public.notifications WHERE user_id=auth.uid() AND metadata->>'type'='approval_assigned' AND metadata->>'module_key' IN ('compras','abastecimento','diaria','reembolso','admissoes','desligamentos') AND metadata->>'link' IS NOT NULL),
+  'aprovação notifica o próximo responsável C com metadata e link canônicos');
 
 SELECT set_config('role','postgres',true);
 INSERT INTO public.fuel_attachments(fuel_request_id,type,file_path) VALUES
@@ -151,6 +158,18 @@ SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000001'
 SELECT set_config('role','authenticated',true);
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','gerar_oc',jsonb_build_object('ocNumber','OC-FINAL-1','approvedValue','950')))->>'code','200','Compras: gera OC');
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','pagar'))->>'code','200','Compras: paga');
+SELECT set_config(
+  'release_gate.payment_history_before',
+  (SELECT count(*)::text FROM public.status_history WHERE entity_id='fa100000-0000-0000-0000-000000000001' AND from_status='aguardando_pagamento' AND to_status='aguardando_entrega'),
+  true
+);
+SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','pagar'))->>'code','409',
+  'double payment: segunda execução retorna conflito e não duplica pagamento');
+SELECT is(
+  (SELECT count(*)::integer FROM public.status_history WHERE entity_id='fa100000-0000-0000-0000-000000000001' AND from_status='aguardando_pagamento' AND to_status='aguardando_entrega'),
+  current_setting('release_gate.payment_history_before')::integer,
+  'double payment não cria nova transição após o conflito'
+);
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','informar_entrega'))->>'code','200','Compras: informa entrega');
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','concluir'))->>'code','200','Compras: conclui');
 SELECT is((public.execute_entity_action('reembolso','fa200000-0000-0000-0000-000000000003','concluir'))->>'code','200','Reembolso: A confirma e conclui');
@@ -200,6 +219,8 @@ SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-00000
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000003',true);
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000002','devolver',jsonb_build_object('notes','Ajustar centro de custo informado')))->>'code','200','Return: C devolve step2');
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000001',true);
+SELECT is((SELECT metadata->>'link' FROM public.notifications WHERE user_id=auth.uid() AND metadata->>'type'='approval_returned' AND metadata->>'entity_id'='fa100000-0000-0000-0000-000000000002' ORDER BY created_at DESC LIMIT 1),'/purchases/fa100000-0000-0000-0000-000000000002',
+  'return notifica requester A com metadata e link corretos');
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000002','enviar'))->>'code','200','Return: A reenvia mesma request');
 SELECT set_config('role','postgres',true);
 SELECT is((SELECT count(*)::integer FROM public.approval_requests ar JOIN public.approval_modules am ON am.id=ar.module_id WHERE am.code='compras' AND ar.reference_id='fa100000-0000-0000-0000-000000000002'),1,'return/resubmit não cria nova request');
@@ -218,6 +239,8 @@ SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-00000
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000002',true);
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000003','rejeitar',jsonb_build_object('notes','Solicitação fora da política')))->>'code','200','B rejeita com motivo');
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000001',true);
+SELECT is((SELECT metadata->>'link' FROM public.notifications WHERE user_id=auth.uid() AND metadata->>'type'='approval_rejected' AND metadata->>'entity_id'='fa100000-0000-0000-0000-000000000003' ORDER BY created_at DESC LIMIT 1),'/purchases/fa100000-0000-0000-0000-000000000003',
+  'reject notifica requester A com metadata e link corretos');
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000004','enviar'))->>'code','200','Cancel: A envia');
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000004','cancelar',jsonb_build_object('notes','Solicitação não é mais necessária')))->>'code','200','A cancela com motivo');
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000005','enviar'))->>'code','200','Override: A envia');

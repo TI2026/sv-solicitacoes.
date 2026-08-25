@@ -17,7 +17,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { requestDetailRoute } from '@/modules/fleet/requestRoutes';
+import { approvalModuleDetailRoute, requestDetailRoute } from '@/modules/fleet/requestRoutes';
 
 export type CriticalPendingKind =
   | 'retornada'          // fuel_request devolvida ao solicitante
@@ -34,20 +34,9 @@ export interface CriticalPending {
   route: string | null;
 }
 
-const MODULE_ROUTE: Record<string, string> = {
-  abastecimento: '/fleet',
-  reembolso: '/reembolsos',
-  diaria: '/diarias',
-  admissions: '/admissions',
-  desligamentos: '/desligamentos',
-  // B6 Fix: rota de Compras reativada na Sprint 15
-  compras: '/purchases',
-};
-
 function resolveRoute(moduleCode: string | null, referenceId: string | null): string | null {
   if (!referenceId) return null;
-  const base = MODULE_ROUTE[moduleCode || ''] || '/fleet';
-  return `${base}/${referenceId}`;
+  return approvalModuleDetailRoute(moduleCode || '', referenceId);
 }
 
 export async function loadCriticalPendings(): Promise<CriticalPending[]> {
