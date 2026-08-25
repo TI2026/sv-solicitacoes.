@@ -4,38 +4,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle2, DollarSign } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 
 export function FleetPaymentBlock() {
   const {
-    req, reqType, isPending,
+    req, isPending,
     // [Sprint 2 — Onda 2] Fonte canônica substitui: isCompras, isFinanceiro, hasActiveFlow
     approvalCtx,
-    ocNumber, setOcNumber, ocNotes, setOcNotes,
     paymentNotes, setPaymentNotes,
-    showOcDialog, setShowOcDialog,
     showPaymentDialog, setShowPaymentDialog,
-    handleOcSubmit, handlePaymentConfirm,
+    handlePaymentConfirm,
   } = useFleetDetail();
 
   if (!req) return null;
 
-  const requiresOC = reqType !== 'reembolso'; // Reembolso skips OC
   const canConfirmPayment = approvalCtx?.permissions.allowed_actions.includes('pagar') ?? false;
 
   return (
     <>
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2 mt-4">
-        {canConfirmPayment && !requiresOC && (
+        {canConfirmPayment && (
           <Button onClick={() => setShowPaymentDialog(true)} disabled={isPending} className="gap-2 w-full sm:w-auto">
-            <DollarSign className="w-4 h-4" /> Registrar Pagamento
-          </Button>
-        )}
-
-        {canConfirmPayment && requiresOC && (
-          <Button onClick={() => setShowPaymentDialog(true)} disabled={isPending} className="gap-2 w-full sm:w-auto">
-            <CheckCircle2 className="w-4 h-4" /> Confirmar Pagamento
+            <DollarSign className="w-4 h-4" /> Confirmar Pagamento
           </Button>
         )}
       </div>

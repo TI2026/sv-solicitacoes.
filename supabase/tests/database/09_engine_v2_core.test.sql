@@ -4,7 +4,7 @@
 -- V1/V2, semântica de etapas e invariantes de encerramento.
 -- ============================================================
 BEGIN;
-SELECT plan(25);
+SELECT plan(29);
 
 -- 1..4 Contrato do action context ampliado
 SELECT has_type('public', 'entity_action_context', 'tipo de contexto existe');
@@ -20,29 +20,35 @@ SELECT is(
   (SELECT prosecdef FROM pg_proc WHERE proname='get_entity_action_context'
      AND pronamespace='public'::regnamespace), true, 'contexto é security definer');
 
--- 5..10 Grants: apenas os 3 entry points são chamáveis por usuários
+-- 5..10 Grants: apenas os 3 entry points finais são chamáveis por usuários.
 SELECT ok(has_function_privilege('authenticated', p.oid, 'execute'), 'authenticated executa ' || p.proname)
 FROM pg_proc p WHERE p.pronamespace='public'::regnamespace
-  AND p.proname IN ('execute_entity_action','process_approval_action','get_entity_action_context');
+  AND p.proname IN ('execute_entity_action','get_entity_action_context','get_my_approval_queue');
 
 SELECT ok(NOT has_function_privilege('anon', p.oid, 'execute'), 'anon NÃO executa ' || p.proname)
 FROM pg_proc p WHERE p.pronamespace='public'::regnamespace
-  AND p.proname IN ('execute_entity_action','process_approval_action','get_entity_action_context');
+  AND p.proname IN ('execute_entity_action','get_entity_action_context','get_my_approval_queue');
 
--- 11..17 Funções internas do motor são privadas
+-- 11..20 Funções internas do motor são privadas. start_approval_flow has
+-- two overloads; both remain internal and therefore produce two assertions.
 SELECT ok(
   NOT has_function_privilege('authenticated', p.oid, 'execute')
   AND NOT has_function_privilege('anon', p.oid, 'execute'),
   p.proname || ' é interna ao motor')
 FROM pg_proc p WHERE p.pronamespace='public'::regnamespace
-  AND p.proname IN ('_engine_process_v2','_engine_activate_next','_engine_reactivate_returned',
+  AND p.proname IN ('start_approval_flow','process_approval_action',
+                    '_engine_process_v2','_engine_activate_next','_engine_reactivate_returned',
                     '_engine_sla_sweep','_engine_can_view','_engine_entity_read','_update_entity_status');
 
--- 18 V1 preservado
+-- 21 O overload UUID-only não faz parte do contrato final.
+SELECT hasnt_function('public', 'execute_entity_action', ARRAY['uuid','text','text','jsonb'],
+  'executor legado sem module_key foi removido');
+
+-- 22 V1 preservado
 SELECT has_function('public', '_engine_process_v1', ARRAY['uuid','text','text'],
   'motor V1 preservado para requests legadas');
 
--- 19 Snapshot: colunas obrigatórias na instância
+-- 23 Snapshot: colunas obrigatórias na instância
 SELECT ok(
   (SELECT count(*) FROM information_schema.columns
     WHERE table_schema='public' AND table_name='approval_request_steps'
@@ -51,14 +57,14 @@ SELECT ok(
                           'substitute_user_id','sla_hours','sla_deadline','activated_at','overdue')) = 12,
   'instância carrega o snapshot completo da etapa');
 
--- 20 Templates V2 continuam intactos e inativos
+-- 24..25 Templates V2 continuam intactos e inativos
 SELECT is((SELECT count(*)::int FROM public.approval_flow_steps s
              JOIN public.approval_flows f ON f.id = s.flow_id
             WHERE f.version = 'v2'), 17, 'as 17 etapas canônicas V2 permanecem');
 SELECT is((SELECT count(*)::int FROM public.approval_flows WHERE version='v2' AND active), 0,
   'nenhum fluxo V2 ativado (cutover bloqueado)');
 
--- 21 Toda etapa V2 tem ação canônica e destino de devolução/rejeição
+-- 26 Toda etapa V2 tem ação canônica e destino de devolução/rejeição
 SELECT is((SELECT count(*)::int FROM public.approval_flow_steps s
              JOIN public.approval_flows f ON f.id = s.flow_id
             WHERE f.version='v2'
@@ -66,7 +72,7 @@ SELECT is((SELECT count(*)::int FROM public.approval_flow_steps s
                    OR s.rejection_entity_status IS NULL)), 0,
   'toda etapa V2 define ação canônica, devolução e rejeição');
 
--- 22 Exatamente uma etapa final por módulo V2
+-- 27 Exatamente uma etapa final por módulo V2
 SELECT is((SELECT count(*)::int FROM (
         SELECT f.module_id FROM public.approval_flow_steps s
           JOIN public.approval_flows f ON f.id = s.flow_id
@@ -74,14 +80,14 @@ SELECT is((SELECT count(*)::int FROM (
          GROUP BY f.module_id HAVING count(*) <> 1) x), 0,
   'cada módulo V2 tem exatamente uma etapa de encerramento');
 
--- 23 Etapa que encerra nunca ativa próxima etapa
+-- 28 Etapa que encerra nunca ativa próxima etapa
 SELECT is((SELECT count(*)::int FROM public.approval_flow_steps s
              JOIN public.approval_flows f ON f.id = s.flow_id
             WHERE f.version='v2' AND s.closes_workflow
               AND s.next_step_activation IS NOT NULL), 0,
   'etapa final não encadeia próxima etapa');
 
--- 24 Fila só considera etapas realmente pendentes
+-- 29 Fila só considera etapas realmente pendentes
 SELECT ok((SELECT prosrc FROM pg_proc WHERE proname='get_my_approval_queue'
              AND pronamespace='public'::regnamespace) LIKE '%awaiting_step%',
   'fila filtra por awaiting_step');

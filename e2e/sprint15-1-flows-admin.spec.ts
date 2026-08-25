@@ -3,133 +3,148 @@ import { test, expect } from '@playwright/test';
 test.describe('Sprint 15.1 - Flows Admin Canonical Structure', () => {
   // Configuração global para mockar o backend caso o Supabase não esteja acessível localmente
   // ou para forçar os dados canônicos na interface
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    const isCommonUser = testInfo.title.includes('Usuário comum');
+    const userId = isCommonUser ? 'common-user' : 'master-user-123';
+    const email = isCommonUser ? 'common@test.com' : 'master@test.com';
+    const roles = isCommonUser ? ['colaborador'] : ['master'];
+    const profile = {
+      id: userId,
+      full_name: isCommonUser ? 'Common User' : 'Master User',
+      role: isCommonUser ? 'colaborador' : 'diretoria',
+      is_master: !isCommonUser
+    };
+
     // Interceptar rotas do Supabase para Auth
     await page.route('**/auth/v1/user', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'master-user-123',
+          id: userId,
           aud: 'authenticated',
-          email: 'master@test.com'
+          email
         })
       });
     });
 
     await page.route('**/rest/v1/rpc/get_user_roles*', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(['master']) });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(roles) });
     });
 
     await page.route('**/rest/v1/profiles*', async (route) => {
-      await route.fulfill({ 
-        status: 200, 
-        contentType: 'application/json', 
-        body: JSON.stringify([{ id: 'master-user-123', full_name: 'Master User', role: 'diretoria', is_master: true }]) 
+      const wantsSingle = route.request().headers()['accept']?.includes('application/vnd.pgrst.object+json');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(wantsSingle ? profile : [profile])
       });
     });
 
     // Configura o localStorage com o formato correto da sessão
-    await page.addInitScript(() => {
-      window.localStorage.setItem('sb-zeaerqlvhrbcuubueolh-auth-token', JSON.stringify({
+    await page.addInitScript(({ userId, email }) => {
+      window.localStorage.setItem('sb-127-auth-token', JSON.stringify({
         access_token: 'fake-access-token',
         expires_in: 3600,
         expires_at: Math.floor(Date.now() / 1000) + 3600,
         refresh_token: 'fake-refresh-token',
         token_type: 'bearer',
         user: {
-          id: 'master-user-123',
+          id: userId,
           aud: 'authenticated',
-          email: 'master@test.com',
+          email,
           role: 'authenticated'
         }
       }));
-    });
+    }, { userId, email });
 
-    // Mock API responses for usePermissionsData
-    await page.route('**/rest/v1/approval_modules*', async (route) => {
+    const moduleDefinitions = [
+      { code: 'compras', name: 'Compras', steps: ['Aprovação de necessidade', 'Aprovação financeira'] },
+      { code: 'abastecimento', name: 'Abastecimento', steps: ['Autorização de abastecimento', 'Pagamento de abastecimento', 'Conferência de abastecimento'] },
+      { code: 'diaria', name: 'Diária', steps: ['Autorização de diária', 'Verificação de diária', 'Pagamento de diária'] },
+      { code: 'reembolso', name: 'Reembolso', steps: ['Aprovação de reembolso', 'Revisão financeira', 'Pagamento de reembolso'] },
+      { code: 'admissoes', name: 'Admissões', steps: ['Aprovação de vaga', 'Processamento RH', 'Validação final RH'] },
+      { code: 'desligamentos', name: 'Desligamentos', steps: ['Autorização de desligamento', 'Processamento RH', 'Checklist de offboarding'] },
+    ];
+    const modules = moduleDefinitions.map((mod) => ({
+      module_code: mod.code,
+      module_name: mod.name,
+      flow_id: `flow-${mod.code}`,
+      flow_name: `Fluxo ${mod.name} V2`,
+      flow_active: true,
+      steps_total: mod.steps.length,
+      status: 'ready',
+    }));
+    const steps = moduleDefinitions.flatMap((mod) => mod.steps.map((stepName, index) => ({
+      module_code: mod.code,
+      module_name: mod.name,
+      flow_id: `flow-${mod.code}`,
+      flow_name: `Fluxo ${mod.name} V2`,
+      flow_active: true,
+      step_id: `${mod.code}-step-${index + 1}`,
+      step_order: index + 1,
+      step_code: `${mod.code}_step_${index + 1}`,
+      step_name: stepName,
+      step_kind: 'approval',
+      completion_action: index === 0 ? 'aprovar' : 'concluir',
+      assignment_mode: 'person',
+      primary_user_id: 'approver-1',
+      primary_user_name: 'Aprovador Principal',
+      substitute_user_id: 'approver-2',
+      substitute_user_name: 'Aprovador Substituto',
+      sector_id: null,
+      sector_name: null,
+      sector_responsible_name: null,
+      sector_substitute_name: null,
+      sla_hours: 48,
+      status: 'ready',
+      reason: null,
+    })));
+    const health = {
+      overall: 'ready',
+      flows_total: 6,
+      steps_total: 17,
+      template: { ok: true, expected_flows: 6, expected_steps: 17, missing_steps: [], extra_steps: [], divergent_steps: [] },
+      modules,
+      steps,
+    };
+
+    await page.route('**/rest/v1/rpc/get_approval_configuration_health*', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(health) });
+    });
+    await page.route('**/rest/v1/rpc/get_v2_cutover_status*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([
-          { id: 'm1', code: 'compras', name: 'Compras', active: true },
-          { id: 'm2', code: 'abastecimento', name: 'Abastecimento', active: true },
-          { id: 'm3', code: 'diaria', name: 'Diária', active: true },
-          { id: 'm4', code: 'reembolso', name: 'Reembolso', active: true },
-          { id: 'm5', code: 'admissoes', name: 'Admissões', active: true },
-          { id: 'm6', code: 'desligamentos', name: 'Desligamentos', active: true },
-        ])
+        body: JSON.stringify({ health, active_v1_requests: [], active_v1_count: 0, can_activate: false }),
       });
-    });
-
-    await page.route('**/rest/v1/approval_flows*', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([
-          {
-            id: 'f1',
-            module_id: 'm1',
-            name: 'Fluxo Compras v1',
-            active: true,
-            version: 'v1',
-            approval_flow_steps: [
-              { id: 's1', step_order: 1, step_name: 'Aprovação do Gestor', purpose: 'Validação', active: true }
-            ]
-          },
-          {
-            id: 'f2',
-            module_id: 'm2',
-            name: 'Fluxo Abastecimento v1',
-            active: true,
-            version: 'v1',
-            approval_flow_steps: [
-              { id: 's2', step_order: 1, step_name: 'Aprovação da Solicitação', purpose: 'Validação', active: true },
-              { id: 's3', step_order: 2, step_name: 'Revisão Administrativa', purpose: 'Conferência', active: true }
-            ]
-          },
-          { id: 'f3', module_id: 'm3', name: 'Fluxo Diária v1', active: true, version: 'v1', approval_flow_steps: [] },
-          { id: 'f4', module_id: 'm4', name: 'Fluxo Reembolso v1', active: true, version: 'v1', approval_flow_steps: [] },
-          { id: 'f5', module_id: 'm5', name: 'Fluxo Admissões v1', active: true, version: 'v1', approval_flow_steps: [] },
-          { id: 'f6', module_id: 'm6', name: 'Fluxo Desligamentos v1', active: true, version: 'v1', approval_flow_steps: [] },
-        ])
-      });
-    });
-
-    await page.route('**/rest/v1/rpc/get_user_roles*', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(['master']) });
-    });
-
-    await page.route('**/rest/v1/profiles*', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'master-user-123', full_name: 'Master User' }) });
     });
   });
 
   test('Master acessa a tela e vê a estrutura canônica', async ({ page }) => {
     // 1. Master acessa a tela
-    await page.goto('/permissoes', { waitUntil: 'domcontentloaded' });
-    // Clica na tab de Aprovadores (é a 3ª aba quando o master acessa)
-    await page.locator('button[role="tab"]').nth(2).click();
+    await page.goto('/permissoes?tab=chains', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Permissões e Aprovações' })).toBeVisible({ timeout: 15000 });
 
-    // 2. seis módulos aparecem
-    await expect(page.locator('text=Compras').first()).toBeVisible();
-    await expect(page.locator('text=Abastecimento').first()).toBeVisible();
-    await expect(page.locator('text=Diária').first()).toBeVisible();
-    await expect(page.locator('text=Reembolso').first()).toBeVisible();
-    await expect(page.locator('text=Admissões').first()).toBeVisible();
-    await expect(page.locator('text=Desligamentos').first()).toBeVisible();
+    // 2. seis módulos e as 17 etapas canônicas aparecem
+    await expect(page.getByText('6 módulos · 17 etapas')).toBeVisible({ timeout: 15000 });
+    for (const moduleName of ['Compras', 'Abastecimento', 'Diária', 'Reembolso', 'Admissões', 'Desligamentos']) {
+      await expect(page.getByRole('heading', { name: moduleName, exact: true })).toBeVisible();
+    }
 
     // 3. Fleet aparece separado (Abastecimento, Diária, Reembolso)
     // Implicitamente testado acima, pois eles aparecem como módulos distintos
 
-    // 4 & 5. Quantidade e ordem das etapas (Abastecimento tem 2 etapas mockadas)
-    await page.locator('text=Fluxo Abastecimento v1').locator('xpath=ancestor::div[contains(@class, "rounded-lg")]').locator('button:has-text("Editar aprovadores")').click();
-    
-    await expect(page.locator('text=Editar Fluxo de Aprovação')).toBeVisible();
-    
-    // 6. Finalidade visível
-    await expect(page.locator('text=Validação').first()).toBeVisible();
-    await expect(page.locator('text=Conferência').first()).toBeVisible();
+    // 4, 5 e 6. Quantidade/ordem e finalidade canônica são visíveis.
+    const abastecimentoCard = page
+      .getByRole('heading', { name: 'Abastecimento', exact: true })
+      .locator('xpath=ancestor::div[contains(@class, "border")][1]');
+    await expect(abastecimentoCard.getByText('3 etapas obrigatórias')).toBeVisible();
+    await expect(abastecimentoCard.getByText('Autorização de abastecimento')).toBeVisible();
+    await expect(abastecimentoCard.getByText('Pagamento de abastecimento')).toBeVisible();
+    await expect(abastecimentoCard.getByText('Conferência de abastecimento')).toBeVisible();
+    await abastecimentoCard.getByRole('button', { name: 'Configurar' }).first().click();
+    await expect(page.getByRole('dialog')).toContainText('Etapa 1 — Autorização de abastecimento');
 
     // 7. Não existe botão para adicionar etapa
     await expect(page.locator('button:has-text("Adicionar Etapa")')).toHaveCount(0);
@@ -139,54 +154,16 @@ test.describe('Sprint 15.1 - Flows Admin Canonical Structure', () => {
     await expect(page.locator('.lucide-trash2')).toHaveCount(0);
 
     // 9. Responsável pode ser alterado
-    const select = page.locator('button[role="combobox"]').first();
+    const select = page.getByRole('dialog').getByRole('combobox').first();
     await expect(select).toBeVisible();
 
-    // 10. Alteração persiste após recarregar (Mock não permite teste E2E real sem DB vivo, mas o form permite)
-    // 11. fluxo incompleto não pode ser ativado (Botão Salvar fica disabled)
-    // Se mudarmos para um tipo de aprovador que exige ID e deixarmos vazio
-    // O mock não tem dados suficientes para testar validação complexa, mas o botão existe.
-    await expect(page.locator('button:has-text("Salvar fluxo")')).toBeVisible();
+    // 10. O editor expõe o salvamento; o cutover mockado como bloqueado não pode ser ativado.
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'Salvar', exact: true })).toBeVisible();
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
+    await expect(page.getByRole('button', { name: 'Ativar Motor V2' })).toBeDisabled();
   });
 
   test('Usuário comum recebe acesso negado na administração', async ({ page }) => {
-    // Mock user as Common
-    await page.addInitScript(() => {
-      window.localStorage.setItem('sb-zeaerqlvhrbcuubueolh-auth-token', JSON.stringify({
-        access_token: 'fake-access-token-2',
-        expires_in: 3600,
-        expires_at: Math.floor(Date.now() / 1000) + 3600,
-        refresh_token: 'fake-refresh-token-2',
-        token_type: 'bearer',
-        user: {
-          id: 'common-user',
-          aud: 'authenticated',
-          email: 'common@test.com',
-          role: 'authenticated'
-        }
-      }));
-    });
-    
-    await page.route('**/auth/v1/user', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ id: 'common-user', aud: 'authenticated', email: 'common@test.com' })
-      });
-    });
-
-    await page.route('**/rest/v1/rpc/get_user_roles*', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(['colaborador']) });
-    });
-
-    await page.route('**/rest/v1/profiles*', async (route) => {
-      await route.fulfill({ 
-        status: 200, 
-        contentType: 'application/json', 
-        body: JSON.stringify([{ id: 'common-user', full_name: 'Common User', role: 'colaborador', is_master: false }]) 
-      });
-    });
-
     await page.goto('/permissoes', { waitUntil: 'domcontentloaded' });
     
     // Admin tabs should not be visible

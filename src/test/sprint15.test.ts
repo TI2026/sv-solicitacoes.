@@ -39,8 +39,8 @@ function classifyTerminationStatus(status: string): RequestGroup {
 
 const MODULE_ROUTE: Record<string, string> = {
   abastecimento: '/fleet',
-  reembolso: '/fleet',
-  diaria: '/fleet',
+  reembolso: '/reembolsos',
+  diaria: '/diarias',
   admissions: '/admissions',
   desligamentos: '/desligamentos',
   compras: '/purchases',
@@ -161,6 +161,12 @@ describe('resolveRoute (criticalPendingsLoader)', () => {
   });
   it('retorna /fleet para abastecimento', () => {
     expect(resolveRoute('abastecimento', uuid)).toBe(`/fleet/${uuid}`);
+  });
+  it('mantém diária fora da rota de abastecimento', () => {
+    expect(resolveRoute('diaria', uuid)).toBe(`/diarias/${uuid}`);
+  });
+  it('mantém reembolso fora da rota de abastecimento', () => {
+    expect(resolveRoute('reembolso', uuid)).toBe(`/reembolsos/${uuid}`);
   });
   it('retorna /fleet para módulo desconhecido (fallback)', () => {
     expect(resolveRoute('modulo_inexistente', uuid)).toBe(`/fleet/${uuid}`);

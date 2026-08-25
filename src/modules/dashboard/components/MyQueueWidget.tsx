@@ -25,17 +25,10 @@ import type { QueueItem } from '../queries/dashboardQueueLoader';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { EmptyState } from '@/components/EmptyState';
-
-const MODULE_ROUTE: Record<string, string> = {
-  abastecimento: '/fleet',
-  reembolso: '/reembolsos',
-  diaria: '/diarias',
-  admissions: '/admissions',
-};
+import { approvalModuleDetailRoute } from '@/modules/fleet/requestRoutes';
 
 function resolveItemRoute(item: QueueItem): string {
-  const base = MODULE_ROUTE[item.module_code ?? ''] ?? '/fleet';
-  return `${base}/${item.reference_id}`;
+  return approvalModuleDetailRoute(item.module_code ?? '', item.reference_id) ?? '/pendencias';
 }
 
 interface Props {

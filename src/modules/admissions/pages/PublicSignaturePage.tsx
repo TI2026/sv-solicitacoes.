@@ -42,7 +42,7 @@ export default function PublicSignaturePage() {
   const [uploadedKeys, setUploadedKeys] = useState<Record<string, string>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'zeaerqlvhrbcuubueolh';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
   useEffect(() => {
     if (!token) { setError('Token não fornecido'); setLoading(false); return; }
@@ -53,7 +53,7 @@ export default function PublicSignaturePage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/public-link-lookup?token=${token}`,
+        `${supabaseUrl}/functions/v1/public-link-lookup?token=${token}`,
         { headers: { 'Content-Type': 'application/json' } }
       );
       if (!res.ok) {
@@ -110,7 +110,7 @@ export default function PublicSignaturePage() {
       fd.append('mode', 'candidate');
       fd.append('doc_key', signedDocKey);
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/public-signature-submit`,
+        `${supabaseUrl}/functions/v1/public-signature-submit`,
         { method: 'POST', body: fd }
       );
       if (!res.ok) {
@@ -132,7 +132,7 @@ export default function PublicSignaturePage() {
     setSubmitted(true);
     try {
       await fetch(
-        `https://${projectId}.supabase.co/functions/v1/admissions-finalize-signed-docs`,
+        `${supabaseUrl}/functions/v1/admissions-finalize-signed-docs`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

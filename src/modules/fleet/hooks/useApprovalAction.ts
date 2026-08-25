@@ -29,11 +29,13 @@ export function useApprovalAction() {
       exec.mutateAsync({
         moduleKey: params.moduleKey,
         entityId: params.entityId,
-        action:
-          params.action === 'approve'
-            ? params.completionAction || 'aprovar'
-            : ACTION_MAP[params.action],
-        payload: params.comments ? { comments: params.comments } : {},
+        action: params.action === 'approve'
+          ? (() => {
+              if (!params.completionAction) throw new Error('ENGINE_ACTION_CONTEXT_REQUIRED');
+              return params.completionAction;
+            })()
+          : ACTION_MAP[params.action],
+        payload: params.comments ? { notes: params.comments } : {},
         successMessage: 'Ação de aprovação processada!',
       }),
   };

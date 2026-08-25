@@ -68,7 +68,12 @@ export function ApprovalInProgressTab() {
   const { data: pendingFuel, isLoading: loadingFuel } = usePendingFuelRequests();
   const [moduleFilter, setModuleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const isReallyActive = (r: any) => !r.ended_at && !!r.current_approver_user_id && String(r.status || '').startsWith('awaiting_step_');
+  const isReallyActive = (r: any) => {
+    const status = String(r.status || '');
+    return !r.ended_at
+      && !!r.current_approver_user_id
+      && (status === 'awaiting_step' || status.startsWith('awaiting_step_'));
+  };
   const isNotCancelled = (r: any) => r.status !== 'cancelled';
 
   if (isLoading && loadingFuel) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
@@ -189,9 +194,9 @@ export function ApprovalInProgressTab() {
 }
 
 export default function PermissionsPage() {
-  const { hasAnyRole, isMaster } = useAuth();
-  // Master e Diretoria têm o mesmo nível de gestão de permissões.
-  const canManageSettings = isMaster || hasAnyRole(['diretoria']);
+  const { isMaster } = useAuth();
+  // Configuração global e matriz RBAC são exclusivas de Master.
+  const canManageSettings = isMaster;
 
   // Sincroniza a aba ativa com ?tab=... — permite que o sidebar (e qualquer link
   // externo) force a abertura de uma aba específica como "minhas-aprovacoes".

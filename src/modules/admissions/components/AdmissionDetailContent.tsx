@@ -77,9 +77,7 @@ export function AdmissionDetailContent() {
 
   // O frontend NÃO DEVE calcular ações permitidas. Deve ler do motor.
   const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
-  // canEditLocal antigo agora deve ser substituído por permissão específica,
-  // mas para manter compatibilidade com UI visual, mapeamos:
-  const canEditLocal = hasAction('editar') || hasAction('avancar_etapa');
+  const canEditLocal = approvalCtx?.raw?.can_edit === true;
 
   const { toast } = useToast();
   const qc = useQueryClient();

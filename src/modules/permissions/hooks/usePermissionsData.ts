@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { AppRole } from '@/types';
 import { toBackendApproverType } from '@/lib/approvalLabels';
+import { executeEntityAction } from '@/hooks/useEntityAction';
 
 export * from './usePermissionsSession';
 export * from './usePermissionsAdmin';
@@ -29,6 +30,7 @@ export function useApprovalFlows() {
       const { data, error } = await supabase
         .from('approval_flows')
         .select('*, approval_modules(code, name), approval_flow_steps(*, profiles!approval_flow_steps_approver_user_id_fkey(full_name, email), sectors:fixed_sector_id(id, name))')
+        .eq('active', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -98,11 +100,14 @@ export function useSaveApprovalFlow() {
           substitute_user_id: s.substituteUserId || null,
           default_sla_hours: s.defaultSlaHours || 48
         };
-        const { error: updErr } = await supabase
+        const { data: persistedStep, error: updErr } = await supabase
           .from('approval_flow_steps')
           .update(updatePayload)
-          .eq('id', s.id);
+          .eq('id', s.id)
+          .select('id')
+          .single();
         if (updErr) throw updErr;
+        if (!persistedStep) throw new Error('FLOW_STEP_NOT_PERSISTED');
       }
       
       const replaceResult = null;
@@ -110,8 +115,9 @@ export function useSaveApprovalFlow() {
 
       return { flowId: flowId!, versioned };
     },
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ['approval_flows'] });
+    onSuccess: async (result) => {
+      await qc.invalidateQueries({ queryKey: ['approval_flows'] });
+      await qc.refetchQueries({ queryKey: ['approval_flows'], type: 'active' });
       if (result.versioned) {
         toast({ title: 'Nova versão do fluxo criada', description: 'O fluxo anterior foi preservado para histórico. Novas solicitações usarão esta versão.' });
       } else {
@@ -189,22 +195,17 @@ export function useProcessApproval() {
     }) => {
       const canonical =
         params.action === 'approve'
-          ? params.completionAction || 'aprovar'
+          ? params.completionAction
           : params.action === 'reject'
             ? 'rejeitar'
             : 'devolver';
-      const { data, error } = await (supabase as any).rpc('execute_entity_action', {
-        p_module_key: params.moduleKey,
-        p_entity_id:  params.entityId,
-        p_action:     canonical,
-        p_payload:    params.comments ? { comments: params.comments } : {},
+      if (!canonical) throw new Error('ENGINE_ACTION_CONTEXT_REQUIRED');
+      return executeEntityAction({
+        moduleKey: params.moduleKey,
+        entityId: params.entityId,
+        action: canonical,
+        payload: params.comments ? { notes: params.comments } : {},
       });
-      if (error) throw new Error(error.message);
-      const result = data as any;
-      if (!result) throw new Error('ENGINE_NO_RESULT');
-      if (result.error) throw new Error(result.error);
-      if (result.success === false) throw new Error(result.message || 'ENGINE_ACTION_FAILED');
-      return result;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my_approvals'] });
@@ -223,13 +224,9 @@ export function useProcessApproval() {
 }
 
 /**
- * Profiles eligible as approvers.
- * Critério (Fase 1 hardening):
- *   - Apenas `user_role_assignments` (a tabela legada `user_roles` foi descontinuada
- *     como fonte de elegibilidade — ela continua sendo lida apenas pelo
- *     `get_user_roles` RPC para compatibilidade histórica).
- *   - O cargo precisa ser diferente de `colaborador` OU o role precisa ser master.
- *   - O perfil precisa estar ativo (`profiles.active = true`).
+ * Pessoas disponíveis para assignment explícito do workflow.
+ * RBAC não define quem atua na etapa; a configuração salva e o Action Context
+ * são as autoridades. Apenas perfis ativos podem ser selecionados.
  */
 export function useEligibleApprovers() {
   return useQuery({
@@ -241,23 +238,8 @@ export function useEligibleApprovers() {
         .order('full_name');
       if (pErr) throw pErr;
 
-      const { data: assignments, error: aErr } = await supabase
-        .from('user_role_assignments')
-        .select('user_id, roles(key, is_master)');
-      if (aErr) throw aErr;
-
-      const eligibleUserIds = new Set<string>();
-      (assignments || []).forEach((a: any) => {
-        const roleKey = a.roles?.key;
-        const isMaster = !!a.roles?.is_master;
-        if (isMaster || (roleKey && roleKey !== 'colaborador')) {
-          eligibleUserIds.add(a.user_id);
-        }
-      });
-
       return (profiles || [])
-        .filter((p: any) => p.active !== false)
-        .filter((p: any) => eligibleUserIds.has(p.id));
+        .filter((p: any) => p.active !== false);
     },
   });
 }
@@ -277,7 +259,7 @@ export function useProfiles() {
   });
 }
 
-/** Roles eligible as approver profiles (non-colaborador, active) */
+/** Active roles for the legacy read-only chain viewer. */
 export function useApproverRoles() {
   return useQuery({
     queryKey: ['approver_roles'],
@@ -288,7 +270,7 @@ export function useApproverRoles() {
         .eq('active', true)
         .order('name');
       if (error) throw error;
-      return (data || []).filter((r: any) => r.key !== 'colaborador');
+      return data || [];
     },
   });
 }

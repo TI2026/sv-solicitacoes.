@@ -78,7 +78,7 @@ export default function PublicDocumentsPage() {
   const [bankCustom, setBankCustom] = useState('');
   const [bankInfo, setBankInfo] = useState({ agencia: '', conta: '', tipo: 'corrente' });
 
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'zeaerqlvhrbcuubueolh';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
   // Derive the final bank name
   const bankName = bankSelection === '__outro__' ? bankCustom.trim() : bankSelection;
@@ -93,7 +93,7 @@ export default function PublicDocumentsPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/public-link-lookup?token=${token}`,
+        `${supabaseUrl}/functions/v1/public-link-lookup?token=${token}`,
         { headers: { 'Content-Type': 'application/json' } }
       );
       if (!res.ok) {
@@ -140,7 +140,7 @@ export default function PublicDocumentsPage() {
 
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/public-documents-submit`,
+        `${supabaseUrl}/functions/v1/public-documents-submit`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -161,7 +161,7 @@ export default function PublicDocumentsPage() {
       setDocStates(prev => ({ ...prev, [docKey]: { file: null, uploading: false, uploaded: false, filename: '' } }));
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     }
-  }, [token, projectId, toast]);
+  }, [token, supabaseUrl, toast]);
 
   const removeDoc = (docKey: string) => {
     setDocStates(prev => {
@@ -189,7 +189,7 @@ export default function PublicDocumentsPage() {
     setSubmitting(true);
     try {
       await fetch(
-        `https://${projectId}.supabase.co/functions/v1/admissions-finalize-signed-docs`,
+        `${supabaseUrl}/functions/v1/admissions-finalize-signed-docs`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

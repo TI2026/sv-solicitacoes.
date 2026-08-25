@@ -2,11 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-const GRANULAR_ROLE_KEYS = [
-  'master', 'diretoria', 'supervisor', 'administrativo',
-  'financeiro', 'compras', 'rh', 'colaborador',
-] as const;
-
 export function useRoles() {
   return useQuery({
     queryKey: ['rbac_roles'],
@@ -72,21 +67,14 @@ export function useToggleRolePermission() {
 
   return useMutation({
     mutationFn: async (params: { roleId: string; moduleId: string; actionId: string; allowed: boolean }) => {
-      if (params.allowed) {
-        const { error } = await supabase
-          .from('role_permission_matrix')
-          .upsert({ role_id: params.roleId, module_id: params.moduleId, action_id: params.actionId, allowed: true },
-            { onConflict: 'role_id,module_id,action_id' });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('role_permission_matrix')
-          .delete()
-          .eq('role_id', params.roleId)
-          .eq('module_id', params.moduleId)
-          .eq('action_id', params.actionId);
-        if (error) throw error;
-      }
+      const { data, error } = await (supabase as any).rpc('set_role_permission', {
+        p_role_id: params.roleId,
+        p_module_id: params.moduleId,
+        p_action_id: params.actionId,
+        p_allowed: params.allowed,
+      });
+      if (error) throw error;
+      if (!(data as any)?.success) throw new Error((data as any)?.error || 'ROLE_PERMISSION_FAILED');
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['role_permission_matrix', vars.roleId] });
@@ -127,36 +115,15 @@ export function useAssignUserRole() {
 
   return useMutation({
     mutationFn: async (params: { userId: string; roleId: string; assignedBy: string }) => {
-      const { data: roleData, error: roleErr } = await supabase
-        .from('roles')
-        .select('id, key, is_master')
-        .eq('id', params.roleId)
-        .single();
-      if (roleErr) throw roleErr;
-
-      await supabase.from('user_role_assignments').delete().eq('user_id', params.userId);
-      const { error: insertErr } = await supabase
-        .from('user_role_assignments')
-        .insert({ user_id: params.userId, role_id: params.roleId, assigned_by: params.assignedBy });
-      if (insertErr) throw insertErr;
-
-      await supabase.from('user_roles').delete().eq('user_id', params.userId);
-      await supabase.rpc('rebuild_user_permissions', { p_user_id: params.userId });
-
-      await supabase.from('audit_logs').insert({
-        user_id: params.assignedBy,
-        action: 'role_change',
-        entity_type: 'profiles',
-        entity_id: params.userId,
-        details: {
-          new_role_key: roleData.key,
-          new_role_id: params.roleId,
-          granular: GRANULAR_ROLE_KEYS.includes(roleData.key as any),
-          is_master: roleData.is_master,
-        },
+      void params.assignedBy;
+      const { data, error } = await (supabase as any).rpc('set_user_role_assignment', {
+        p_user_id: params.userId,
+        p_role_id: params.roleId,
       });
-
-      return { roleKey: roleData.key, isMaster: roleData.is_master };
+      if (error) throw error;
+      const result = data as any;
+      if (!result?.success) throw new Error(result?.error || 'ROLE_ASSIGNMENT_FAILED');
+      return { roleKey: result.role_key, isMaster: result.is_master };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users_role_assignments'] });

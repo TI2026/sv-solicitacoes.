@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { refreshApprovalData } from '@/lib/refreshApprovalData';
 import { STEP_COMPLETION_ACTIONS } from '@/lib/approvalKeys';
+import { executeEntityAction } from '@/hooks/useEntityAction';
 
 export function useFlowControlBatch(userId?: string) {
   const qc = useQueryClient();
@@ -53,17 +54,13 @@ export function useFlowControlBatch(userId?: string) {
               ? 'rejeitar'
               : allowed.find((a) => (STEP_COMPLETION_ACTIONS as readonly string[]).includes(a)) ?? 'aprovar';
           if (!allowed.includes(canonical)) { fail++; continue; }
-          const { data: result, error } = await (supabase as any).rpc('execute_entity_action', {
-            p_module_key: moduleKey,
-            p_entity_id:  itemId,
-            p_action:     canonical,
-            p_payload:    comments ? { comments } : {},
+          await executeEntityAction({
+            moduleKey,
+            entityId: itemId,
+            action: canonical,
+            payload: comments ? { notes: comments } : {},
           });
-          if (!error && (result as any)?.success && !(result as any)?.error) {
-            ok++;
-          } else {
-            fail++;
-          }
+          ok++;
         } else {
           fail++;
         }

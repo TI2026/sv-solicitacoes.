@@ -3,7 +3,7 @@
  *
  * CAMADA: Component
  *
- * Responsabilidade única: renderizar o progresso da Diária em 8 etapas.
+ * Responsabilidade única: renderizar o progresso empresarial da Diária.
  *
  * Regras obrigatórias desta camada:
  *  - NUNCA acessar Supabase diretamente.
@@ -24,18 +24,16 @@ import { Check, Clock, Circle, Loader2 } from 'lucide-react';
 import { useDiariaProgress } from '../hooks/useDiariaProgress';
 
 /**
- * 8-step canonical progression for the Diária workflow.
- * Maps logical steps to fuel_requests.status values that COMPLETE the step.
+ * Progressão canônica da Diária V2. Não inclui etapas de Compras (como OC).
+ * A aprovação e o estágio operacional são representados pelos estados que o
+ * backend realmente aplica ao módulo.
  */
 const STEPS: { key: string; label: string; completedBy: string[] }[] = [
-  { key: 'enviado',             label: 'Enviada',     completedBy: ['enviado', 'em_revisao', 'em_aprovacao', 'aprovado', 'aguardando_oc', 'aguardando_pagamento', 'pago', 'concluido'] },
-  { key: 'em_revisao',          label: 'Revisão',     completedBy: ['em_revisao', 'em_aprovacao', 'aprovado', 'aguardando_oc', 'aguardando_pagamento', 'pago', 'concluido'] },
-  { key: 'em_aprovacao',        label: 'Aprovação',   completedBy: ['em_aprovacao', 'aprovado', 'aguardando_oc', 'aguardando_pagamento', 'pago', 'concluido'] },
-  { key: 'aprovado',            label: 'Aprovada',    completedBy: ['aprovado', 'aguardando_oc', 'aguardando_pagamento', 'pago', 'concluido'] },
-  { key: 'aguardando_oc',       label: 'OC',          completedBy: ['aguardando_oc', 'aguardando_pagamento', 'pago', 'concluido'] },
-  { key: 'aguardando_pagamento',label: 'Pagamento',   completedBy: ['aguardando_pagamento', 'pago', 'concluido'] },
-  { key: 'pago',                label: 'Pago',        completedBy: ['pago', 'concluido'] },
-  { key: 'concluido',           label: 'Concluída',   completedBy: ['concluido'] },
+  { key: 'em_aprovacao',         label: 'Autorização', completedBy: ['em_aprovacao', 'ativa', 'em_revisao', 'aguardando_pagamento', 'concluido'] },
+  { key: 'ativa',                label: 'Execução',    completedBy: ['ativa', 'em_revisao', 'aguardando_pagamento', 'concluido'] },
+  { key: 'em_revisao',           label: 'Conferência', completedBy: ['em_revisao', 'aguardando_pagamento', 'concluido'] },
+  { key: 'aguardando_pagamento', label: 'Pagamento',  completedBy: ['aguardando_pagamento', 'concluido'] },
+  { key: 'concluido',            label: 'Concluída',  completedBy: ['concluido'] },
 ];
 
 interface Props {

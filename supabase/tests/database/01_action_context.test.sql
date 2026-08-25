@@ -45,7 +45,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Helper para validar erros de negócio esperados (status = ERRO)
+-- V2 hides invalid/inaccessible entities with a controlled NULL context.
+-- This avoids leaking entity existence while proving the RPC never raises.
 CREATE OR REPLACE FUNCTION assert_business_error(
   p_module TEXT,
   p_id UUID,
@@ -56,9 +57,9 @@ DECLARE
   v_ctx public.entity_action_context;
 BEGIN
   v_ctx := public.get_entity_action_context(p_module, p_id);
-  RETURN NEXT is(v_ctx.current_status, 'ERRO', p_desc || ' - Deve retornar status ERRO');
-  RETURN NEXT is(v_ctx.allowed_actions::text, '[]', p_desc || ' - Não deve ter ações permitidas');
-  RETURN NEXT ok(p_expected_reason = ANY(v_ctx.blocked_reasons), p_desc || ' - Motivo de bloqueio: ' || p_expected_reason);
+  RETURN NEXT ok(v_ctx IS NULL, p_desc || ' - Retorna contexto NULL controlado');
+  RETURN NEXT is(v_ctx.current_status, NULL::text, p_desc || ' - Não expõe status');
+  RETURN NEXT is(v_ctx.allowed_actions, NULL::jsonb, p_desc || ' - Não expõe ações');
 END;
 $$ LANGUAGE plpgsql;
 
@@ -183,17 +184,15 @@ SELECT is(
   'Abastecimento #2c: Ações corretas'
 );
 
--- 2d. Discriminator errado → ERRO
-SELECT is(
-  (public.get_entity_action_context('diaria', get_test_uuid('abastecimento_t1'))).current_status,
-  'ERRO',
-  'Abastecimento #2d: Discriminator cruzado retorna ERRO'
-);
+-- 2d. Discriminator errado → NULL controlado
 SELECT ok(
-  'Módulo incompatível. Solicitado: diaria, Real: abastecimento' = ANY(
-    (public.get_entity_action_context('diaria', get_test_uuid('abastecimento_t1'))).blocked_reasons
-  ),
-  'Abastecimento #2e: Mensagem de discriminator incompatível'
+  public.get_entity_action_context('diaria', get_test_uuid('abastecimento_t1')) IS NULL,
+  'Abastecimento #2d: Discriminator cruzado retorna NULL controlado'
+);
+SELECT is(
+  (public.get_entity_action_context('diaria', get_test_uuid('abastecimento_t1'))).allowed_actions,
+  NULL::jsonb,
+  'Abastecimento #2e: Discriminator cruzado não expõe ações'
 );
 
 -- 2f. Entidade inexistente
@@ -233,11 +232,10 @@ SELECT is(
   'Diária #3c: Ações corretas'
 );
 
--- 3d. Discriminator errado → ERRO
-SELECT is(
-  (public.get_entity_action_context('reembolso', get_test_uuid('diaria_t1'))).current_status,
-  'ERRO',
-  'Diária #3d: Discriminator cruzado retorna ERRO'
+-- 3d. Discriminator errado → NULL controlado
+SELECT ok(
+  public.get_entity_action_context('reembolso', get_test_uuid('diaria_t1')) IS NULL,
+  'Diária #3d: Discriminator cruzado retorna NULL controlado'
 );
 
 
@@ -283,12 +281,11 @@ SELECT ok(
   'Reembolso #4e: Bloqueio correto para aprovador'
 );
 
--- 4f. Discriminator errado → ERRO
+-- 4f. Discriminator errado → NULL controlado
 SELECT set_auth_user('solicitante');
-SELECT is(
-  (public.get_entity_action_context('abastecimento', get_test_uuid('reembolso_t1'))).current_status,
-  'ERRO',
-  'Reembolso #4f: Discriminator cruzado retorna ERRO'
+SELECT ok(
+  public.get_entity_action_context('abastecimento', get_test_uuid('reembolso_t1')) IS NULL,
+  'Reembolso #4f: Discriminator cruzado retorna NULL controlado'
 );
 
 

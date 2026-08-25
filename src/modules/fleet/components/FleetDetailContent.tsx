@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
+import { requestListRoute } from '../requestRoutes';
 
 function ReembolsoDetails({ req }: { req: any }) {
   const pixKeyType = req.pix_key_type;
@@ -95,13 +96,13 @@ export function FleetDetailContent() {
 
   const handleReviewConfirm = () => {
     if (reviewKmOk && reviewNfOk) {
-      handleStatusChange('aprovado', 'KM e NF conferidos.');
+      handleStatusChange('concluir_revisao', 'KM e NF conferidos.');
     } else {
       const parts = [];
       if (!reviewKmOk) parts.push(`KM real: ${reviewKmReal}`);
       if (!reviewNfOk) parts.push(`NF real: R$ ${reviewNfReal}`);
       const notes = `${parts.join(' | ')}. Justificativa: ${reviewDivergenceReason}`;
-      handleStatusChange('retornado', notes);
+      handleStatusChange('relatar_divergencia', notes);
     }
   };
 
@@ -113,11 +114,12 @@ export function FleetDetailContent() {
   const nfDivergent = !reviewNfOk && reviewNfReal !== '' && nfRealNum !== valorDeclared;
   const hasDivergence = kmDivergent || nfDivergent;
   const justificativaOk = !hasDivergence || reviewDivergenceReason.trim().length >= 10;
+  const routeBase = requestListRoute(reqType);
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" className="gap-2" onClick={() => navigate('/fleet')}>
+        <Button variant="ghost" className="gap-2" onClick={() => navigate(routeBase)}>
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Button>
         {/* [Sprint 2 — Onda 2] ctx.permissions.cancel substitui canMasterDelete */}
@@ -139,7 +141,7 @@ export function FleetDetailContent() {
               return reason ? <p className="mb-2">Motivo: {reason}</p> : null;
             })()}
             <p className="mb-2">Edite os dados necessários e reenvie a solicitação.</p>
-            <Button size="sm" className="gap-1" onClick={() => handleStatusChange('enviado')} disabled={isPending}>
+            <Button size="sm" className="gap-1" onClick={() => handleStatusChange('enviar')} disabled={isPending}>
               {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Reenviar solicitação
             </Button>
           </AlertDescription>
@@ -211,13 +213,7 @@ export function FleetDetailContent() {
             {reqType === 'reembolso' && <ReembolsoDetails req={req} />}
             {reqType === 'diaria' && <DiariaDetails req={req} />}
 
-            {/* OC/Payment info if available */}
-            {(req as any).oc_number && (
-              <div className="text-sm text-muted-foreground border-t border-border pt-2">
-                <p className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> OC: {(req as any).oc_number}</p>
-                {(req as any).oc_notes && <p className="text-xs mt-1">{(req as any).oc_notes}</p>}
-              </div>
-            )}
+            {/* Informações operacionais específicas — processos Fleet não possuem OC. */}
             {(req as any).paid_at && (
               <div className="text-sm text-muted-foreground border-t border-border pt-2">
                 <p className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> Pago em: {new Date((req as any).paid_at).toLocaleDateString('pt-BR')}</p>
@@ -247,44 +243,52 @@ export function FleetDetailContent() {
 
             {/* [Sprint 3.0] ctx.permissions.edit + ctx.status — solicitante envia/reenvia */}
             {approvalCtx?.permissions.edit && approvalCtx?.status === 'rascunho' && (
-              <Button onClick={() => handleStatusChange('enviado')} disabled={isPending} className="gap-2 w-full sm:w-auto">
+              <Button onClick={() => handleStatusChange('enviar')} disabled={isPending} className="gap-2 w-full sm:w-auto">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar Solicitação
               </Button>
             )}
 
             {approvalCtx?.permissions.edit && approvalCtx?.status === 'retornado' && (
-              <Button onClick={() => handleStatusChange('enviado')} disabled={isPending} className="gap-2 w-full sm:w-auto">
+              <Button onClick={() => handleStatusChange('enviar')} disabled={isPending} className="gap-2 w-full sm:w-auto">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Reenviar
               </Button>
             )}
 
             {/* [Sprint 3.0] allowed_actions — string[] dinâmico via module_action_rules. Motor zero-acoplado. */}
             {approvalCtx?.permissions.allowed_actions.includes('confirmar_horas') && (
-              <Button onClick={() => handleStatusChange('aguardando_pagamento')} disabled={isPending} className="gap-2">
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />} Analisar Diária
+              <Button onClick={() => handleStatusChange('confirmar_horas')} disabled={isPending} className="gap-2">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />} Confirmar horas
               </Button>
             )}
 
-            {approvalCtx?.permissions.allowed_actions.includes('informar_abastecimento') && (
-              <Button onClick={() => handleStatusChange('aguardando_fotos')} disabled={isPending} className="gap-2">
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />} Confirmar Recarga
+            {canSendToReview && approvalCtx?.permissions.allowed_actions.includes('enviar_comprovantes') && (
+              <Button onClick={() => handleStatusChange('enviar_comprovantes')} disabled={isPending} className="gap-2">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar comprovantes
               </Button>
             )}
 
-            {canSendToReview && (
-              <Button onClick={() => handleStatusChange('em_revisao_admin')} disabled={isPending} className="gap-2">
-                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar para Revisão
+            {reqType === 'diaria'
+              && attachments.length > 0
+              && approvalCtx?.permissions.allowed_actions.includes('enviar_comprovantes') && (
+              <Button onClick={() => handleStatusChange('enviar_comprovantes')} disabled={isPending} className="gap-2">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar dados e comprovante
               </Button>
             )}
 
             <FleetApprovalAction />
             <FleetPaymentBlock />
 
+            {approvalCtx && approvalCtx.permissions.allowed_actions.length === 0 && approvalCtx.meta.waiting_label && (
+              <p className="text-sm text-muted-foreground rounded-md border bg-muted/30 p-3">
+                {approvalCtx.meta.waiting_label}
+              </p>
+            )}
+
           </CardContent>
         </Card>
 
         {/* [Sprint 3.0] review_admin via allowed_actions — Motor não sabe o que é Fleet */}
-        {approvalCtx?.permissions.allowed_actions.includes('concluir_revisao') && (
+        {reqType === 'abastecimento' && approvalCtx?.permissions.allowed_actions.includes('concluir_revisao') && (
           <Card className="lg:col-span-3 border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/10">
             <CardHeader className="pb-3">
               <CardTitle className="text-base text-amber-800 dark:text-amber-400 flex items-center gap-2">
@@ -415,6 +419,44 @@ export function FleetDetailContent() {
           </Card>
         )}
 
+        {reqType !== 'abastecimento' && (attachments.length > 0 || canUpload) && (
+          <Card className="lg:col-span-3">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="w-5 h-5" /> Comprovantes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {canUpload && (
+                <div className="relative">
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    onChange={(event) => handleUpload(event, 'nota_fiscal')}
+                    disabled={uploading}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                  />
+                  <Button variant="outline" className="w-full gap-2 pointer-events-none">
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    Anexar comprovante
+                  </Button>
+                </div>
+              )}
+              {attachments.map((attachment: any) => (
+                <Button
+                  key={attachment.id}
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={() => openInlinePreview(attachment.file_path, 'Comprovante')}
+                >
+                  <FileText className="w-4 h-4" /> Abrir comprovante
+                </Button>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Timeline */}
         <Card className="lg:col-span-3">
           <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2">Histórico de Movimentações</CardTitle></CardHeader>
@@ -454,7 +496,7 @@ export function FleetDetailContent() {
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isPending}>Cancelar</Button>
             <Button variant="destructive" onClick={() => {
                 softDelete.mutateAsync({ requestId: id!, reason: deleteReason }).then(() => {
-                  toast({ title: 'Excluída com sucesso' }); navigate('/fleet');
+                  toast({ title: 'Excluída com sucesso' }); navigate(routeBase);
                 });
               }} disabled={isPending || deleteReason.trim().length < 5}>Excluir Solicitação</Button>
           </DialogFooter>
