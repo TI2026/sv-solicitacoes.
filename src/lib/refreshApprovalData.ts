@@ -20,6 +20,7 @@
  *   fuel_requests_pending    → useFuelRequestsPending
  *   fuel_metrics             → useFuelMetrics
  *   my_approvals             → MyQueueWidget (Central Operacional)
+ *   my_approval_history      → MyApprovalsTab (histórico)
  *   my_requests              → MyRequestsWidget (Central Operacional)
  *   recent_activity          → RecentActivityWidget (Central Operacional)
  *   critical_pendings        → CriticalPendingWidget (Central Operacional)
@@ -36,6 +37,7 @@ import type { QueryClient } from '@tanstack/react-query';
 
 function refreshApprovalContext(qc: QueryClient, referenceId?: string) {
   qc.invalidateQueries({ queryKey: ['my_approvals'] });
+  qc.invalidateQueries({ queryKey: ['my_approval_history'] });
   // Chaves de contexto são escopadas por módulo (['approval_context', module, id]).
   // Invalidamos por prefixo para cobrir todos os módulos sem duplicar regra.
   qc.invalidateQueries({ queryKey: ['approval_context'] });
@@ -88,6 +90,7 @@ function refreshMetrics(qc: QueryClient) {
  */
 function refreshDashboardWidgets(qc: QueryClient, userId?: string) {
   qc.invalidateQueries({ queryKey: ['my_approvals'] });
+  qc.invalidateQueries({ queryKey: ['my_approval_history'] });
   qc.invalidateQueries({ queryKey: ['my_requests'] });
   qc.invalidateQueries({ queryKey: ['recent_activity'] });
   qc.invalidateQueries({ queryKey: ['critical_pendings'] });

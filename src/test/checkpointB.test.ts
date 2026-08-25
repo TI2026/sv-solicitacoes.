@@ -114,9 +114,12 @@ describe('Checkpoint B — arquitetura do frontend', () => {
   it('Minha Fila usa RPC e Action Context sem inventar aprovação genérica', () => {
     const source = readFileSync(resolve('src/modules/permissions/components/MyApprovalsTab.tsx'), 'utf8');
     const mutation = readFileSync(resolve('src/modules/permissions/hooks/usePermissionsData.ts'), 'utf8');
+    const queue = readFileSync(resolve('src/modules/dashboard/hooks/useDashboardQueue.ts'), 'utf8');
     expect(source).toContain('useDashboardQueue(user?.id)');
     expect(source).toContain('useApprovalContext(item.reference_id, moduleKey)');
     expect(source).toContain("action: 'approve', completionAction");
+    expect(queue).toContain("queryKey: ['my_approvals', userId]");
+    expect(mutation).toContain("queryKey: ['my_approval_history', userId]");
     expect(mutation).toContain("if (!canonical) throw new Error('ENGINE_ACTION_CONTEXT_REQUIRED')");
     expect(mutation).not.toContain("params.completionAction || 'aprovar'");
   });
