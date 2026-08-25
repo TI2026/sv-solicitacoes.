@@ -33,7 +33,7 @@ export interface MyRequest {
 async function fetchFuelRequests(userId: string): Promise<MyRequest[]> {
   const { data, error } = await supabase
     .from('fuel_requests')
-    .select('id, type, status, created_at, valor, description')
+    .select('id, type, status, created_at, valor, motivo, notes, person_name, categoria')
     .eq('requester_user_id', userId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -55,7 +55,7 @@ async function fetchFuelRequests(userId: string): Promise<MyRequest[]> {
     group: classifyStatus(row.status),
     created_at: row.created_at,
     valor: row.valor,
-    description: row.description,
+    description: row.motivo ?? row.notes ?? row.person_name ?? row.categoria ?? null,
     route: requestDetailRoute(row.type, row.id),
   }));
 }
@@ -173,9 +173,16 @@ export async function loadMyRequests(userId: string): Promise<MyRequest[]> {
     fetchTerminationRequests(userId),
   ]);
 
-  if (purchasesResult.status === 'rejected') {
-    // Erro visível em logs — não escondido. Pode indicar problema de RLS ou schema (B1).
-    console.error('[myRequestsLoader] purchases fetch failed:', purchasesResult.reason);
+  const moduleResults = [
+    ['fuel_requests', fuelResult],
+    ['admission_requests', admissionsResult],
+    ['purchases', purchasesResult],
+    ['termination_requests', terminationsResult],
+  ] as const;
+  for (const [moduleName, result] of moduleResults) {
+    if (result.status === 'rejected') {
+      console.error(`[myRequestsLoader] ${moduleName} fetch failed:`, result.reason);
+    }
   }
 
   const fuel = fuelResult.status === 'fulfilled' ? fuelResult.value : [];

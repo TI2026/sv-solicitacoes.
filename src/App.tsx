@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
 import AppLayout from "@/components/AppLayout";
@@ -100,6 +100,11 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function LegacyAbastecimentoDetailRedirect() {
+  const { id } = useParams();
+  return <Navigate to={id ? `/abastecimento/${id}` : '/abastecimento'} replace />;
+}
+
 const AppRoutes = () => (
   <Suspense fallback={<LoadingScreen />}>
   <Routes>
@@ -132,15 +137,15 @@ const AppRoutes = () => (
     <Route path="/reembolsos" element={<ProtectedRoute><ReembolsosListPage /></ProtectedRoute>} />
     <Route path="/reembolsos/new" element={<ProtectedRoute><FleetNewPage requestType="reembolso" /></ProtectedRoute>} />
     <Route path="/reembolsos/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
-    <Route path="/diarias" element={<ProtectedRoute><DiariasListPage /></ProtectedRoute>} />
-    <Route path="/diarias/new" element={<ProtectedRoute><FleetNewPage requestType="diaria" /></ProtectedRoute>} />
-    <Route path="/diarias/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
+    <Route path="/diarias" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><DiariasListPage /></RoleGuard></ProtectedRoute>} />
+    <Route path="/diarias/new" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><FleetNewPage requestType="diaria" /></RoleGuard></ProtectedRoute>} />
+    <Route path="/diarias/:id" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><FleetDetailPage /></RoleGuard></ProtectedRoute>} />
 
-    {/* Fleet */}
-    <Route path="/fleet" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />
-    <Route path="/fleet/new" element={<ProtectedRoute><FleetNewPage /></ProtectedRoute>} />
-    <Route path="/fleet/vehicles-admin" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><VehiclesAdminPage /></RoleGuard></ProtectedRoute>} />
-    <Route path="/fleet/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
+    {/* Abastecimento */}
+    <Route path="/abastecimento" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />
+    <Route path="/abastecimento/new" element={<ProtectedRoute><FleetNewPage /></ProtectedRoute>} />
+    <Route path="/abastecimento/vehicles-admin" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><VehiclesAdminPage /></RoleGuard></ProtectedRoute>} />
+    <Route path="/abastecimento/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
 
     {/* Admissions */}
     <Route path="/admissions" element={<ProtectedRoute><AdmissionListPage /></ProtectedRoute>} />
@@ -171,8 +176,12 @@ const AppRoutes = () => (
 
     {/* Redirects */}
     <Route path="/" element={<Navigate to="/dashboard" replace />} />
-    <Route path="/nova-solicitacao" element={<Navigate to="/fleet/new" replace />} />
-    <Route path="/solicitacao/:id" element={<Navigate to="/fleet" replace />} />
+    <Route path="/nova-solicitacao" element={<Navigate to="/abastecimento/new" replace />} />
+    <Route path="/solicitacao/:id" element={<LegacyAbastecimentoDetailRedirect />} />
+    <Route path="/fleet" element={<Navigate to="/abastecimento" replace />} />
+    <Route path="/fleet/new" element={<Navigate to="/abastecimento/new" replace />} />
+    <Route path="/fleet/vehicles-admin" element={<Navigate to="/abastecimento/vehicles-admin" replace />} />
+    <Route path="/fleet/:id" element={<LegacyAbastecimentoDetailRedirect />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
   </Suspense>

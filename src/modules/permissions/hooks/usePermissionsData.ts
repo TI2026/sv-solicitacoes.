@@ -138,7 +138,9 @@ export function useSaveApprovalFlow() {
 
 export function useMyApprovals(userId?: string) {
   return useQuery({
-    queryKey: ['my_approvals', userId],
+    // Histórico e fila possuem contratos diferentes. Não compartilhar a
+    // chave da fila (`my_approvals`), que retorna { items, summary }.
+    queryKey: ['my_approval_history', userId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
@@ -209,6 +211,7 @@ export function useProcessApproval() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my_approvals'] });
+      qc.invalidateQueries({ queryKey: ['my_approval_history'] });
       qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
       qc.invalidateQueries({ queryKey: ['approval_flows'] });
       qc.invalidateQueries({ queryKey: ['approval_request_for'] });

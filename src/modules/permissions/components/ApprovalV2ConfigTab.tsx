@@ -68,6 +68,11 @@ export default function ApprovalV2ConfigTab() {
   };
 
   const selectedSector = sectors?.find(s => s.id === sectorId);
+  const templatesReady = health?.template.ok === true;
+  const configurationStatus: HealthStatus = health?.overall ?? 'blocked';
+  const motorActive = (health?.modules?.length ?? 0) === 6
+    && health!.modules.every(module => module.flow_active);
+  const cutoverReady = cutover?.can_activate === true;
 
   // Contrato V2: Pessoa exige responsável + substituto + SLA; Setor exige setor
   // com responsável/substituto válidos + SLA. Nada é opcional.
@@ -104,7 +109,6 @@ export default function ApprovalV2ConfigTab() {
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">Configurações de Aprovação — Motor V2</h3>
-            {health && <HealthBadge status={health.overall} />}
           </div>
           <p className="text-xs text-muted-foreground">
             As etapas de cada módulo são fixas e definidas pelo contrato do motor. Você configura apenas quem
@@ -113,6 +117,24 @@ export default function ApprovalV2ConfigTab() {
           <p className="text-xs text-muted-foreground">
             {health?.flows_total ?? 0} módulos · {health?.steps_total ?? 0} etapas
           </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 pt-3">
+            <div className="rounded-md border bg-background p-2.5">
+              <p className="text-[11px] text-muted-foreground">Templates</p>
+              <p className="text-sm font-semibold">{templatesReady ? 'Prontos' : 'Bloqueados'}</p>
+            </div>
+            <div className="rounded-md border bg-background p-2.5 space-y-1">
+              <p className="text-[11px] text-muted-foreground">Configuração</p>
+              <HealthBadge status={configurationStatus} />
+            </div>
+            <div className="rounded-md border bg-background p-2.5">
+              <p className="text-[11px] text-muted-foreground">Motor</p>
+              <p className="text-sm font-semibold">{motorActive ? 'Ativo' : 'Inativo'}</p>
+            </div>
+            <div className="rounded-md border bg-background p-2.5">
+              <p className="text-[11px] text-muted-foreground">Cutover</p>
+              <p className="text-sm font-semibold">{cutoverReady ? 'Pronto' : 'Bloqueado'}</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

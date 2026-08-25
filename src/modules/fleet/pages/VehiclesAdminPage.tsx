@@ -161,7 +161,7 @@ export default function VehiclesAdminPage() {
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <Button variant="ghost" className="gap-2" onClick={() => navigate('/fleet')}>
+        <Button variant="ghost" className="gap-2" onClick={() => navigate('/abastecimento')}>
           <ArrowLeft className="w-4 h-4" /> Voltar para Solicitações
         </Button>
         <Button onClick={openNew} className="gap-2">
@@ -324,7 +324,7 @@ export default function VehiclesAdminPage() {
                         return (
                           <tr
                             key={e.id}
-                            onClick={() => navigate(`/fleet/${e.id}`)}
+                            onClick={() => navigate(`/abastecimento/${e.id}`)}
                             className={`border-b border-border/60 hover:bg-muted/30 cursor-pointer ${isAnomaly ? 'bg-destructive/5' : ''}`}
                           >
                             <td className="py-2 px-2 text-xs">{new Date(e.data_abastecimento + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
@@ -378,7 +378,7 @@ export default function VehiclesAdminPage() {
                               size="sm"
                               variant="outline"
                               className="h-7 gap-1.5 text-xs"
-                              onClick={() => navigate(`/fleet/${a.lastFillId}`)}
+                              onClick={() => navigate(`/abastecimento/${a.lastFillId}`)}
                             >
                               <ExternalLink className="w-3 h-3" /> Ver último abastecimento
                             </Button>

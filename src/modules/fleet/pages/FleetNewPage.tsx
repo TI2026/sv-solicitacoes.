@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCheckDailyLimit } from '@/hooks/useRequestLimits';
 import { useCreateFuelRequest } from '../hooks/useFleetQueries';
@@ -157,8 +157,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
 
   const canCreateDiaria = hasAnyRole(['diretoria', 'administrativo']);
   if (type === 'diaria' && !canCreateDiaria) {
-    navigate(backRoute);
-    return null;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handlePixKeyChange = (value: string) => {
@@ -409,7 +408,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Motivo</Label>
+                <Label>Motivo *</Label>
                 <Input
                   value={motivo}
                   onChange={e => setMotivo(e.target.value.slice(0, 200))}

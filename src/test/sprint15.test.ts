@@ -38,7 +38,7 @@ function classifyTerminationStatus(status: string): RequestGroup {
 }
 
 const MODULE_ROUTE: Record<string, string> = {
-  abastecimento: '/fleet',
+  abastecimento: '/abastecimento',
   reembolso: '/reembolsos',
   diaria: '/diarias',
   admissions: '/admissions',
@@ -48,7 +48,7 @@ const MODULE_ROUTE: Record<string, string> = {
 
 function resolveRoute(moduleCode: string | null, referenceId: string | null): string | null {
   if (!referenceId) return null;
-  const base = MODULE_ROUTE[moduleCode || ''] || '/fleet';
+  const base = MODULE_ROUTE[moduleCode || ''] || '/abastecimento';
   return `${base}/${referenceId}`;
 }
 
@@ -159,8 +159,8 @@ describe('resolveRoute (criticalPendingsLoader)', () => {
   it('retorna rota correta para admissions', () => {
     expect(resolveRoute('admissions', uuid)).toBe(`/admissions/${uuid}`);
   });
-  it('retorna /fleet para abastecimento', () => {
-    expect(resolveRoute('abastecimento', uuid)).toBe(`/fleet/${uuid}`);
+  it('retorna /abastecimento para abastecimento', () => {
+    expect(resolveRoute('abastecimento', uuid)).toBe(`/abastecimento/${uuid}`);
   });
   it('mantém diária fora da rota de abastecimento', () => {
     expect(resolveRoute('diaria', uuid)).toBe(`/diarias/${uuid}`);
@@ -168,8 +168,8 @@ describe('resolveRoute (criticalPendingsLoader)', () => {
   it('mantém reembolso fora da rota de abastecimento', () => {
     expect(resolveRoute('reembolso', uuid)).toBe(`/reembolsos/${uuid}`);
   });
-  it('retorna /fleet para módulo desconhecido (fallback)', () => {
-    expect(resolveRoute('modulo_inexistente', uuid)).toBe(`/fleet/${uuid}`);
+  it('retorna /abastecimento para módulo desconhecido (fallback)', () => {
+    expect(resolveRoute('modulo_inexistente', uuid)).toBe(`/abastecimento/${uuid}`);
   });
   it('retorna null se referenceId for null', () => {
     expect(resolveRoute('compras', null)).toBeNull();

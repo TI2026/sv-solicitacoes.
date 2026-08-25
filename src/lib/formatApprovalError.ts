@@ -4,6 +4,13 @@ export function formatApprovalError(errorMessage: string): string {
 
   const lowerMsg = errorMessage.toLowerCase();
 
+  if (
+    lowerMsg.includes('approval_engine_awaiting_activation') ||
+    lowerMsg.includes('workflow_no_eligible_approver')
+  ) {
+    return 'Motor de aprovação aguardando ativação/configuração.';
+  }
+
   if (lowerMsg.includes('sem permissão para iniciar fluxo em nome de outro usuário')) {
     return 'Você não tem permissão para enviar uma solicitação em nome de outro usuário.';
   }

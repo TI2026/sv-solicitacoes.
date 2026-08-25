@@ -105,6 +105,30 @@ INSERT INTO public.user_role_assignments (user_id, role_id)
 SELECT 'b0000000-0000-0000-0001-000000000014', id FROM public.roles WHERE key = 'supervisor'
 ON CONFLICT DO NOTHING;
 
+-- O gate operacional permite novas instancias somente em V2. Esta fixture
+-- transacional ativa os templates V2 e atribui atores reais de teste, sem
+-- alterar a configuracao persistida pelo reset.
+UPDATE public.approval_flows SET active = false;
+UPDATE public.approval_flows SET active = true WHERE version = 'v2';
+
+UPDATE public.approval_flow_steps s
+SET assignment_mode = 'person',
+    approver_type = 'person',
+    approver_user_id = CASE
+      WHEN s.step_order = 1 AND m.code IN ('compras', 'abastecimento', 'diaria', 'reembolso')
+        THEN 'b0000000-0000-0000-0000-000000000002'::uuid
+      WHEN s.step_order = 1 AND m.code IN ('admissoes', 'desligamentos')
+        THEN 'b0000000-0000-0000-0001-000000000010'::uuid
+      ELSE 'b0000000-0000-0000-0001-000000000012'::uuid
+    END,
+    substitute_user_id = 'b0000000-0000-0000-0001-000000000014'::uuid,
+    fixed_sector_id = NULL,
+    default_sla_hours = 24
+FROM public.approval_flows f
+JOIN public.approval_modules m ON m.id = f.module_id
+WHERE f.id = s.flow_id
+  AND f.version = 'v2';
+
 -- start_approval_flow is private in the final V2 RPC contract. Preserve the
 -- requester JWT while invoking this engine unit test as the database owner.
 SELECT set_config('request.jwt.claims',
@@ -161,7 +185,7 @@ SELECT is(
 
 -- ============================================================
 -- MÓDULO 2: ABASTECIMENTO
--- Fluxo: 2 steps (gestor_imediato + administrativo)
+-- Fluxo V2: 3 steps
 -- ============================================================
 INSERT INTO public.fuel_requests (id, requester_user_id, status, type, valor)
 VALUES ('b2000000-0000-0000-0000-000000000001',
@@ -190,8 +214,8 @@ SELECT is(
   (SELECT COUNT(*)::int FROM public.approval_request_steps
    WHERE approval_request_id = (SELECT id FROM public.approval_requests WHERE reference_id = 'b2000000-0000-0000-0000-000000000001')
      AND status = 'waiting'),
-  1,
-  'abastecimento: step 2 status = waiting'
+  2,
+  'abastecimento: steps 2 e 3 status = waiting'
 );
 
 -- ============================================================
