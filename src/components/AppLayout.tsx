@@ -142,13 +142,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       label: 'Operacional',
       items: [
         {
-          to: '/fleet',
+          to: '/abastecimento',
           label: 'Abastecimento',
           icon: Fuel,
           show: true,
           badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' as const } : null,
         },
-        { to: '/diarias', label: 'Diárias', icon: CalendarDays, show: true },
+        { to: '/diarias', label: 'Diárias', icon: CalendarDays, show: canManage || isMaster },
         { to: '/reembolsos', label: 'Reembolsos', icon: Receipt, show: true },
         { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: true },
         { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
@@ -159,7 +159,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       items: [
         { to: '/colaboradores', label: 'Colaboradores', icon: Users, show: canManage },
         { to: '/desligamentos', label: 'Desligamentos', icon: UserMinus, show: canViewAdmission },
-        { to: '/fleet/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
+        { to: '/abastecimento/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
         { to: '/setores', label: 'Setores', icon: Building2, show: canViewSectors },
         { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewEpis },
       ],
@@ -184,9 +184,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const isActive = (path: string) => {
     const [cleanPath, query] = path.split('?');
-    if (cleanPath === '/fleet') {
-      // só ativa em /fleet exato (não em /fleet/vehicles-admin)
-      return location.pathname === '/fleet';
+    if (cleanPath === '/abastecimento') {
+      // Só ativa na lista/detalhe de abastecimento, não no cadastro de veículos.
+      return location.pathname.startsWith('/abastecimento')
+        && !location.pathname.startsWith('/abastecimento/vehicles-admin');
     }
     // Para /permissoes, dois links convivem (Fluxos e Permissões) —
     // diferencie pela query ?tab= para evitar destaque duplo.

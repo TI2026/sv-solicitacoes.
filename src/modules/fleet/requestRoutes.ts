@@ -3,7 +3,7 @@ export type FleetBusinessModule = 'abastecimento' | 'diaria' | 'reembolso';
 export function requestListRoute(type: string): string {
   if (type === 'diaria') return '/diarias';
   if (type === 'reembolso') return '/reembolsos';
-  return '/fleet';
+  return '/abastecimento';
 }
 
 export function requestNewRoute(type: string): string {
@@ -19,7 +19,7 @@ export function approvalModuleDetailRoute(moduleCode: string, id: string): strin
   const routes: Record<string, string> = {
     compras: '/purchases',
     purchases: '/purchases',
-    abastecimento: '/fleet',
+    abastecimento: '/abastecimento',
     diaria: '/diarias',
     reembolso: '/reembolsos',
     admissoes: '/admissions',

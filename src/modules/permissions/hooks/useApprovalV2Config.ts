@@ -65,9 +65,11 @@ export function useSaveStepAssignment() {
 
   return useMutation({
     mutationFn: saveStepAssignment,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['approval_v2_health'] });
-      qc.invalidateQueries({ queryKey: ['approval_v2_cutover'] });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.refetchQueries({ queryKey: ['approval_v2_health'], type: 'active' }),
+        qc.refetchQueries({ queryKey: ['approval_v2_cutover'], type: 'active' }),
+      ]);
       toast({ title: 'Configuração da etapa salva' });
     },
     onError: (err: Error) => {

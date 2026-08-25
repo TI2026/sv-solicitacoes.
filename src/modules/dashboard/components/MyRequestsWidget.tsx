@@ -123,7 +123,7 @@ export function MyRequestsWidget({ userId }: Props) {
             variant="ghost"
             size="sm"
             className="h-7 text-xs gap-1 text-muted-foreground"
-            onClick={() => navigate('/fleet?filter=minhas')}
+            onClick={() => navigate('/abastecimento?filter=minhas')}
           >
             Ver todas <ExternalLink className="w-3 h-3" />
           </Button>

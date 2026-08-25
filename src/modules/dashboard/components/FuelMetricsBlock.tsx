@@ -37,9 +37,9 @@ export function FuelMetricsBlock({ metrics, canSeeFinancials }: { metrics: any; 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard icon={Fuel} label="Total" value={metrics.total} gradientClass="bg-blue-500" onClick={() => navigate('/fleet')} />
-        <MetricCard icon={Clock} label="Pendentes" value={metrics.pendentes} gradientClass="bg-amber-500" onClick={() => navigate('/fleet')} />
-        <MetricCard icon={CheckCircle} label="Aprovados" value={metrics.aprovados} gradientClass="bg-emerald-500" onClick={() => navigate('/fleet')} />
+        <MetricCard icon={Fuel} label="Total" value={metrics.total} gradientClass="bg-blue-500" onClick={() => navigate('/abastecimento')} />
+        <MetricCard icon={Clock} label="Pendentes" value={metrics.pendentes} gradientClass="bg-amber-500" onClick={() => navigate('/abastecimento')} />
+        <MetricCard icon={CheckCircle} label="Aprovados" value={metrics.aprovados} gradientClass="bg-emerald-500" onClick={() => navigate('/abastecimento')} />
         {canSeeFinancials && (
           <MetricCard icon={DollarSign} label="Valor Total" value={formatCurrency(metrics.valor_total || 0)} gradientClass="bg-purple-500" />
         )}

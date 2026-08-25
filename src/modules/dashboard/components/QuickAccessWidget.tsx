@@ -44,8 +44,8 @@ export function QuickAccessWidget({ canViewAdmissions }: Props) {
       key: 'abastecimento',
       label: 'Abastecimento',
       icon: Fuel,
-      newRoute: '/fleet/new',
-      listRoute: '/fleet',
+      newRoute: '/abastecimento/new',
+      listRoute: '/abastecimento',
       show: true,
     },
     {

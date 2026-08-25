@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseEntityActionResult } from '@/hooks/useEntityAction';
+import { formatApprovalError } from '@/lib/formatApprovalError';
 import { approvalModuleDetailRoute, requestDetailRoute, requestListRoute, requestNewRoute } from '@/modules/fleet/requestRoutes';
 
 describe('Checkpoint B — contrato único do executor', () => {
@@ -20,11 +21,18 @@ describe('Checkpoint B — contrato único do executor', () => {
   it('rejeita código malformado', () => {
     expect(() => parseEntityActionResult({ code: 'ENGINE-400' })).toThrow('ENGINE_INVALID_CODE');
   });
+
+  it.each(['APPROVAL_ENGINE_AWAITING_ACTIVATION', 'WORKFLOW_NO_ELIGIBLE_APPROVER'])(
+    'traduz %s sem expor erro técnico ao usuário',
+    (error) => {
+      expect(formatApprovalError(error)).toBe('Motor de aprovação aguardando ativação/configuração.');
+    },
+  );
 });
 
 describe('Checkpoint B — separação das rotas empresariais', () => {
   it('resolve listas, criação e detalhes por processo', () => {
-    expect(requestListRoute('abastecimento')).toBe('/fleet');
+    expect(requestListRoute('abastecimento')).toBe('/abastecimento');
     expect(requestNewRoute('diaria')).toBe('/diarias/new');
     expect(requestDetailRoute('diaria', 'id-1')).toBe('/diarias/id-1');
     expect(requestNewRoute('reembolso')).toBe('/reembolsos/new');
@@ -33,7 +41,7 @@ describe('Checkpoint B — separação das rotas empresariais', () => {
 
   it.each([
     ['compras', '/purchases/id-1'],
-    ['abastecimento', '/fleet/id-1'],
+    ['abastecimento', '/abastecimento/id-1'],
     ['diaria', '/diarias/id-1'],
     ['reembolso', '/reembolsos/id-1'],
     ['admissoes', '/admissions/id-1'],
@@ -47,6 +55,9 @@ describe('Checkpoint B — separação das rotas empresariais', () => {
     expect(source).toContain("title: 'Abastecimentos'");
     expect(source).not.toContain('<TabsTrigger value="reembolso"');
     expect(source).not.toContain('<TabsTrigger value="diaria"');
+    expect(source).toContain("activeTab === 'abastecimento' ? user?.id : undefined");
+    expect(source).toContain("activeTab === 'reembolso' ? user?.id : undefined");
+    expect(source).toContain("activeTab === 'diaria' && canSeeDiaria ? user?.id : undefined");
   });
 });
 
@@ -152,6 +163,23 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     const source = readFileSync(resolve('src/modules/permissions/hooks/usePermissionsData.ts'), 'utf8');
     expect(source).toContain(".select('id')");
     expect(source).toContain("refetchQueries({ queryKey: ['approval_flows'], type: 'active' })");
+  });
+
+  it('consulta somente colunas reais de fuel_requests no Dashboard', () => {
+    const source = readFileSync(resolve('src/modules/dashboard/queries/myRequestsLoader.ts'), 'utf8');
+    expect(source).toContain('valor, motivo, notes, person_name, categoria');
+    expect(source).not.toContain('valor, description');
+    expect(source).toContain('[myRequestsLoader] ${moduleName} fetch failed:');
+  });
+
+  it('separa templates, configuração, motor e cutover na tela Master', () => {
+    const source = readFileSync(resolve('src/modules/permissions/components/ApprovalV2ConfigTab.tsx'), 'utf8');
+    expect(source).toContain('Templates');
+    expect(source).toContain('Configuração');
+    expect(source).toContain('Motor');
+    expect(source).toContain('Cutover');
+    expect(source).toContain("motorActive ? 'Ativo' : 'Inativo'");
+    expect(source).toContain("cutoverReady ? 'Pronto' : 'Bloqueado'");
   });
 
   it('exige comprovante para enviar Reembolso e mantém resolução de divergência', () => {

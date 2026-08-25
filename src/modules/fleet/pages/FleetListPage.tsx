@@ -155,9 +155,27 @@ export default function FleetListPage({ requestType }: { requestType?: string })
   }, [requestType]);
 
   // Sem paginação manual (RC Final — Onda B): busca ampla, filtragem via tabs/subfilter.
-  const { data: abastRes, isLoading: abastLoading } = useFuelRequests(user?.id, isAdmin, 'abastecimento', 1, 200);
-  const { data: reembolsoRes, isLoading: reembolsoLoading } = useFuelRequests(user?.id, isAdmin, 'reembolso', 1, 200);
-  const { data: diariaRes, isLoading: diariaLoading } = useFuelRequests(canSeeDiaria ? user?.id : undefined, canSeeDiaria ? isAdmin : false, canSeeDiaria ? 'diaria' : undefined, 1, 200);
+  const { data: abastRes, isLoading: abastLoading } = useFuelRequests(
+    activeTab === 'abastecimento' ? user?.id : undefined,
+    isAdmin,
+    'abastecimento',
+    1,
+    200,
+  );
+  const { data: reembolsoRes, isLoading: reembolsoLoading } = useFuelRequests(
+    activeTab === 'reembolso' ? user?.id : undefined,
+    isAdmin,
+    'reembolso',
+    1,
+    200,
+  );
+  const { data: diariaRes, isLoading: diariaLoading } = useFuelRequests(
+    activeTab === 'diaria' && canSeeDiaria ? user?.id : undefined,
+    isAdmin,
+    'diaria',
+    1,
+    200,
+  );
   const abastGroups = useMemo(() => groupRequests(abastRes?.data), [abastRes]);
   const reembolsoGroups = useMemo(() => groupRequests(reembolsoRes?.data), [reembolsoRes]);
   const diariaGroups = useMemo(() => groupDiariaRequests(diariaRes?.data), [diariaRes]);
