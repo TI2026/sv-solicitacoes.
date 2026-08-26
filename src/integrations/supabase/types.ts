@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1962,18 +1962,24 @@ export type Database = {
           approved_value: number | null
           attachments: Json
           category: string
+          confirmed_at: string | null
+          confirmed_by: string | null
           cost_center: string | null
           created_at: string
           deleted_at: string | null
+          delivery_address: string | null
+          delivery_date: string | null
           description: string
           estimated_value: number
           id: string
           justification: string | null
           priority: string
+          purchase_notes: string | null
           purchase_number: string | null
           requester_user_id: string
           status: string
           supplier: string | null
+          tracking_code: string | null
           updated_at: string
         }
         Insert: {
@@ -1981,18 +1987,24 @@ export type Database = {
           approved_value?: number | null
           attachments?: Json
           category: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           cost_center?: string | null
           created_at?: string
           deleted_at?: string | null
+          delivery_address?: string | null
+          delivery_date?: string | null
           description: string
           estimated_value?: number
           id?: string
           justification?: string | null
           priority?: string
+          purchase_notes?: string | null
           purchase_number?: string | null
           requester_user_id: string
           status?: string
           supplier?: string | null
+          tracking_code?: string | null
           updated_at?: string
         }
         Update: {
@@ -2000,18 +2012,24 @@ export type Database = {
           approved_value?: number | null
           attachments?: Json
           category?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           cost_center?: string | null
           created_at?: string
           deleted_at?: string | null
+          delivery_address?: string | null
+          delivery_date?: string | null
           description?: string
           estimated_value?: number
           id?: string
           justification?: string | null
           priority?: string
+          purchase_notes?: string | null
           purchase_number?: string | null
           requester_user_id?: string
           status?: string
           supplier?: string | null
+          tracking_code?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2020,6 +2038,20 @@ export type Database = {
             columns: ["approval_request_id"]
             isOneToOne: false
             referencedRelation: "approval_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "vw_employee_directory"
             referencedColumns: ["id"]
           },
           {
@@ -2833,6 +2865,25 @@ export type Database = {
         Returns: Json
       }
       _engine_sla_sweep: { Args: never; Returns: Json }
+      _execute_entity_action_checkpoint_b: {
+        Args: {
+          p_action: string
+          p_entity_id: string
+          p_module_key: string
+          p_payload?: Json
+        }
+        Returns: Json
+      }
+      _get_entity_action_context_checkpoint_b: {
+        Args: { p_entity_id: string; p_module_key: string }
+        Returns: Database["public"]["CompositeTypes"]["entity_action_context"]
+        SetofOptions: {
+          from: "*"
+          to: "entity_action_context"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       _update_entity_status: {
         Args: {
           p_entity_id: string
@@ -2978,18 +3029,33 @@ export type Database = {
         }
         Returns: Json
       }
+      set_role_permission: {
+        Args: {
+          p_action_id: string
+          p_allowed: boolean
+          p_module_id: string
+          p_role_id: string
+        }
+        Returns: Json
+      }
+      set_user_role_assignment: {
+        Args: { p_role_id: string; p_user_id: string }
+        Returns: Json
+      }
       soft_delete_request: {
         Args: { _reason?: string; _request_id: string }
         Returns: Json
       }
-      start_approval_flow: {
-        Args: {
-          p_module_code: string
-          p_reference_id: string
-          p_requester_user_id: string
-        }
-        Returns: Json
-      }
+      start_approval_flow:
+        | {
+            Args: {
+              p_module_code: string
+              p_reference_id: string
+              p_requester_user_id: string
+            }
+            Returns: Json
+          }
+        | { Args: { p_entity_id: string; p_module_key: string }; Returns: Json }
       submit_purchase_request: { Args: { p_request_id: string }; Returns: Json }
       termination_set_status: {
         Args: {
@@ -3002,6 +3068,10 @@ export type Database = {
       user_participates_in_approval: {
         Args: { p_approval_request_id: string; p_user_id: string }
         Returns: boolean
+      }
+      workflow_entity_link: {
+        Args: { p_entity_id: string; p_module: string }
+        Returns: string
       }
     }
     Enums: {
