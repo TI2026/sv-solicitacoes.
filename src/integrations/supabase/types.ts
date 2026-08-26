@@ -2939,6 +2939,16 @@ export type Database = {
       }
       get_approval_configuration_health: { Args: never; Returns: Json }
       get_dashboard_metrics: { Args: never; Returns: Json }
+      get_employee_directory: {
+        Args: never
+        Returns: {
+          active: boolean
+          avatar: string
+          display_name: string
+          id: string
+          sector_id: string
+        }[]
+      }
       get_entity_action_context: {
         Args: { p_entity_id: string; p_module_key: string }
         Returns: Database["public"]["CompositeTypes"]["entity_action_context"]

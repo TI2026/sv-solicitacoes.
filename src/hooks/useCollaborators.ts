@@ -27,9 +27,8 @@ export function useCollaborators(filters?: { active?: boolean; sector_id?: strin
 
       if (filters?.includeProfiles) {
         const { data: profiles, error: profError } = await supabase
-          .from('vw_employee_directory' as any)
-          .select('id, display_name, sector_id')
-          .order('display_name');
+          .rpc('get_employee_directory' as any);
+
         
         if (!profError && profiles) {
           const linkedProfileIds = new Set(finalData.map(c => c.user_profile_id).filter(Boolean));
