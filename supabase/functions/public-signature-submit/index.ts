@@ -136,22 +136,20 @@ Deno.serve(async (req) => {
     // Record in admission_files
     const fileType = doc_key || 'signed_doc';
 
-    // For candidate uploads with doc_key, remove previous file for same doc_key (1 file per type)
+    // Read the prior version first, but preserve it until the new record is durable.
+    let existing: Array<{ id: string; storage_path: string }> = [];
     if (doc_key) {
-      const { data: existing } = await supabase
+      const { data: priorFiles } = await supabase
         .from('admission_files')
         .select('id, storage_path')
         .eq('candidate_id', link.candidate_id)
         .eq('file_type', doc_key)
         .eq('uploaded_by', 'CANDIDATE')
         .eq('link_type', 'SIGNATURE');
-      for (const old of (existing || [])) {
-        await supabase.storage.from('admissions').remove([old.storage_path]);
-        await supabase.from('admission_files').delete().eq('id', old.id);
-      }
+      existing = priorFiles || [];
     }
 
-    await supabase.from('admission_files').insert({
+    const { error: recordError } = await supabase.from('admission_files').insert({
       admission_request_id: link.admission_request_id,
       candidate_id: link.candidate_id,
       file_type: fileType,
@@ -160,6 +158,20 @@ Deno.serve(async (req) => {
       uploaded_by: 'CANDIDATE',
       link_type: 'SIGNATURE',
     });
+
+    if (recordError) {
+      console.error('Admission signature record error:', recordError);
+      await supabase.storage.from('admissions').remove([storagePath]);
+      return new Response(JSON.stringify({ error: 'Falha ao registrar o arquivo assinado' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    for (const old of existing) {
+      await supabase.storage.from('admissions').remove([old.storage_path]);
+      await supabase.from('admission_files').delete().eq('id', old.id);
+    }
 
     // Log
     await supabase.from('audit_logs').insert({

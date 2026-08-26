@@ -58,8 +58,8 @@ export default function TerminationDetailPage() {
   const { data: approvalCtx, isLoading: approvalCtxLoading, error: approvalCtxError } = useApprovalContext(id, 'desligamentos');
   const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
 
-  const { data: approvalRequest } = useApprovalRequestForReference(id);
-  const { data: previousCycles = [] } = useApprovalRequestsForReference(id);
+  const { data: approvalRequest } = useApprovalRequestForReference('desligamentos', id);
+  const { data: previousCycles = [] } = useApprovalRequestsForReference('desligamentos', id);
 
   if (isLoading) {
     return (

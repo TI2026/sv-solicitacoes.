@@ -38,6 +38,7 @@ export default function PublicSignaturePage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SignatureData | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   // Track uploaded signed files per doc_key
   const [uploadedKeys, setUploadedKeys] = useState<Record<string, string>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
@@ -129,9 +130,9 @@ export default function PublicSignaturePage() {
 
   const handleFinalize = async () => {
     if (!token) return;
-    setSubmitted(true);
+    setSubmitting(true);
     try {
-      await fetch(
+      const res = await fetch(
         `${supabaseUrl}/functions/v1/admissions-finalize-signed-docs`,
         {
           method: 'POST',
@@ -139,9 +140,16 @@ export default function PublicSignaturePage() {
           body: JSON.stringify({ token }),
         }
       );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.success !== true) {
+        throw new Error(body.error || 'Falha ao finalizar documentos assinados');
+      }
+      setSubmitted(true);
       toast({ title: 'Documentos assinados enviados com sucesso!' });
-    } catch {
-      toast({ title: 'Erro ao finalizar', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao finalizar', description: err.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -290,8 +298,8 @@ export default function PublicSignaturePage() {
         </Card>
 
         {/* Finalize */}
-        <Button onClick={handleFinalize} disabled={!allUploaded || availableDocs.length === 0} className="w-full gap-2">
-          <CheckCircle className="w-4 h-4" /> Finalizar Envio dos Documentos Assinados
+        <Button onClick={handleFinalize} disabled={!allUploaded || availableDocs.length === 0 || submitting} className="w-full gap-2">
+          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Finalizar Envio dos Documentos Assinados
         </Button>
         {!allUploaded && availableDocs.length > 0 && (
           <p className="text-xs text-center text-muted-foreground">

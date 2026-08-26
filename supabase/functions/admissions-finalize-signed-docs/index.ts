@@ -78,10 +78,18 @@ Deno.serve(async (req) => {
       }
 
       // Mark as used
-      await supabase.from('admission_public_links').update({
+      const { error: finalizeError } = await supabase.from('admission_public_links').update({
         used_at: new Date().toISOString(),
         candidate_uploaded_at: new Date().toISOString(),
       }).eq('id', link.id);
+
+      if (finalizeError) {
+        console.error('Public link finalize error:', finalizeError);
+        return new Response(JSON.stringify({ error: 'Falha ao finalizar o envio' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       // Log
       await supabase.from('audit_logs').insert({
@@ -112,7 +120,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    await supabase.from('public_tokens').update({ used_at: new Date().toISOString() }).eq('id', tokenRow.id);
+    const { error: finalizeError } = await supabase
+      .from('public_tokens')
+      .update({ used_at: new Date().toISOString() })
+      .eq('id', tokenRow.id);
+
+    if (finalizeError) {
+      console.error('Legacy public token finalize error:', finalizeError);
+      return new Response(JSON.stringify({ error: 'Falha ao finalizar o envio' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     await supabase.from('audit_logs').insert({
       action: 'finalize_signed_docs',

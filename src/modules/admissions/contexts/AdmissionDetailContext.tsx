@@ -86,8 +86,8 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
   const qc = useQueryClient();
 
   const { data: req, isLoading } = useAdmissionRequest(id!);
-  const { data: approvalRequest } = useApprovalRequestForReference(id);
-  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const { data: approvalRequest } = useApprovalRequestForReference('admissoes', id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference('admissoes', id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   const { data: candidates } = useCandidates(id!);
   const { data: interviews } = useAdmissionInterviews(id!);

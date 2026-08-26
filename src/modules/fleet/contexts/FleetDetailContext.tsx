@@ -113,8 +113,9 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
 
   const { data: req, isLoading, refetch } = useFuelRequest(id!);
   const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
-  const { data: approvalRequest } = useApprovalRequestForReference(id);
-  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const requestModule = (req as any)?.type as string | undefined;
+  const { data: approvalRequest } = useApprovalRequestForReference(requestModule, id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference(requestModule, id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   
   const statusMutation = useEntityAction();
@@ -122,7 +123,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const approvalAction = useApprovalAction();
 
   // [Sprint 2 — Onda 1] Fonte canônica — carrega o contexto do Motor para este request.
-  const reqType_raw = (req as any)?.type || 'abastecimento';
+  const reqType_raw = requestModule || 'abastecimento';
   const {
     data: approvalCtx,
     isLoading: approvalCtxLoading,

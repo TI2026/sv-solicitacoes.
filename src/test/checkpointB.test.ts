@@ -211,3 +211,40 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     expect(source).toContain("reqType === 'reembolso' && stepAction === 'aprovar'");
   });
 });
+
+describe('Checkpoint B — autoridade por módulo e fluxo público', () => {
+  it('consulta ciclos de aprovação pelo par módulo + entidade', () => {
+    const approval = readFileSync(resolve('src/hooks/useApprovalFlow.ts'), 'utf8');
+    const batch = readFileSync(resolve('src/modules/dashboard/hooks/useFlowControlBatch.ts'), 'utf8');
+    expect(approval).toContain("queryKey: ['approval_request_for', moduleCode, referenceId]");
+    expect(approval).toContain('approval_modules!inner(code, name)');
+    expect(approval).toContain(".eq('approval_modules.code', moduleCode!)");
+    expect(batch).toContain('approval_modules!inner(code)');
+    expect(batch).toContain(".eq('approval_modules.code', moduleKey)");
+  });
+
+  it('usa o contrato FormData da Edge de documentos públicos', () => {
+    const page = readFileSync(resolve('src/modules/admissions/pages/PublicDocumentsPage.tsx'), 'utf8');
+    expect(page).toContain("formData.append('token', token)");
+    expect(page).toContain("formData.append('file', file)");
+    expect(page).toContain("formData.append('file_type', docKey)");
+    expect(page).toContain('body.success !== true || !body.path');
+    expect(page).not.toContain('const { signedUrl }');
+  });
+
+  it('não exibe sucesso público antes do HTTP e da persistência', () => {
+    const documents = readFileSync(resolve('supabase/functions/public-documents-submit/index.ts'), 'utf8');
+    const signature = readFileSync(resolve('supabase/functions/public-signature-submit/index.ts'), 'utf8');
+    const finalize = readFileSync(resolve('supabase/functions/admissions-finalize-signed-docs/index.ts'), 'utf8');
+    const signaturePage = readFileSync(resolve('src/modules/admissions/pages/PublicSignaturePage.tsx'), 'utf8');
+    expect(documents).toContain('if (recordError)');
+    expect(signature).toContain('if (recordError)');
+    expect(signature).toContain('preserve it until the new record is durable');
+    expect(finalize).toContain('if (finalizeError)');
+    expect(signaturePage).toContain('if (!res.ok || body.success !== true)');
+    const finalizeHandler = signaturePage.slice(signaturePage.indexOf('const handleFinalize'));
+    expect(finalizeHandler.indexOf('setSubmitted(true)')).toBeGreaterThan(
+      finalizeHandler.indexOf('if (!res.ok || body.success !== true)'),
+    );
+  });
+});

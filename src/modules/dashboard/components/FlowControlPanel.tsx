@@ -62,8 +62,8 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [admData, showFinalized]);
-  const actionableEntityIds = useMemo(
-    () => new Set(approvalQueue.map(item => item.reference_id)),
+  const actionableEntityKeys = useMemo(
+    () => new Set(approvalQueue.map(item => `${item.module_code}:${item.reference_id}`)),
     [approvalQueue],
   );
 
@@ -156,13 +156,15 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
                   <span className="text-xs font-semibold text-muted-foreground">{items.length}</span>
                 </div>
                 <div className="space-y-1">
-                  {items.slice(0, 5).map((item: any) => (
-                    <div key={item.id} className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded px-2 py-1">
-                      {actionableEntityIds.has(item.id) && (
+                  {items.slice(0, 5).map((item: any) => {
+                    const entityKey = `${item.type}:${item.id}`;
+                    return (
+                    <div key={entityKey} className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded px-2 py-1">
+                      {actionableEntityKeys.has(entityKey) && (
                         <input
                           type="checkbox"
-                          checked={selectedIds.has(item.id)}
-                          onChange={() => toggleSelect(item.id)}
+                          checked={selectedIds.has(entityKey)}
+                          onChange={() => toggleSelect(entityKey)}
                           className="h-4 w-4 rounded border-border accent-primary shrink-0"
                           onClick={e => e.stopPropagation()}
                         />
@@ -175,7 +177,7 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
                         <span className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
                       </div>
                     </div>
-                  ))}
+                  )})}
                   {items.length > 5 && <p className="text-xs text-muted-foreground text-center">+{items.length - 5} mais</p>}
                 </div>
               </CardContent>

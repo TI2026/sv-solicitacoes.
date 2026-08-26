@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
     }
 
     // Record in admission_files
-    await supabase.from('admission_files').insert({
+    const { error: recordError } = await supabase.from('admission_files').insert({
       admission_request_id: link.admission_request_id,
       candidate_id: link.candidate_id,
       file_type: file_type || 'generic',
@@ -146,6 +146,15 @@ Deno.serve(async (req) => {
       uploaded_by: 'CANDIDATE',
       link_type: 'DOCUMENTS',
     });
+
+    if (recordError) {
+      console.error('Admission file record error:', recordError);
+      await supabase.storage.from('admissions').remove([storagePath]);
+      return new Response(JSON.stringify({ error: 'Falha ao registrar o arquivo' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Log
     await supabase.from('audit_logs').insert({

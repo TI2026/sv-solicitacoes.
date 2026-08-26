@@ -20,29 +20,34 @@ export function useFlowControlBatch(userId?: string) {
   const [results, setResults] = useState<{ ok: number; fail: number } | null>(null);
 
   const processBatch = async (
-    referenceIds: Set<string>,
+    entityKeys: Set<string>,
     action: 'approve' | 'reject',
     comments: string
   ) => {
-    if (referenceIds.size === 0) return;
+    if (entityKeys.size === 0) return;
     setIsProcessing(true);
     let ok = 0;
     let fail = 0;
 
-    for (const itemId of referenceIds) {
+    for (const entityKey of entityKeys) {
       try {
+        const separator = entityKey.indexOf(':');
+        if (separator <= 0) { fail++; continue; }
+        const moduleKey = entityKey.slice(0, separator);
+        const itemId = entityKey.slice(separator + 1);
+
         // [Sprint Final 1] Lote também converge no executor único.
-        // O contexto informa o módulo e a ação canônica da etapa atual.
+        // Módulo + entidade são inseparáveis em toda resolução de autoridade.
         const { data: ar } = await supabase
           .from('approval_requests')
-          .select('id, current_approver_user_id, ended_at, approval_modules(code)')
+          .select('id, current_approver_user_id, ended_at, approval_modules!inner(code)')
+          .eq('approval_modules.code', moduleKey)
           .eq('reference_id', itemId)
           .is('ended_at', null)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
 
-        const moduleKey = (ar as any)?.approval_modules?.code as string | undefined;
         if (ar && ar.current_approver_user_id === userId && moduleKey) {
           const { data: ctx } = await (supabase as any).rpc('get_entity_action_context', {
             p_module_key: moduleKey,
