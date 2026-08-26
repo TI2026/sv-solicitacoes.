@@ -34,14 +34,16 @@ export function StatusTimeline({ entityId, entityType, module, statusLabels }: S
         .order('created_at', { ascending: false });
       
       if (data && data.length > 0) {
-        const userIds = [...new Set(data.filter(d => d.changed_by).map(d => d.changed_by!))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-        
-        const nameMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+        const userIds = new Set(data.filter(d => d.changed_by).map(d => d.changed_by!));
+        const { data: directory } = await supabase.rpc('get_employee_directory' as any);
+
+        const nameMap = new Map(
+          ((directory as any[]) || [])
+            .filter(p => userIds.has(p.id))
+            .map(p => [p.id, p.display_name as string])
+        );
         setEntries(data.map(d => ({ ...d, changer_name: d.changed_by ? nameMap.get(d.changed_by) || 'Sistema' : 'Sistema' })));
+
       } else {
         setEntries([]);
       }

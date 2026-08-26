@@ -89,14 +89,17 @@ export async function loadApprovalEvents(approvalRequestId: string) {
 export async function loadUsers(userIds: string[]): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map();
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name')
-    .in('id', userIds);
+  const wanted = new Set(userIds);
+  const { data, error } = await supabase.rpc('get_employee_directory' as any);
 
   if (error) throw error;
-  return new Map((data ?? []).map((p: any) => [p.id, p.full_name]));
+  return new Map(
+    ((data as any[]) ?? [])
+      .filter((p) => wanted.has(p.id))
+      .map((p: any) => [p.id, p.display_name])
+  );
 }
+
 
 /**
  * Monta o array final de TimelineEvent a partir das fontes de dados brutas.
