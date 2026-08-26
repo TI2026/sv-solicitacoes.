@@ -33,6 +33,7 @@ import JSZip from 'jszip';
 import { useCreateCollaboratorFromAdmission } from '@/modules/epis/hooks/useAdmissionToCollaborator';
 import { useAdmissionFiles, useMedicalExam } from '../hooks/useAdmissionQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
 
 // Document key labels for admin view
 const DOC_KEY_LABELS: Record<string, string> = {
@@ -539,6 +540,15 @@ export function AdmissionDetailContent() {
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-4 h-fit">
+          {approvalCtxLoading ? (
+            <Skeleton className="h-28 w-full rounded-lg" />
+          ) : approvalCtxError ? (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+              Contexto de ações indisponível: {approvalCtxError.message}
+            </p>
+          ) : (
+            <ApprovalContextSummary ctx={approvalCtx} />
+          )}
           {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
           <Card>
             <CardContent className="p-4">

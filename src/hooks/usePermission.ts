@@ -14,9 +14,8 @@ import { useAuth } from '@/contexts/AuthContext';
  * ser feita tela a tela, com validação funcional.
  */
 export function usePermission(moduleCode: string, actionCode: string) {
-  const { user, hasRole } = useAuth() as {
+  const { user } = useAuth() as {
     user: { id: string } | null;
-    hasRole: (role: string) => boolean;
   };
 
   const query = useQuery({
@@ -34,12 +33,10 @@ export function usePermission(moduleCode: string, actionCode: string) {
     },
   });
 
-  // Fallback conservador: Master/Diretoria sempre têm acesso enquanto a RPC
-  // não responde ou falha. Evita telas em branco em caso de indisponibilidade.
-  const roleFallback = hasRole?.('master') || hasRole?.('diretoria') || false;
-
   return {
-    allowed: query.data ?? (query.isError ? roleFallback : false),
+    // Falhas de autorização são sempre fail-closed. O backend continua sendo
+    // a única autoridade, inclusive para Diretoria e Master.
+    allowed: query.data ?? false,
     isLoading: query.isLoading,
     isError: query.isError,
     refetch: query.refetch,

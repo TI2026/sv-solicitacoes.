@@ -57,7 +57,8 @@ describe('Checkpoint B — separação das rotas empresariais', () => {
     expect(source).not.toContain('<TabsTrigger value="diaria"');
     expect(source).toContain("activeTab === 'abastecimento' ? user?.id : undefined");
     expect(source).toContain("activeTab === 'reembolso' ? user?.id : undefined");
-    expect(source).toContain("activeTab === 'diaria' && canSeeDiaria ? user?.id : undefined");
+    expect(source).toContain("activeTab === 'diaria' ? user?.id : undefined");
+    expect(source).not.toContain('canSeeDiaria');
   });
 });
 

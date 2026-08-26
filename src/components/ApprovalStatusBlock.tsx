@@ -35,6 +35,21 @@ const ACTION_LABELS: Record<string, string> = {
   return: 'Devolvido',
 };
 
+const REQUEST_STATUS_LABELS: Record<string, string> = {
+  draft: 'Rascunho',
+  awaiting_step: 'Aguardando etapa',
+  waiting_operational: 'Aguardando ação operacional',
+  returned: 'Devolvido',
+  rejected: 'Recusado',
+  cancelled: 'Cancelado',
+  completed: 'Concluído',
+  // Compatibilidade explícita com ciclos V1/históricos.
+  pending_approval: 'Pendente (legado)',
+  approved: 'Aprovado (legado)',
+  returned_for_adjustment: 'Devolvido para ajuste (V1)',
+  returned_to_requester: 'Devolvido ao solicitante (V1)',
+};
+
 export function ApprovalStatusBlock({ approvalRequest, previousCycles }: ApprovalStatusBlockProps) {
   const ar = approvalRequest;
 
@@ -59,23 +74,24 @@ export function ApprovalStatusBlock({ approvalRequest, previousCycles }: Approva
 
   const steps = (ar.approval_request_steps || []).sort((a: any, b: any) => a.step_order - b.step_order);
   const status = String(ar.status || '');
-  const isAwaitingApprover = !ar.ended_at && !!ar.current_approver_user_id && (status.startsWith('awaiting_step_') || status === 'pending_approval');
-  const statusLabel = status === 'approved' ? 'Aprovado'
-    : status === 'rejected' ? 'Recusado'
-    : status === 'returned_for_adjustment' ? 'Devolvido para ajuste'
-    : status === 'returned_to_requester' ? 'Devolvido ao solicitante'
-    : status.startsWith('awaiting_step_') ? `Etapa ${ar.current_step_order}`
-    : status;
+  const isV1Awaiting = status.startsWith('awaiting_step_');
+  const isAwaitingApprover = !ar.ended_at && !!ar.current_approver_user_id && (status === 'awaiting_step' || isV1Awaiting);
+  const statusLabel = isV1Awaiting
+    ? `Etapa ${ar.current_step_order ?? status.replace('awaiting_step_', '')} (V1)`
+    : REQUEST_STATUS_LABELS[status] ?? status;
+  const isSuccess = status === 'completed' || status === 'approved';
+  const isRejected = status === 'rejected';
+  const isReturned = status === 'returned' || status === 'returned_for_adjustment' || status === 'returned_to_requester';
 
   return (
     <div className="space-y-2">
-      <Card className={`border-l-4 ${status === 'rejected' ? 'border-l-destructive' : status === 'approved' ? 'border-l-green-500' : 'border-l-primary'}`}>
+      <Card className={`border-l-4 ${isRejected ? 'border-l-destructive' : isSuccess ? 'border-l-green-500' : 'border-l-primary'}`}>
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
             <GitBranch className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">Fluxo de Aprovação</h3>
             <Badge
-              variant={status === 'approved' ? 'default' : status === 'rejected' ? 'destructive' : (status === 'returned_for_adjustment' || status === 'returned_to_requester') ? 'secondary' : 'outline'}
+              variant={isSuccess ? 'default' : isRejected ? 'destructive' : isReturned ? 'secondary' : 'outline'}
               className="text-xs"
             >
               {statusLabel}
@@ -130,8 +146,8 @@ export function ApprovalStatusBlock({ approvalRequest, previousCycles }: Approva
           {/* Current approver info */}
           {isAwaitingApprover && ar.current_step_order && (
             <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
-              Aguardando aprovação de <strong>
-                {steps.find((s: any) => s.step_order === ar.current_step_order)?.profiles?.full_name || 'aprovador'}
+              Aguardando ação de <strong>
+                {steps.find((s: any) => s.step_order === ar.current_step_order)?.profiles?.full_name || 'responsável configurado'}
               </strong>
               {steps.find((s: any) => s.step_order === ar.current_step_order)?.approver_rule && (
                 <span className="ml-1">
@@ -141,7 +157,7 @@ export function ApprovalStatusBlock({ approvalRequest, previousCycles }: Approva
             </div>
           )}
 
-          {status === 'returned_to_requester' && (
+          {(status === 'returned' || status === 'returned_to_requester') && (
             <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
               Esta solicitação foi devolvida ao solicitante e não está aguardando aprovação neste momento.
             </div>

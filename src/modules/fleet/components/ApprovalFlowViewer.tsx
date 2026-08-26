@@ -20,7 +20,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, CheckCircle2, XCircle, RotateCcw, Clock } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, RotateCcw, Clock, Circle } from 'lucide-react';
 import { useApprovalFlowSteps } from '../hooks/useApprovalFlowSteps';
 import { getDisplayApproverType, APPROVER_TYPE_LABELS } from '@/lib/approvalLabels';
 
@@ -77,7 +77,7 @@ export function ApprovalFlowViewer({ approvalRequestId }: { approvalRequestId: s
     };
   }, [approvalRequestId, queryClient]);
 
-  // — JSX idêntico ao anterior. Nenhuma alteração visual. —
+  // A semântica visual vem dos estados e snapshots persistidos pelo Motor V2.
 
   if (isLoading) return <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
   if (steps.length === 0) return <p className="text-sm text-muted-foreground py-2 text-center">Nenhuma etapa configurada</p>;
@@ -88,24 +88,35 @@ export function ApprovalFlowViewer({ approvalRequestId }: { approvalRequestId: s
         const icon = s.status === 'approved' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           : s.status === 'rejected' ? <XCircle className="w-4 h-4 text-destructive" />
           : s.status === 'returned' ? <RotateCcw className="w-4 h-4 text-amber-600" />
-          : <Clock className="w-4 h-4 text-muted-foreground" />;
-        const label = s.status === 'approved' ? 'Aprovada'
+          : s.status === 'cancelled' ? <XCircle className="w-4 h-4 text-muted-foreground" />
+          : s.status === 'pending' ? <Clock className="w-4 h-4 text-primary" />
+          : <Circle className="w-4 h-4 text-muted-foreground" />;
+        const label = s.status === 'approved' ? 'Concluída'
           : s.status === 'rejected' ? 'Recusada'
           : s.status === 'returned' ? 'Devolvida'
-          : 'Pendente';
+          : s.status === 'cancelled' ? 'Cancelada'
+          : s.status === 'pending' ? 'Etapa atual'
+          : 'Futura';
         const semantic = buildSemanticLabel(s);
         return (
           <div key={s.id} className="flex items-start gap-3 p-2 rounded-md border bg-card">
             <div className="mt-0.5">{icon}</div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap text-sm">
-                <span className="font-medium">Etapa {s.step_order}</span>
-                <span className="text-muted-foreground">·</span>
-                <span className="text-muted-foreground">{semantic}</span>
+                <span className="font-medium">Etapa {s.step_order}{s.step_name ? ` — ${s.step_name}` : ''}</span>
                 <span className="text-muted-foreground">·</span>
                 <span>{label}</span>
-                {s.profiles?.full_name && <span className="text-muted-foreground">· {s.profiles.full_name}</span>}
+                {s.profiles?.full_name ? (
+                  <span className="text-muted-foreground">· {s.profiles.full_name}</span>
+                ) : (
+                  <span className="text-muted-foreground">· {semantic}</span>
+                )}
               </div>
+              {s.sla_deadline && (
+                <p className={`text-[11px] mt-0.5 ${s.overdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  SLA: {new Date(s.sla_deadline).toLocaleString('pt-BR')}{s.overdue ? ' · vencido' : ''}
+                </p>
+              )}
               {s.comments && <p className="text-xs text-muted-foreground mt-1 italic">"{s.comments}"</p>}
               {s.action_at && <p className="text-[11px] text-muted-foreground mt-0.5">{new Date(s.action_at).toLocaleString('pt-BR')}</p>}
             </div>
@@ -114,4 +125,4 @@ export function ApprovalFlowViewer({ approvalRequestId }: { approvalRequestId: s
       })}
     </div>
   );
-}
+}

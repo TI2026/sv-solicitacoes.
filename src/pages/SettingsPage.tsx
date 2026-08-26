@@ -109,10 +109,10 @@ function RequestLimitsSection() {
                 <Gauge className="w-4 h-4" /> Limites de Solicitações
               </CardTitle>
               <CardDescription>
-                Configure o limite diário de solicitações por perfil e tipo. Caso não exista regra, o limite padrão é 5.
+                Configure um limite diário explícito por perfil e tipo. Sem regra configurada, a criação é ilimitada.
               </CardDescription>
             </div>
-            <Button size="sm" className="gap-1" onClick={() => setEditItem({ role: 'colaborador', request_type: 'abastecimento', daily_limit: 5 })}>
+            <Button size="sm" className="gap-1" onClick={() => setEditItem({ role: 'colaborador', request_type: 'abastecimento', daily_limit: 1 })}>
               <Plus className="w-4 h-4" /> Novo
             </Button>
           </div>
@@ -122,7 +122,7 @@ function RequestLimitsSection() {
             <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
           ) : !limits || limits.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
-              Nenhum limite configurado. O padrão de 5 solicitações/dia será usado para todos.
+              Nenhum limite configurado. As solicitações estão ilimitadas até que uma regra explícita seja criada.
             </p>
           ) : (
             <Table>

@@ -131,7 +131,6 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
 export default function FleetListPage({ requestType }: { requestType?: string }) {
   const { user, hasAnyRole } = useAuth();
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
-  const canSeeDiaria = hasAnyRole(['diretoria', 'administrativo']);
   const navigate = useNavigate();
   const initialTab = requestType || 'abastecimento';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -140,13 +139,6 @@ export default function FleetListPage({ requestType }: { requestType?: string })
   const softDelete = useSoftDeleteRequest();
   const abastLimit = useDailyLimitForRole(user?.roles, 'abastecimento');
   const reembolsoLimit = useDailyLimitForRole(user?.roles, 'reembolso');
-
-  // If activeTab is diaria but user can't see it, force to abastecimento
-  useEffect(() => {
-    if (activeTab === 'diaria' && !canSeeDiaria) {
-      setActiveTab('abastecimento');
-    }
-  }, [activeTab, canSeeDiaria]);
 
   useEffect(() => {
     if (requestType) {
@@ -170,7 +162,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
     200,
   );
   const { data: diariaRes, isLoading: diariaLoading } = useFuelRequests(
-    activeTab === 'diaria' && canSeeDiaria ? user?.id : undefined,
+    activeTab === 'diaria' ? user?.id : undefined,
     isAdmin,
     'diaria',
     1,
@@ -186,7 +178,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
     tables: [{ table: 'fuel_requests', queryKeys: [['fuel_requests'], ['fuel_metrics']] }],
   });
 
-  const canCreateDiaria = canSeeDiaria;
+  const canCreateDiaria = true;
 
   const pageMeta = requestType === 'diaria'
     ? { icon: Briefcase, title: 'Diárias', subtitle: isAdmin ? 'Todas as diárias' : 'Suas diárias' }
@@ -278,10 +270,9 @@ export default function FleetListPage({ requestType }: { requestType?: string })
           )}
         </TabsContent>
 
-        {canSeeDiaria && (
           <TabsContent value="diaria" className="space-y-3 mt-3">
             <InfoCard title="Como funciona a Diária?">
-              <p>• Disponível apenas para Administração e Diretores</p>
+              <p>• Acesso e ações respeitam as permissões e atribuições configuradas</p>
               <p>• Registre categoria, nome, horas e valor</p>
               <p>• A diária pode ser editada ou encerrada</p>
               <p>• Custos são somados por período no dashboard</p>
@@ -312,7 +303,6 @@ export default function FleetListPage({ requestType }: { requestType?: string })
               <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.completed} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária concluída" canDelete={isAdmin} onDelete={setDeleteTarget} />
             )}
           </TabsContent>
-        )}
       </Tabs>
 
       {/* Delete confirmation dialog */}

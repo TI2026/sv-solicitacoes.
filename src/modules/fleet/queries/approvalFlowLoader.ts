@@ -24,6 +24,10 @@ export interface ApprovalStep {
   action_at: string | null;
   comments: string | null;
   approver_user_id: string | null;
+  step_code: string | null;
+  step_name: string | null;
+  sla_deadline: string | null;
+  overdue: boolean;
   profiles?: { full_name: string | null } | null;
   /**
    * Snapshot do tipo semântico da etapa vindo de `approval_flow_steps`.
@@ -47,6 +51,7 @@ export async function loadApprovalSteps(approvalRequestId: string): Promise<Appr
     .from('approval_request_steps')
     .select(`
       id, step_order, status, action_at, comments, approver_user_id,
+      step_code, step_name, sla_deadline, overdue,
       profiles:approver_user_id(full_name),
       approval_flow_steps:flow_step_id(
         approver_type,

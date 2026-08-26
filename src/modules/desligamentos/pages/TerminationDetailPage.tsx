@@ -11,6 +11,7 @@ import { StatusTimeline } from '@/components/StatusTimeline';
 import { FinalReviewChecklist } from '@/components/FinalReviewChecklist';
 import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { useApprovalContext } from '@/modules/fleet/hooks/useApprovalContext';
+import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
@@ -54,7 +55,7 @@ export default function TerminationDetailPage() {
   const { data: item, isLoading } = useTermination(id!);
   const setStatusMutation = useTerminationSetStatus();
   
-  const { data: approvalCtx } = useApprovalContext(id, 'desligamentos');
+  const { data: approvalCtx, isLoading: approvalCtxLoading, error: approvalCtxError } = useApprovalContext(id, 'desligamentos');
   const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
 
   const { data: approvalRequest } = useApprovalRequestForReference(id);
@@ -202,6 +203,15 @@ export default function TerminationDetailPage() {
         </div>
 
         <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+          {approvalCtxLoading ? (
+            <Skeleton className="h-28 w-full rounded-lg" />
+          ) : approvalCtxError ? (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+              Contexto de ações indisponível: {approvalCtxError.message}
+            </p>
+          ) : (
+            <ApprovalContextSummary ctx={approvalCtx} />
+          )}
           {approvalRequest && (
             <ApprovalStatusBlock
               approvalRequest={approvalRequest}

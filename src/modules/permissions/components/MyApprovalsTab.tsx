@@ -143,7 +143,7 @@ function PendingApprovalCard({
 export default function MyApprovalsTab() {
   const { user } = useAuth();
   const { data: approvals, isLoading } = useMyApprovals(user?.id);
-  const { items: myPending, isLoading: queueLoading } = useDashboardQueue(user?.id);
+  const { items: myPending, isLoading: queueLoading, isError: queueError, refetch: refetchQueue } = useDashboardQueue(user?.id);
   const { data: pendingFuel } = usePendingFuelRequests();
   const processAction = useProcessApproval();
   const [actionDialog, setActionDialog] = useState<{ moduleKey: string; entityId: string; type: 'reject' | 'return' } | null>(null);
@@ -195,7 +195,14 @@ export default function MyApprovalsTab() {
           <Clock className="w-4 h-4" />
           Pendentes para minha aprovação ({myPending.length})
         </h3>
-        {myPending.length === 0 ? (
+        {queueError ? (
+          <Card className="border-destructive/40">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <p className="text-sm text-destructive">Fila indisponível. Nenhum zero foi presumido.</p>
+              <Button size="sm" variant="outline" onClick={() => refetchQueue()}>Tentar novamente</Button>
+            </CardContent>
+          </Card>
+        ) : myPending.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center">
               <ClipboardCheck className="w-10 h-10 mx-auto text-muted-foreground/30 mb-2" />

@@ -21,10 +21,13 @@ interface UseDashboardQueueResult {
   items: QueueItem[];
   summary: QueueSummary;
   isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  refetch: () => void;
 }
 
 export function useDashboardQueue(userId: string | undefined): UseDashboardQueueResult {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['my_approvals', userId],
     queryFn: () => loadDashboardQueue(userId!),
     enabled: !!userId,
@@ -35,5 +38,8 @@ export function useDashboardQueue(userId: string | undefined): UseDashboardQueue
     items: data?.items ?? [],
     summary: data?.summary ?? { total: 0, urgent: 0, returned: 0 },
     isLoading,
+    isError,
+    error,
+    refetch,
   };
 }

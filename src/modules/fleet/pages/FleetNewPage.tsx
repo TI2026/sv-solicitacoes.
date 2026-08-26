@@ -642,6 +642,16 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
               <Send className="w-4 h-4" /> Enviar
             </Button>
           </div>
+          {!isValid(false) && (
+            <p className="text-xs text-destructive">
+              Preencha todos os campos obrigatórios (*) e corrija as validações indicadas para salvar ou enviar.
+            </p>
+          )}
+          {isValid(false) && !isValid(true) && type === 'reembolso' && (
+            <p className="text-xs text-destructive">
+              Anexe o comprovante da despesa para liberar o envio. O rascunho já pode ser salvo.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -37,7 +37,7 @@ interface Props {
 
 export function MyQueueWidget({ userId }: Props) {
   const navigate = useNavigate();
-  const { items, summary, isLoading } = useDashboardQueue(userId);
+  const { items, summary, isLoading, isError, refetch } = useDashboardQueue(userId);
 
   if (isLoading) {
     return (
@@ -46,6 +46,20 @@ export function MyQueueWidget({ userId }: Props) {
           <Skeleton className="h-6 w-48" />
           <Skeleton className="h-14 w-full rounded-lg" />
           <Skeleton className="h-14 w-full rounded-lg" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card className="border-l-4 border-l-destructive">
+        <CardContent className="p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="font-semibold text-foreground">Fila indisponível</p>
+            <p className="text-sm text-muted-foreground">Não foi possível consultar suas aprovações. Nenhum zero foi presumido.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>Tentar novamente</Button>
         </CardContent>
       </Card>
     );

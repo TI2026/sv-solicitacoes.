@@ -8,7 +8,9 @@ import { PresenceProvider } from "@/contexts/PresenceContext";
 import AppLayout from "@/components/AppLayout";
 import { RoleGuard } from "@/lib/roleGuard";
 import { lazy, Suspense } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCcw } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { supabaseConfigError } from '@/integrations/supabase/client';
 
 // Lazy-loaded route pages — enables code splitting and reduces initial bundle
 const LoginPage = lazy(() => import("@/pages/LoginPage"));
@@ -69,6 +71,26 @@ const queryClient = new QueryClient({
 });
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+function StartupConfigurationGuard({ children }: { children: React.ReactNode }) {
+  if (!supabaseConfigError) return <>{children}</>;
+
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="w-full max-w-lg rounded-xl border border-destructive/30 bg-card p-8 shadow-sm">
+        <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
+        <h1 className="text-xl font-bold text-foreground">Aplicação não configurada</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{supabaseConfigError}</p>
+        <p className="mt-4 rounded-md bg-muted p-3 text-xs text-muted-foreground">
+          Copie <code>.env.example</code> para <code>.env.local</code>, preencha as duas variáveis públicas e reinicie a aplicação.
+        </p>
+        <Button className="mt-5 gap-2" variant="outline" onClick={() => window.location.reload()}>
+          <RefreshCcw className="h-4 w-4" /> Tentar novamente
+        </Button>
+      </div>
+    </main>
+  );
+}
 
 function LoadingScreen() {
   return (
@@ -137,9 +159,9 @@ const AppRoutes = () => (
     <Route path="/reembolsos" element={<ProtectedRoute><ReembolsosListPage /></ProtectedRoute>} />
     <Route path="/reembolsos/new" element={<ProtectedRoute><FleetNewPage requestType="reembolso" /></ProtectedRoute>} />
     <Route path="/reembolsos/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
-    <Route path="/diarias" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><DiariasListPage /></RoleGuard></ProtectedRoute>} />
-    <Route path="/diarias/new" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><FleetNewPage requestType="diaria" /></RoleGuard></ProtectedRoute>} />
-    <Route path="/diarias/:id" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><FleetDetailPage /></RoleGuard></ProtectedRoute>} />
+    <Route path="/diarias" element={<ProtectedRoute><DiariasListPage /></ProtectedRoute>} />
+    <Route path="/diarias/new" element={<ProtectedRoute><FleetNewPage requestType="diaria" /></ProtectedRoute>} />
+    <Route path="/diarias/:id" element={<ProtectedRoute><FleetDetailPage /></ProtectedRoute>} />
 
     {/* Abastecimento */}
     <Route path="/abastecimento" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />
@@ -188,19 +210,23 @@ const AppRoutes = () => (
 );
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <PresenceProvider>
-            <AppRoutes />
-          </PresenceProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <StartupConfigurationGuard>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <PresenceProvider>
+                <AppRoutes />
+              </PresenceProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </StartupConfigurationGuard>
+  </ErrorBoundary>
 );
 
 export default App;

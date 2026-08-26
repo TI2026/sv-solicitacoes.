@@ -10,13 +10,14 @@
  * Proibido: placeholders inventados ("Aprovador", "Solicitante"),
  * total_steps calculado no cliente ou etapa hardcoded.
  */
-import { Clock, UserCheck, UserCircle2 } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CalendarClock, ListChecks, Pencil, UserCheck, UserCircle2 } from 'lucide-react';
 import type { ApprovalContextData } from '@/modules/fleet/hooks/useApprovalContext';
 
 export function ApprovalContextSummary({ ctx }: { ctx?: ApprovalContextData | null }) {
   if (!ctx) return null;
 
   const raw = ctx.raw;
+  const allowedActions = ctx.permissions.allowed_actions;
   const hasStep = !!raw.current_step_order && !!raw.total_steps;
 
   return (
@@ -48,8 +49,48 @@ export function ApprovalContextSummary({ ctx }: { ctx?: ApprovalContextData | nu
 
       {raw.waiting_label && (
         <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Clock className="w-3.5 h-3.5 shrink-0" />
+          <CalendarClock className="w-3.5 h-3.5 shrink-0" />
           <span>{raw.waiting_label}</span>
+        </div>
+      )}
+
+      {raw.next_step_name && (
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+          <span>
+            Próxima etapa{raw.next_step_order ? ` ${raw.next_step_order}` : ''}: <span className="text-foreground">{raw.next_step_name}</span>
+          </span>
+        </div>
+      )}
+
+      {raw.sla_deadline && (
+        <div className={`flex items-center gap-1.5 ${raw.overdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+          <CalendarClock className="w-3.5 h-3.5 shrink-0" />
+          <span>
+            SLA: {new Date(raw.sla_deadline).toLocaleString('pt-BR')}
+            {raw.overdue ? ' · vencido' : ''}
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        <Pencil className="w-3.5 h-3.5 shrink-0" />
+        <span>Edição: <span className="text-foreground">{raw.can_edit ? 'permitida' : 'não permitida'}</span></span>
+      </div>
+
+      {allowedActions.length > 0 && (
+        <div className="flex items-start gap-1.5 text-muted-foreground">
+          <ListChecks className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>
+            Ações disponíveis: <span className="text-foreground">{allowedActions.map(action => action.replaceAll('_', ' ')).join(', ')}</span>
+          </span>
+        </div>
+      )}
+
+      {raw.blocked_reasons && raw.blocked_reasons.length > 0 && (
+        <div className="flex items-start gap-1.5 text-destructive">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>{raw.blocked_reasons.join(' · ')}</span>
         </div>
       )}
     </div>

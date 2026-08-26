@@ -77,7 +77,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const primaryRole = user?.roles[0];
 
   // Badges reativos
-  const { data: myPendingApprovals = 0 } = useQuery({
+  const { data: myPendingApprovals, isError: myPendingApprovalsError } = useQuery({
     queryKey: ['sidebar_my_pending_approvals', user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
@@ -123,7 +123,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     label: string;
     icon: any;
     show: boolean;
-    badge?: { count: number; tone: 'danger' | 'warning' } | null;
+    badge?: { count?: number; label?: string; title?: string; tone: 'danger' | 'warning' } | null;
   }
   interface NavGroup {
     label: string;
@@ -135,7 +135,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       label: 'Dashboard',
       items: [
         { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
-        { to: '/pendencias', label: 'Pendências', icon: AlertTriangle, show: !!user, badge: myPendingApprovals > 0 ? { count: myPendingApprovals, tone: 'danger' as const } : null },
+        {
+          to: '/pendencias',
+          label: 'Pendências',
+          icon: AlertTriangle,
+          show: !!user,
+          badge: myPendingApprovalsError
+            ? { label: '!', title: 'Fila temporariamente indisponível', tone: 'danger' as const }
+            : (myPendingApprovals ?? 0) > 0
+              ? { count: myPendingApprovals, tone: 'danger' as const }
+              : null,
+        },
       ],
     },
     {
@@ -148,7 +158,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           show: true,
           badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' as const } : null,
         },
-        { to: '/diarias', label: 'Diárias', icon: CalendarDays, show: canManage || isMaster },
+        { to: '/diarias', label: 'Diárias', icon: CalendarDays, show: true },
         { to: '/reembolsos', label: 'Reembolsos', icon: Receipt, show: true },
         { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: true },
         { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
@@ -355,15 +365,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className="w-4 h-4" />
                   <span className="flex-1">{item.label}</span>
-                  {item.badge && item.badge.count > 0 && (
+                  {item.badge && (item.badge.label || (item.badge.count ?? 0) > 0) && (
                     <span
+                      title={item.badge.title}
                       className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold ${
                         item.badge.tone === 'danger'
                           ? 'bg-destructive text-destructive-foreground animate-pulse'
                           : 'bg-orange-500 text-white'
                       }`}
                     >
-                      {item.badge.count > 99 ? '99+' : item.badge.count}
+                      {item.badge.label ?? ((item.badge.count ?? 0) > 99 ? '99+' : item.badge.count)}
                     </span>
                   )}
                 </Link>

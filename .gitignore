@@ -41,6 +41,8 @@ blob-report/
 
 # Variaveis locais de ambiente
 .env
+.env.local
+.env.*.local
 !.env.example
 
 # Artefatos temporarios removidos em Sprint 15.2H2
