@@ -1498,6 +1498,12 @@ export type Database = {
           categoria: string | null
           created_at: string
           daily_category: string | null
+          daily_destination: string | null
+          daily_end_date: string | null
+          daily_end_time: string | null
+          daily_quantity: number | null
+          daily_start_date: string | null
+          daily_start_time: string | null
           daily_value: number | null
           data_abastecimento: string
           deleted_at: string | null
@@ -1538,6 +1544,12 @@ export type Database = {
           categoria?: string | null
           created_at?: string
           daily_category?: string | null
+          daily_destination?: string | null
+          daily_end_date?: string | null
+          daily_end_time?: string | null
+          daily_quantity?: number | null
+          daily_start_date?: string | null
+          daily_start_time?: string | null
           daily_value?: number | null
           data_abastecimento?: string
           deleted_at?: string | null
@@ -1578,6 +1590,12 @@ export type Database = {
           categoria?: string | null
           created_at?: string
           daily_category?: string | null
+          daily_destination?: string | null
+          daily_end_date?: string | null
+          daily_end_time?: string | null
+          daily_quantity?: number | null
+          daily_start_date?: string | null
+          daily_start_time?: string | null
           daily_value?: number | null
           data_abastecimento?: string
           deleted_at?: string | null

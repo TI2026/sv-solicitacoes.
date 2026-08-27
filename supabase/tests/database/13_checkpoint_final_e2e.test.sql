@@ -62,8 +62,17 @@ INSERT INTO public.purchases(id,requester_user_id,status,category,description,pr
 VALUES ('fa100000-0000-0000-0000-000000000001','fa000000-0000-0000-0000-000000000001','rascunho','Operação','Compra final','normal',1000);
 INSERT INTO public.fuel_requests(id,requester_user_id,valor,data_abastecimento,status,type,placa,motivo)
 VALUES ('fa200000-0000-0000-0000-000000000001','fa000000-0000-0000-0000-000000000001',200,current_date+1,'rascunho','abastecimento','ABC1D23','Viagem programada');
-INSERT INTO public.fuel_requests(id,requester_user_id,valor,data_abastecimento,status,type,daily_category,person_name,daily_value)
-VALUES ('fa200000-0000-0000-0000-000000000002','fa000000-0000-0000-0000-000000000001',300,current_date+1,'rascunho','diaria','Viagem','Pessoa Teste',300);
+INSERT INTO public.fuel_requests(
+  id,requester_user_id,valor,data_abastecimento,status,type,
+  daily_start_date,daily_end_date,daily_start_time,daily_end_time,daily_quantity,
+  daily_category,daily_destination,person_name,daily_value,notes
+)
+VALUES (
+  'fa200000-0000-0000-0000-000000000002','fa000000-0000-0000-0000-000000000001',
+  300,current_date+1,'rascunho','diaria',
+  current_date+1,current_date+1,'08:00','18:00',1,
+  'Viagem','Matriz - Filial','Pessoa Teste',300,'Atividade externa programada'
+);
 INSERT INTO public.fuel_requests(id,requester_user_id,valor,data_abastecimento,status,type,categoria,notes,payment_method,pix_key)
 VALUES ('fa200000-0000-0000-0000-000000000003','fa000000-0000-0000-0000-000000000001',400,current_date,'rascunho','reembolso','Hospedagem','Despesa empresarial comprovada','pix','12345678901');
 INSERT INTO public.fuel_attachments(fuel_request_id,type,file_path)

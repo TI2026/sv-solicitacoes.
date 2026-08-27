@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { FiltersBar } from '@/components/FiltersBar';
 import { requestDetailRoute, requestNewRoute } from '../requestRoutes';
+import { normalizeDailyPeriod } from '../dailyPeriod';
 
 const REJECTED_STATUSES = new Set(['reprovado']);
 const COMPLETED_STATUSES = new Set(['aprovado', 'concluido', 'encerrado']);
@@ -69,6 +70,19 @@ function InfoCard({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
+function RequestPeriod({ request }: { request: any }) {
+  const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
+  if (request.type !== 'diaria') return <>{formatDate(request.data_abastecimento)}</>;
+  const period = normalizeDailyPeriod(request);
+  return (
+    <>
+      {formatDate(period.startDate)}
+      {period.endDate !== period.startDate ? ` até ${formatDate(period.endDate)}` : ''}
+      {` · ${period.quantity} ${period.quantity === 1 ? 'diária' : 'diárias'}`}
+    </>
+  );
+}
+
 function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyIcon, emptyText, canDelete, onDelete }: any) {
   if (isLoading) return (
     <div className="space-y-3">
@@ -99,7 +113,7 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
                 <div className="flex items-center gap-x-3 gap-y-1 mt-1.5 text-sm text-muted-foreground flex-wrap min-w-0">
                   <span className="flex items-center gap-1 shrink-0">
                     <Calendar className="w-3.5 h-3.5" />
-                    {new Date(req.data_abastecimento).toLocaleDateString('pt-BR')}
+                    <RequestPeriod request={req} />
                   </span>
                   {req.placa && <span className="shrink-0">🚗 {req.placa}</span>}
                   {req.categoria && <span className="truncate max-w-[12rem]">{req.categoria}</span>}

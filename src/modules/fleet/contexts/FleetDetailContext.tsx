@@ -21,6 +21,7 @@ import {
 // [Sprint 2 — Onda 1] Contrato canônico do Motor de Aprovação
 import { useApprovalContext, type ApprovalContextData } from '../hooks/useApprovalContext';
 import { useEntityAction } from '@/hooks/useEntityAction';
+import { isFleetBusinessModule, requestDetailRoute, type FleetBusinessModule } from '../requestRoutes';
 
 interface FleetDetailContextData {
   id: string;
@@ -104,7 +105,7 @@ interface FleetDetailContextData {
 
 const FleetDetailContext = createContext<FleetDetailContextData | undefined>(undefined);
 
-export function FleetDetailProvider({ children }: { children: React.ReactNode }) {
+export function FleetDetailProvider({ children, expectedType }: { children: React.ReactNode; expectedType?: FleetBusinessModule }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasAnyRole, isMaster } = useAuth();
@@ -122,12 +123,18 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const approvalAction = useApprovalAction();
 
   // [Sprint 2 — Onda 1] Fonte canônica — carrega o contexto do Motor para este request.
-  const reqType_raw = (req as any)?.type || 'abastecimento';
+  const reqType_raw = (req as any)?.type;
   const {
     data: approvalCtx,
     isLoading: approvalCtxLoading,
     error: approvalCtxError,
-  } = useApprovalContext(id, reqType_raw);
+  } = useApprovalContext(reqType_raw ? id : undefined, reqType_raw);
+
+  useEffect(() => {
+    const actualType = (req as any)?.type;
+    if (!id || !expectedType || !isFleetBusinessModule(actualType) || actualType === expectedType) return;
+    navigate(requestDetailRoute(actualType, id), { replace: true });
+  }, [expectedType, id, navigate, req]);
 
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
@@ -162,7 +169,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
 
   // isOwner removido (Sprint 5): era duplicata de approvalCtx.
   // Mantido apenas inline nas condições de upload (regra de negócio de UX, não de aprovação).
-  const reqType = (req as any)?.type || 'abastecimento';
+  const reqType = (req as any)?.type || expectedType || 'abastecimento';
   const vehicle = useVehicleByPlate((req as any)?.placa);
 
   useEffect(() => {

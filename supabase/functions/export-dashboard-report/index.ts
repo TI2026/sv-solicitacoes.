@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     // Fetch data
     const { data: requests, error: fetchError } = await serviceClient
       .from('fuel_requests')
-      .select('id, valor, status, type, placa, categoria, data_abastecimento, created_at, person_name, km, daily_value, daily_category, motivo, notes, profiles!fuel_requests_requester_user_id_fkey(full_name, department)')
+      .select('id, valor, status, type, placa, categoria, data_abastecimento, created_at, person_name, km, daily_value, daily_category, daily_start_date, daily_end_date, daily_start_time, daily_end_time, daily_quantity, daily_destination, motivo, notes, profiles!fuel_requests_requester_user_id_fkey(full_name, department)')
       .is('deleted_at', null)
       .gte('data_abastecimento', startDate)
       .lte('data_abastecimento', endDate)
@@ -159,17 +159,21 @@ Deno.serve(async (req) => {
 
       // Detalhamento
       const detailRows = data.map((r: any) => ({
-        Data: fmtDate(r.data_abastecimento),
+        'Data inicial': fmtDate(r.daily_start_date || r.data_abastecimento),
+        'Data final': fmtDate(r.daily_end_date || r.data_abastecimento),
+        'Quantidade de diárias': r.type === 'diaria' ? Number(r.daily_quantity || 1) : '',
+        'Valor unitário': r.type === 'diaria' ? fmtCurrency(Number(r.daily_value || r.valor || 0)) : '',
         Tipo: typeLabels[r.type] || r.type,
         Solicitante: r.profiles?.full_name || r.person_name || '',
         Placa: r.placa || '',
         Categoria: r.categoria || r.daily_category || '',
-        Valor: fmtCurrency(Number(r.valor || 0)),
+        Destino: r.daily_destination || '',
+        'Valor total': fmtCurrency(Number(r.valor || 0)),
         Status: statusLabels[r.status] || r.status,
         Motivo: r.motivo || '',
       }));
       const wsDetail = XLSX.utils.json_to_sheet(detailRows);
-      wsDetail['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 10 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 30 }];
+      wsDetail['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 15 }, { wch: 25 }, { wch: 10 }, { wch: 18 }, { wch: 24 }, { wch: 15 }, { wch: 15 }, { wch: 30 }];
       XLSX.utils.book_append_sheet(wb, wsDetail, 'Detalhamento');
 
       const buf = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
@@ -252,11 +256,15 @@ Deno.serve(async (req) => {
       html += `</table>`;
 
       // Detalhamento
-      html += `<h2>Detalhamento</h2><table><tr><th>Data</th><th>Tipo</th><th>Solicitante</th><th>Placa</th><th class="right">Valor</th><th>Status</th></tr>`;
+      html += `<h2>Detalhamento</h2><table><tr><th>Início</th><th>Fim</th><th>Tipo</th><th>Solicitante</th><th>Qtd.</th><th>Valor unit.</th><th>Destino</th><th class="right">Valor total</th><th>Status</th></tr>`;
       data.slice(0, 200).forEach((r: any) => {
-        html += `<tr><td>${esc(fmtDate(r.data_abastecimento))}</td><td>${esc(typeLabels[r.type] || r.type)}</td><td>${esc(r.profiles?.full_name || r.person_name || '')}</td><td>${esc(r.placa || '')}</td><td class="right">${esc(fmtCurrency(Number(r.valor || 0)))}</td><td>${esc(statusLabels[r.status] || r.status)}</td></tr>`;
+        const start = r.daily_start_date || r.data_abastecimento;
+        const end = r.daily_end_date || r.data_abastecimento;
+        const quantity = r.type === 'diaria' ? Number(r.daily_quantity || 1) : '';
+        const unitRate = r.type === 'diaria' ? fmtCurrency(Number(r.daily_value || r.valor || 0)) : '';
+        html += `<tr><td>${esc(fmtDate(start))}</td><td>${esc(fmtDate(end))}</td><td>${esc(typeLabels[r.type] || r.type)}</td><td>${esc(r.profiles?.full_name || r.person_name || '')}</td><td>${esc(String(quantity))}</td><td>${esc(unitRate)}</td><td>${esc(r.daily_destination || '')}</td><td class="right">${esc(fmtCurrency(Number(r.valor || 0)))}</td><td>${esc(statusLabels[r.status] || r.status)}</td></tr>`;
       });
-      if (data.length > 200) html += `<tr><td colspan="6" style="text-align:center;color:#999;font-style:italic">... e mais ${data.length - 200} registros</td></tr>`;
+      if (data.length > 200) html += `<tr><td colspan="9" style="text-align:center;color:#999;font-style:italic">... e mais ${data.length - 200} registros</td></tr>`;
       html += `</table>`;
 
       html += `<div class="footer">SV Engenharia · Relatório gerado automaticamente pelo sistema SV Solicitações</div>`;

@@ -67,6 +67,8 @@ export function parseEntityActionResult(data: unknown): EntityActionResult {
     const code = Number(result.code);
     if (!Number.isInteger(code)) throw new Error(result.message || 'ENGINE_INVALID_CODE');
     if (code < 200 || code >= 300) throw new Error(result.message || `ENGINE_HTTP_${code}`);
+  } else if (result.success !== true) {
+    throw new Error(result.message || 'ENGINE_INVALID_RESPONSE');
   }
 
   return result;

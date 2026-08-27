@@ -16,7 +16,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { approvalModuleDetailRoute, requestDetailRoute } from '@/modules/fleet/requestRoutes';
+import { approvalModuleDetailRoute, isFleetBusinessModule, requestDetailRoute } from '@/modules/fleet/requestRoutes';
 
 export interface ActivityItem {
   id: string;
@@ -31,7 +31,9 @@ export interface ActivityItem {
 }
 
 function resolveRoute(entityType: string, entityId: string, moduleCode?: string | null, requestType?: string | null): string | null {
-  if (entityType === 'fuel_requests') return requestDetailRoute(requestType || 'abastecimento', entityId);
+  if (entityType === 'fuel_requests') {
+    return isFleetBusinessModule(requestType) ? requestDetailRoute(requestType, entityId) : null;
+  }
   const moduleRoute = moduleCode ? approvalModuleDetailRoute(moduleCode, entityId) : null;
   if (moduleRoute) return moduleRoute;
   if (entityType === 'admission_requests') return `/admissions/${entityId}`;

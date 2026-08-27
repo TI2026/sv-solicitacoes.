@@ -18,6 +18,11 @@ describe('Checkpoint B — contrato único do executor', () => {
     expect(() => parseEntityActionResult({ success: false, message: 'Falha legada' })).toThrow('Falha legada');
   });
 
+  it('aceita sucesso legado explícito e rejeita resposta ambígua', () => {
+    expect(parseEntityActionResult({ success: true }).success).toBe(true);
+    expect(() => parseEntityActionResult({ message: 'sem código' })).toThrow('sem código');
+  });
+
   it('rejeita código malformado', () => {
     expect(() => parseEntityActionResult({ code: 'ENGINE-400' })).toThrow('ENGINE_INVALID_CODE');
   });
@@ -100,7 +105,7 @@ describe('Checkpoint B — arquitetura do frontend', () => {
 
   it('envia Diária imediatamente pelo executor canônico', () => {
     const source = readFileSync(resolve('src/modules/fleet/pages/FleetNewPage.tsx'), 'utf8');
-    expect(source).not.toContain("type !== 'diaria'");
+    expect(source).not.toContain("sendImmediately && type !== 'diaria'");
     expect(source).toContain("moduleKey: type, entityId: result.id, action: 'enviar'");
   });
 
@@ -140,7 +145,8 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     expect(shortcuts).toContain("newRoute: '/diarias/new'");
     expect(shortcuts).toContain("newRoute: '/reembolsos/new'");
     expect(shortcuts).not.toContain('/fleet/new?type=');
-    expect(activity).toContain("requestDetailRoute(requestType || 'abastecimento', entityId)");
+    expect(activity).toContain('isFleetBusinessModule(requestType)');
+    expect(activity).not.toContain("requestType || 'abastecimento'");
     expect(requests).toContain('requestDetailRoute(row.type, row.id)');
   });
 
@@ -196,7 +202,8 @@ describe('Checkpoint B — arquitetura do frontend', () => {
   it('permite data futura apenas no contrato de Abastecimento/Diária', () => {
     const source = readFileSync(resolve('src/modules/fleet/pages/FleetNewPage.tsx'), 'utf8');
     expect(source).toContain("if (type === 'abastecimento') return data >= today;");
-    expect(source).toContain("if (type === 'diaria') return data >= today;");
+    expect(source).toContain('dailyStartDate >= today');
+    expect(source).toContain('dailyEndDate >= dailyStartDate');
     expect(source).toContain("if (type === 'reembolso') return data <= today;");
     expect(source).not.toContain('min={minDateToday()} max={todayBR()}');
   });

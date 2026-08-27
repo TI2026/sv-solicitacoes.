@@ -11,7 +11,7 @@ import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import logo from '@/assets/logo.png';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { requestDetailRoute } from '@/modules/fleet/requestRoutes';
+import { isFleetBusinessModule, requestDetailRoute } from '@/modules/fleet/requestRoutes';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, hasAnyRole, isMaster } = useAuth();
@@ -246,8 +246,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const entityId = metadata?.entity_id;
     if (!entityId) return null;
     const moduleKey = metadata?.module_key || entityType;
-    if (['abastecimento', 'diaria', 'reembolso'].includes(moduleKey)) return requestDetailRoute(moduleKey, entityId);
-    if (entityType === 'fuel_requests') return requestDetailRoute(metadata?.request_type || 'abastecimento', entityId);
+    if (isFleetBusinessModule(moduleKey)) return requestDetailRoute(moduleKey, entityId);
+    if (entityType === 'fuel_requests' && isFleetBusinessModule(metadata?.request_type)) {
+      return requestDetailRoute(metadata.request_type, entityId);
+    }
     if (['compras', 'purchases'].includes(moduleKey)) return `/purchases/${entityId}`;
     if (entityType === 'admission_requests') return `/admissions/${entityId}`;
     if (['admissoes', 'admissions'].includes(moduleKey)) return `/admissions/${entityId}`;

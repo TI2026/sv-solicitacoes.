@@ -26,6 +26,7 @@ import {
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
 import { requestListRoute } from '../requestRoutes';
+import { normalizeDailyPeriod } from '../dailyPeriod';
 
 function ReembolsoDetails({ req }: { req: any }) {
   const pixKeyType = req.pix_key_type;
@@ -53,10 +54,18 @@ function ReembolsoDetails({ req }: { req: any }) {
 function DiariaDetails({ req }: { req: any }) {
   const { categories } = useDynamicCategories('fleet', 'daily_category');
   const catLabel = categories?.find((c: any) => c.label === req.daily_category)?.label || req.daily_category;
+  const period = normalizeDailyPeriod(req);
+  const formatDate = (value: string) => value
+    ? new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR')
+    : '—';
   return (
     <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
-      {req.daily_category && <p>Categoria: {catLabel}</p>}
-      {req.daily_value && <p>Valor diário: R$ {Number(req.daily_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>}
+      <p>Período: {formatDate(period.startDate)} {req.daily_start_time ? `às ${String(req.daily_start_time).slice(0, 5)}` : ''} até {formatDate(period.endDate)} {req.daily_end_time ? `às ${String(req.daily_end_time).slice(0, 5)}` : ''}</p>
+      <p>Quantidade: {period.quantity} {period.quantity === 1 ? 'diária' : 'diárias'}</p>
+      {req.daily_category && <p>Finalidade: {catLabel}</p>}
+      {req.daily_destination && <p>Destino: {req.daily_destination}</p>}
+      {req.daily_value != null && <p>Valor unitário: {period.dailyRate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>}
+      <p>Total: {period.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
       {req.hours && <p>Horas: {req.hours}h</p>}
       {req.person_name && <p>Profissional: {req.person_name}</p>}
       {req.person_cpf && <p>CPF: <span className="font-mono tracking-tight">{req.person_cpf}</span></p>}
@@ -240,6 +249,12 @@ export function FleetDetailContent() {
         <Card className="lg:sticky lg:top-4 self-start">
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Ações</h3>
+
+            {reqType === 'diaria' && approvalCtx?.raw?.can_edit === true && (
+              <Button variant="outline" onClick={() => navigate(`/diarias/${id}/edit`)} disabled={isPending} className="w-full">
+                Editar dados da Diária
+              </Button>
+            )}
 
             {/* [Sprint 3.0] ctx.permissions.edit + ctx.status — solicitante envia/reenvia */}
             {approvalCtx?.permissions.edit && approvalCtx?.status === 'rascunho' && (
