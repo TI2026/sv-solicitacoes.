@@ -35,8 +35,14 @@
  */
 import type { QueryClient } from '@tanstack/react-query';
 
+export const approvalQueueKeys = {
+  myApprovals: (userId?: string) => ['my_approvals', userId] as const,
+  sidebarPending: (userId?: string) => ['sidebar_my_pending_approvals', userId] as const,
+};
+
 function refreshApprovalContext(qc: QueryClient, referenceId?: string) {
-  qc.invalidateQueries({ queryKey: ['my_approvals'] });
+  qc.invalidateQueries({ queryKey: approvalQueueKeys.myApprovals() });
+  qc.invalidateQueries({ queryKey: approvalQueueKeys.sidebarPending() });
   qc.invalidateQueries({ queryKey: ['my_approval_history'] });
   // Chaves de contexto são escopadas por módulo (['approval_context', module, id]).
   // Invalidamos por prefixo para cobrir todos os módulos sem duplicar regra.
@@ -89,7 +95,8 @@ function refreshMetrics(qc: QueryClient) {
  * Chamado sempre que qualquer ação de aprovação, criação ou mutação ocorre.
  */
 function refreshDashboardWidgets(qc: QueryClient, userId?: string) {
-  qc.invalidateQueries({ queryKey: ['my_approvals'] });
+  qc.invalidateQueries({ queryKey: approvalQueueKeys.myApprovals(userId) });
+  qc.invalidateQueries({ queryKey: approvalQueueKeys.sidebarPending(userId) });
   qc.invalidateQueries({ queryKey: ['my_approval_history'] });
   qc.invalidateQueries({ queryKey: ['my_requests'] });
   qc.invalidateQueries({ queryKey: ['recent_activity'] });

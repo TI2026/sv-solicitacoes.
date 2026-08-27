@@ -16,6 +16,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { loadDashboardQueue } from '../queries/dashboardQueueLoader';
 import type { QueueItem, QueueSummary } from '../queries/dashboardQueueLoader';
+import { approvalQueueKeys } from '@/lib/refreshApprovalData';
 
 interface UseDashboardQueueResult {
   items: QueueItem[];
@@ -25,7 +26,7 @@ interface UseDashboardQueueResult {
 
 export function useDashboardQueue(userId: string | undefined): UseDashboardQueueResult {
   const { data, isLoading } = useQuery({
-    queryKey: ['my_approvals', userId],
+    queryKey: approvalQueueKeys.myApprovals(userId),
     queryFn: () => loadDashboardQueue(userId!),
     enabled: !!userId,
     staleTime: 30_000,

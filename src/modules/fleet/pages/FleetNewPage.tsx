@@ -643,15 +643,15 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
                 <Label>Comprovante da despesa *</Label>
                 <Input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  accept="image/jpeg,image/png,application/pdf"
                   onChange={async (event) => {
                     const file = event.target.files?.[0] ?? null;
                     if (!file) { setReimbursementProof(null); return; }
-                    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
+                    const allowed = ['image/jpeg', 'image/png', 'application/pdf'] as const;
                     if (file.size > 10 * 1024 * 1024 || !allowed.includes(file.type as any) || !(await validateFileMagicNumber(file, allowed as any))) {
                       setReimbursementProof(null);
                       event.target.value = '';
-                      toast({ title: 'Comprovante inválido', description: 'Use JPEG, PNG, WebP ou PDF de até 10MB.', variant: 'destructive' });
+                      toast({ title: 'Comprovante inválido', description: 'Use JPEG, PNG ou PDF de até 10MB.', variant: 'destructive' });
                       return;
                     }
                     setReimbursementProof(file);

@@ -20,7 +20,7 @@ import { WelcomePdfGenerator } from '../components/WelcomePdfGenerator';
 import { ExamAttachmentUpload } from '../components/ExamAttachmentUpload';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
 import { ADMISSION_STATUS_LABELS, CANDIDATE_STATUS_LABELS, PRIORITY_LABELS, EXAM_STATUS_LABELS } from '@/lib/constants';
-import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Download, Pencil, Video, ExternalLink, PackageOpen, HardHat } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, Send, Link2, Copy, CheckCircle, XCircle, RotateCcw, Clock, DollarSign, Calendar, User, CalendarClock, MapPin, AlertTriangle, Briefcase, Stethoscope, Ban, FileText, Download, Pencil, Video, ExternalLink, PackageOpen, HardHat } from 'lucide-react';
 import { validateFileMagicNumber } from '@/lib/fileValidation';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -33,6 +33,7 @@ import JSZip from 'jszip';
 import { useCreateCollaboratorFromAdmission } from '@/modules/epis/hooks/useAdmissionToCollaborator';
 import { useAdmissionFiles, useMedicalExam } from '../hooks/useAdmissionQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
 
 // Document key labels for admin view
 const DOC_KEY_LABELS: Record<string, string> = {
@@ -69,7 +70,7 @@ export function AdmissionDetailContent() {
     editCandidateId, setEditCandidateId, showDeleteConfirm, setShowDeleteConfirm,
     interviewCandidate, setInterviewCandidate, generatedLinks, linksGenerating,
     docsConfirmed, setDocsConfirmed, showEditDialog, setShowEditDialog,
-    handleStatusChange, handleAddCandidate, handleEditCandidate, handleDeleteCandidate,
+    handleStatusChange, handleWorkflowAction, handleAddCandidate, handleEditCandidate, handleDeleteCandidate,
     handleScheduleInterview, handleInterviewResult, handleConfirmInterview,
     copyToClipboard, generateLinksForCandidates, isInterviewPast, getInterviewStatusLabel, canDecideInterview,
     updateInterview, approvalCtx, approvalCtxLoading, approvalCtxError,
@@ -78,9 +79,20 @@ export function AdmissionDetailContent() {
   // O frontend NÃO DEVE calcular ações permitidas. Deve ler do motor.
   const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
   const canEditLocal = approvalCtx?.raw?.can_edit === true;
+  const allowedWorkflowActions = approvalCtx?.permissions?.allowed_actions ?? [];
+  const completionAction = approvalCtx?.meta?.step_action;
 
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [workflowReasonAction, setWorkflowReasonAction] = useState<'devolver' | 'rejeitar' | null>(null);
+  const [workflowReason, setWorkflowReason] = useState('');
+
+  const confirmWorkflowReason = async () => {
+    if (!workflowReasonAction || workflowReason.trim().length < 5) return;
+    await handleWorkflowAction(workflowReasonAction, workflowReason.trim());
+    setWorkflowReasonAction(null);
+    setWorkflowReason('');
+  };
 
   // Handle edit candidate inside map
   const cpfError = candidateForm.cpf.replace(/\D/g, '').length > 0 && candidateForm.cpf.replace(/\D/g, '').length === 11 && candidateForm.cpf.replace(/\D/g, '').length !== 11 ? 'CPF inválido' : '';
@@ -539,6 +551,35 @@ export function AdmissionDetailContent() {
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-4 h-fit">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm">Ações de aprovação</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {approvalCtxLoading && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+              {approvalCtxError && <p className="text-xs text-destructive">Action Context indisponível: {approvalCtxError.message}</p>}
+              {approvalCtx && <ApprovalContextSummary ctx={approvalCtx} />}
+              <div className="flex flex-wrap gap-2">
+                {completionAction && ['aprovar', 'concluir_triagem', 'concluir'].includes(completionAction) && allowedWorkflowActions.includes(completionAction) && (
+                  <Button size="sm" onClick={() => void handleWorkflowAction(completionAction)}>
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    {completionAction === 'aprovar' ? 'Aprovar' : completionAction === 'concluir_triagem' ? 'Concluir triagem' : 'Concluir etapa'}
+                  </Button>
+                )}
+                {hasAction('devolver') && (
+                  <Button size="sm" variant="outline" onClick={() => setWorkflowReasonAction('devolver')}>
+                    <RotateCcw className="w-4 h-4 mr-1" /> Devolver
+                  </Button>
+                )}
+                {hasAction('rejeitar') && (
+                  <Button size="sm" variant="destructive" onClick={() => setWorkflowReasonAction('rejeitar')}>
+                    <XCircle className="w-4 h-4 mr-1" /> Rejeitar
+                  </Button>
+                )}
+              </div>
+              {approvalCtx && allowedWorkflowActions.length === 0 && approvalCtx.meta.waiting_label && (
+                <p className="text-xs text-muted-foreground">{approvalCtx.meta.waiting_label}</p>
+              )}
+            </CardContent>
+          </Card>
           {approvalRequest && <ApprovalStatusBlock approvalRequest={approvalRequest} previousCycles={previousCycles} />}
           <Card>
             <CardContent className="p-4">
@@ -548,6 +589,20 @@ export function AdmissionDetailContent() {
           </Card>
         </aside>
       </div>
+
+      <Dialog open={workflowReasonAction !== null} onOpenChange={(open) => { if (!open) { setWorkflowReasonAction(null); setWorkflowReason(''); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{workflowReasonAction === 'rejeitar' ? 'Rejeitar Admissão' : 'Devolver Admissão'}</DialogTitle></DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Justificativa *</Label>
+            <Textarea value={workflowReason} onChange={event => setWorkflowReason(event.target.value)} rows={4} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setWorkflowReasonAction(null); setWorkflowReason(''); }}>Cancelar</Button>
+            <Button onClick={() => void confirmWorkflowReason()} disabled={workflowReason.trim().length < 5}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add/Edit candidate dialog */}
       <Dialog open={showAddCandidate} onOpenChange={(open) => { if (!open) { setShowAddCandidate(false); setEditCandidateId(null); setCandidateForm({ nome: '', cpf: '', telefone: '', email: '', cidade: '' }); } }}>

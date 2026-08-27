@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { 
   ArrowLeft, Loader2, Send, DollarSign, Calendar, User, Car, Clock,
   Receipt, FileText, CreditCard, AlertTriangle, FileImage, Trash2 
@@ -28,16 +29,57 @@ import { useDynamicCategories } from '@/hooks/useDynamicCategories';
 import { requestListRoute } from '../requestRoutes';
 import { normalizeDailyPeriod } from '../dailyPeriod';
 
-function ReembolsoDetails({ req }: { req: any }) {
+function PrivateFleetThumbnail({ path, alt }: { path: string; alt: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const retried = useRef(false);
+
+  const loadSignedUrl = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    const { data, error: signedError } = await supabase.storage.from('fleet').createSignedUrl(path, 300);
+    if (signedError || !data?.signedUrl) {
+      setUrl(null);
+      setError(true);
+    } else {
+      setUrl(data.signedUrl);
+    }
+    setLoading(false);
+  }, [path]);
+
+  useEffect(() => { void loadSignedUrl(); }, [loadSignedUrl]);
+
+  if (loading) {
+    return <div className="w-full h-24 flex items-center justify-center bg-muted/30"><Loader2 className="w-4 h-4 animate-spin" /></div>;
+  }
+  if (error || !url) {
+    return <div className="w-full h-24 flex items-center justify-center bg-muted/30 text-xs text-destructive">Arquivo indisponível</div>;
+  }
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className="object-cover w-full h-24 hover:scale-105 transition-transform"
+      onError={() => {
+        if (retried.current) { setError(true); return; }
+        retried.current = true;
+        void loadSignedUrl();
+      }}
+    />
+  );
+}
+
+function ReembolsoDetails({ req, canViewPaymentData }: { req: any; canViewPaymentData: boolean }) {
   const pixKeyType = req.pix_key_type;
   const pixLabel = pixKeyType === 'celular' ? 'Celular' : pixKeyType === 'cpf' ? 'CPF' : 'Chave';
   return (
     <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
       {req.categoria && <p>Categoria: {req.categoria}</p>}
-      {req.payment_method === 'pix' && req.pix_key && (
+      {canViewPaymentData && req.payment_method === 'pix' && req.pix_key && (
         <div className="flex items-center gap-1">Pix ({pixLabel}): <MaskedPix value={req.pix_key} className="inline-flex ml-1" /></div>
       )}
-      {req.payment_method === 'conta_bancaria' && (
+      {canViewPaymentData && req.payment_method === 'banco' && (
         <>
           {req.bank_name && <p>Banco: {req.bank_name}</p>}
           {req.bank_agency && <p>Agência: <span className="font-mono tracking-tight">{req.bank_agency}</span></p>}
@@ -51,7 +93,7 @@ function ReembolsoDetails({ req }: { req: any }) {
   );
 }
 
-function DiariaDetails({ req }: { req: any }) {
+function DiariaDetails({ req, canViewPaymentData }: { req: any; canViewPaymentData: boolean }) {
   const { categories } = useDynamicCategories('fleet', 'daily_category');
   const catLabel = categories?.find((c: any) => c.label === req.daily_category)?.label || req.daily_category;
   const period = normalizeDailyPeriod(req);
@@ -69,10 +111,10 @@ function DiariaDetails({ req }: { req: any }) {
       {req.hours && <p>Horas: {req.hours}h</p>}
       {req.person_name && <p>Profissional: {req.person_name}</p>}
       {req.person_cpf && <p>CPF: <span className="font-mono tracking-tight">{req.person_cpf}</span></p>}
-      {req.payment_method === 'pix' && req.pix_key && (
+      {canViewPaymentData && req.payment_method === 'pix' && req.pix_key && (
         <div className="flex items-center gap-1">Pix: <MaskedPix value={req.pix_key} className="inline-flex ml-1" /></div>
       )}
-      {req.payment_method === 'conta_bancaria' && (
+      {canViewPaymentData && req.payment_method === 'banco' && (
         <>
           {req.bank_name && <p>Banco: {req.bank_name}</p>}
           {req.bank_agency && <p>Agência: <span className="font-mono tracking-tight">{req.bank_agency}</span></p>}
@@ -94,11 +136,33 @@ export function FleetDetailContent() {
     uploading, showDeleteDialog, setShowDeleteDialog, deleteReason, setDeleteReason,
     reviewKmReal, setReviewKmReal, reviewKmOk, setReviewKmOk, reviewNfReal, setReviewNfReal,
     reviewNfOk, setReviewNfOk, reviewDivergenceReason, setReviewDivergenceReason,
-    previewUrl, setPreviewUrl, previewType, setPreviewType, previewTitle, setPreviewTitle,
-    handleStatusChange, handleUpload, openInlinePreview, softDelete,
+    previewUrl, previewType, previewTitle, previewLoading, previewError, previewPath,
+    handleStatusChange, handleUpload, openInlinePreview, refreshInlinePreview, closeInlinePreview, softDelete,
     // [Sprint 2 — Onda 2] Fonte canônica
     approvalCtx,
   } = useFleetDetail();
+  const previewAutoRetried = useRef(false);
+  const [previewMediaError, setPreviewMediaError] = useState(false);
+
+  useEffect(() => {
+    previewAutoRetried.current = false;
+    setPreviewMediaError(false);
+  }, [previewPath]);
+
+  const handlePreviewMediaError = () => {
+    if (previewAutoRetried.current) {
+      setPreviewMediaError(true);
+      return;
+    }
+    previewAutoRetried.current = true;
+    void refreshInlinePreview();
+  };
+
+  const handleManualPreviewRefresh = () => {
+    previewAutoRetried.current = false;
+    setPreviewMediaError(false);
+    void refreshInlinePreview();
+  };
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   if (!req) return <p className="text-center py-12 text-muted-foreground">Solicitação não encontrada</p>;
@@ -219,8 +283,8 @@ export function FleetDetailContent() {
               </div>
             )}
             
-            {reqType === 'reembolso' && <ReembolsoDetails req={req} />}
-            {reqType === 'diaria' && <DiariaDetails req={req} />}
+            {reqType === 'reembolso' && <ReembolsoDetails req={req} canViewPaymentData={!!approvalCtx} />}
+            {reqType === 'diaria' && <DiariaDetails req={req} canViewPaymentData={!!approvalCtx} />}
 
             {/* Informações operacionais específicas — processos Fleet não possuem OC. */}
             {(req as any).paid_at && (
@@ -382,13 +446,13 @@ export function FleetDetailContent() {
                 {canUpload && (
                   <div className="flex flex-wrap gap-2">
                     <div className="relative">
-                      <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={e => handleUpload(e, 'hodometro')} disabled={uploading} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                      <Input type="file" accept="image/jpeg,image/png,application/pdf" capture="environment" onChange={e => handleUpload(e, 'hodometro')} disabled={uploading} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
                       <Button variant="outline" size="sm" disabled={uploading} className="gap-2 pointer-events-none relative z-0">
                         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileImage className="w-4 h-4" />} Enviar Hodômetro
                       </Button>
                     </div>
                     <div className="relative">
-                      <Input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={e => handleUpload(e, 'nota_fiscal')} disabled={uploading} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+                      <Input type="file" accept="image/jpeg,image/png,application/pdf" capture="environment" onChange={e => handleUpload(e, 'nota_fiscal')} disabled={uploading} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
                       <Button variant="outline" size="sm" disabled={uploading} className="gap-2 pointer-events-none relative z-0">
                         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Enviar Nota Fiscal
                       </Button>
@@ -405,7 +469,7 @@ export function FleetDetailContent() {
                     <div className="grid grid-cols-2 gap-2">
                       {hodometro.map((att: any) => (
                         <div key={att.id} className="relative group cursor-pointer overflow-hidden rounded-md border" onClick={() => openInlinePreview(att.file_path, 'Hodômetro')}>
-                          <img src={`${supabase.storage.from('fleet').getPublicUrl(att.file_path).data.publicUrl}?t=${Date.now()}`} alt="Hodômetro" className="object-cover w-full h-24 hover:scale-105 transition-transform" />
+                          <PrivateFleetThumbnail path={att.file_path} alt="Hodômetro" />
                         </div>
                       ))}
                     </div>
@@ -422,7 +486,7 @@ export function FleetDetailContent() {
                               <FileText className="w-8 h-8 text-primary/60 mb-1" /><span className="text-xs font-medium">Ver PDF</span>
                             </div>
                           ) : (
-                            <img src={`${supabase.storage.from('fleet').getPublicUrl(att.file_path).data.publicUrl}?t=${Date.now()}`} alt="NF" className="object-cover w-full h-24 hover:scale-105 transition-transform" />
+                            <PrivateFleetThumbnail path={att.file_path} alt="Nota fiscal" />
                           )}
                         </div>
                       ))}
@@ -446,7 +510,7 @@ export function FleetDetailContent() {
                 <div className="relative">
                   <Input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    accept="image/jpeg,image/png,application/pdf"
                     onChange={(event) => handleUpload(event, 'nota_fiscal')}
                     disabled={uploading}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
@@ -479,16 +543,29 @@ export function FleetDetailContent() {
         </Card>
       </div>
 
-      <Dialog open={!!previewUrl} onOpenChange={(open) => !open && setPreviewUrl(null)}>
+      <Dialog open={!!previewPath} onOpenChange={(open) => !open && closeInlinePreview()}>
         <DialogContent className="max-w-4xl w-full h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
           <DialogHeader className="p-4 border-b shrink-0"><DialogTitle>{previewTitle}</DialogTitle></DialogHeader>
           <div className="flex-1 overflow-auto bg-muted/10 p-4 flex items-center justify-center">
-            {previewType === 'image' && previewUrl && <img src={previewUrl} alt="Preview" className="max-w-full max-h-full object-contain rounded-md shadow-sm" />}
-            {previewType === 'pdf' && previewUrl && <iframe src={`${previewUrl}#toolbar=0`} className="w-full h-full rounded-md shadow-sm border-0" />}
+            {previewLoading && <Loader2 className="w-7 h-7 animate-spin text-muted-foreground" />}
+            {!previewLoading && (previewError || previewMediaError) && (
+              <Alert variant="destructive" className="max-w-lg">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Não foi possível abrir o comprovante</AlertTitle>
+                <AlertDescription>{previewError || 'Arquivo inexistente, corrompido ou link expirado.'}</AlertDescription>
+              </Alert>
+            )}
+            {!previewLoading && !previewError && !previewMediaError && previewType === 'image' && previewUrl && (
+              <img src={previewUrl} alt="Preview" onError={handlePreviewMediaError} className="max-w-full max-h-full object-contain rounded-md shadow-sm" />
+            )}
+            {!previewLoading && !previewError && !previewMediaError && previewType === 'pdf' && previewUrl && (
+              <iframe title={previewTitle || 'Comprovante'} src={`${previewUrl}#toolbar=0`} onError={handlePreviewMediaError} className="w-full h-full rounded-md shadow-sm border-0" />
+            )}
           </div>
           <DialogFooter className="p-4 border-t shrink-0">
-            <Button variant="outline" onClick={() => { if (previewUrl) openSecureWindow(previewUrl); }}>Abrir em nova aba</Button>
-            <Button onClick={() => { setPreviewUrl(null); setPreviewType(null); }}>Fechar</Button>
+            {(previewError || previewMediaError || previewUrl) && <Button variant="outline" onClick={handleManualPreviewRefresh}>Atualizar link</Button>}
+            <Button variant="outline" onClick={() => { if (previewUrl) openSecureWindow(previewUrl); }} disabled={!previewUrl || previewLoading}>Abrir em nova aba</Button>
+            <Button onClick={closeInlinePreview}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

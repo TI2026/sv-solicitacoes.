@@ -123,7 +123,7 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     expect(source).toContain('useDashboardQueue(user?.id)');
     expect(source).toContain('useApprovalContext(item.reference_id, moduleKey)');
     expect(source).toContain("action: 'approve', completionAction");
-    expect(queue).toContain("queryKey: ['my_approvals', userId]");
+    expect(queue).toContain('queryKey: approvalQueueKeys.myApprovals(userId)');
     expect(mutation).toContain("queryKey: ['my_approval_history', userId]");
     expect(mutation).toContain("if (!canonical) throw new Error('ENGINE_ACTION_CONTEXT_REQUIRED')");
     expect(mutation).not.toContain("params.completionAction || 'aprovar'");

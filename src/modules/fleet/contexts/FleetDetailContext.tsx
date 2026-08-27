@@ -88,6 +88,9 @@ interface FleetDetailContextData {
   setPreviewType: (v: 'image' | 'pdf' | null) => void;
   previewTitle: string;
   setPreviewTitle: (v: string) => void;
+  previewLoading: boolean;
+  previewError: string | null;
+  previewPath: string | null;
 
   // Reembolso Checklist
   reembChecklist: { valorConfere: boolean; beneficiarioConfere: boolean; comprovanteOk: boolean; categoriaOk: boolean };
@@ -100,6 +103,8 @@ interface FleetDetailContextData {
   handlePaymentConfirm: () => Promise<void>;
   handleUpload: (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal') => Promise<void>;
   openInlinePreview: (path: string, label: string) => Promise<void>;
+  refreshInlinePreview: () => Promise<void>;
+  closeInlinePreview: () => void;
   getSignedUrl: (path: string) => Promise<void>;
 }
 
@@ -154,6 +159,9 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<'image' | 'pdf' | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
 
   const [reembChecklist, setReembChecklist] = useState({
     valorConfere: false,
@@ -261,9 +269,9 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
       toast({ title: 'Arquivo muito grande', description: 'Máximo 10MB', variant: 'destructive' });
       return;
     }
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
+    const allowed = ['image/jpeg', 'image/png', 'application/pdf'] as const;
     if (!allowed.includes(file.type as any)) {
-      toast({ title: 'Tipo de arquivo não permitido', description: 'Use JPEG, PNG, WebP ou PDF', variant: 'destructive' });
+      toast({ title: 'Tipo de arquivo não permitido', description: 'Use JPEG, PNG ou PDF', variant: 'destructive' });
       return;
     }
 
@@ -300,13 +308,38 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
     if (data?.signedUrl) openSecureWindow(data.signedUrl);
   };
 
-  const openInlinePreview = async (path: string, label: string) => {
-    const { data } = await supabase.storage.from('fleet').createSignedUrl(path, 300);
-    if (!data?.signedUrl) return;
-    const isPdf = /\.pdf$/i.test(path);
-    setPreviewUrl(data.signedUrl);
-    setPreviewType(isPdf ? 'pdf' : 'image');
+  const loadInlinePreview = async (path: string, label: string) => {
+    setPreviewLoading(true);
+    setPreviewError(null);
     setPreviewTitle(label);
+    setPreviewType(/\.pdf$/i.test(path) ? 'pdf' : 'image');
+    const { data, error } = await supabase.storage.from('fleet').createSignedUrl(path, 300);
+    if (error || !data?.signedUrl) {
+      setPreviewUrl(null);
+      setPreviewError(error?.message || 'Arquivo inexistente ou sem permissão de leitura.');
+      setPreviewLoading(false);
+      return;
+    }
+    setPreviewUrl(data.signedUrl);
+    setPreviewLoading(false);
+  };
+
+  const openInlinePreview = async (path: string, label: string) => {
+    setPreviewPath(path);
+    await loadInlinePreview(path, label);
+  };
+
+  const refreshInlinePreview = async () => {
+    if (!previewPath) return;
+    await loadInlinePreview(previewPath, previewTitle || 'Comprovante');
+  };
+
+  const closeInlinePreview = () => {
+    setPreviewPath(null);
+    setPreviewUrl(null);
+    setPreviewType(null);
+    setPreviewError(null);
+    setPreviewLoading(false);
   };
 
   const value = {
@@ -325,8 +358,10 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
     reviewKmReal, setReviewKmReal, reviewKmOk, setReviewKmOk, reviewNfReal, setReviewNfReal,
     reviewNfOk, setReviewNfOk, reviewDivergenceReason, setReviewDivergenceReason,
     previewUrl, setPreviewUrl, previewType, setPreviewType, previewTitle, setPreviewTitle,
+    previewLoading, previewError, previewPath,
     reembChecklist, setReembChecklist, reembChecklistComplete,
-    handleStatusChange, handleApprovalAction, handlePaymentConfirm, handleUpload, openInlinePreview, getSignedUrl
+    handleStatusChange, handleApprovalAction, handlePaymentConfirm, handleUpload, openInlinePreview,
+    refreshInlinePreview, closeInlinePreview, getSignedUrl
   };
 
   return <FleetDetailContext.Provider value={value}>{children}</FleetDetailContext.Provider>;
