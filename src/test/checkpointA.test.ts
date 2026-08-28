@@ -8,7 +8,7 @@ import {
   requestNewRoute,
 } from '@/modules/fleet/requestRoutes';
 
-const read = (path: string) => readFileSync(resolve(path), 'utf8');
+const read = (path: string) => readFileSync(resolve(path), 'utf8').replace(/\r\n/g, '\n');
 
 describe('Checkpoint A — rotas canônicas de frota', () => {
   it.each([
