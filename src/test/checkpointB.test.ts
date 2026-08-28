@@ -217,3 +217,58 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     expect(source).toContain("reqType === 'reembolso' && stepAction === 'aprovar'");
   });
 });
+
+describe('Checkpoint B — fronteiras de segurança empresarial', () => {
+  const migration = readFileSync(
+    resolve('supabase/migrations/20260828010000_checkpoint_b_enterprise_hardening.sql'),
+    'utf8',
+  );
+  const edge = readFileSync(resolve('supabase/functions/purchases-create-signed-upload/index.ts'), 'utf8');
+  const attachments = readFileSync(
+    resolve('src/modules/purchases/components/PurchaseAttachments.tsx'),
+    'utf8',
+  );
+
+  it('remove privilégios de tabela incompatíveis com RLS e protege a configuração do motor', () => {
+    expect(migration).toContain('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM anon');
+    expect(migration).toContain('REVOKE TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM authenticated');
+    expect(migration).toContain('public.approval_flows');
+    expect(migration).toContain('public.approval_flow_steps');
+  });
+
+  it('vincula leitura e escrita de anexos ao Action Context', () => {
+    expect(migration).toContain('entity_action_context_can_read');
+    expect(migration).toContain('purchase_attachment_can_write');
+    expect(migration).toContain('Action Context reads purchase files');
+    expect(migration).toContain('Action Context inserts purchase files');
+  });
+
+  it('não usa service role para descobrir compras nem concede upload por papel', () => {
+    expect(edge).toMatch(/userClient\s*\.from\('purchases'\)/);
+    expect(edge).toMatch(/userClient\s*\.rpc\('get_entity_action_context'/);
+    expect(edge).toContain('actionContext?.can_edit === true');
+    expect(edge.indexOf("createClient(supabaseUrl, serviceKey)")).toBeGreaterThan(
+      edge.indexOf('actionContext?.can_edit === true'),
+    );
+    expect(edge).not.toContain('isAdmin');
+  });
+
+  it('aceita somente JPEG, PNG e PDF com validação de assinatura no cliente', () => {
+    for (const source of [edge, attachments]) {
+      expect(source).toContain('image/jpeg');
+      expect(source).toContain('image/png');
+      expect(source).toContain('application/pdf');
+      expect(source).not.toContain('image/webp');
+    }
+    expect(attachments).toContain('validateFileMagicNumber(file, ALLOWED)');
+  });
+
+  it('impede que telemetria do cliente se passe por auditoria autoritativa', () => {
+    expect(migration).toContain("jsonb_build_object('audit_source', 'client_telemetry')");
+    expect(migration).toContain('tr_guard_audit_log_client_insert');
+  });
+
+  it('não ativa o motor V2 durante o hardening', () => {
+    expect(migration).not.toMatch(/UPDATE\s+public\.approval_flows[\s\S]*SET\s+is_active\s*=\s*true/i);
+  });
+});

@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 const MAX_SIZE = 10 * 1024 * 1024 // 10MB
 
 Deno.serve(async (req) => {
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       })
     }
     if (!ALLOWED_TYPES.includes(file_type)) {
-      return new Response(JSON.stringify({ error: 'Tipo de arquivo não permitido. Use JPEG, PNG, WebP ou PDF.' }), {
+      return new Response(JSON.stringify({ error: 'Tipo de arquivo não permitido. Use JPEG, PNG ou PDF.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -59,9 +59,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    const adminClient = createClient(supabaseUrl, serviceKey)
-
-    const { data: purchase, error: purchaseError } = await adminClient
+    // Read through the caller session so an unrelated user cannot use the
+    // service role to discover whether a purchase id exists.
+    const { data: purchase, error: purchaseError } = await userClient
       .from('purchases')
       .select('id, requester_user_id, status')
       .eq('id', purchase_id)
@@ -74,19 +74,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { data: roles } = await adminClient.rpc('get_user_roles', { _user_id: userId })
-    const isAdmin = (roles || []).some((r: string) => ['diretoria', 'administrativo', 'master'].includes(r))
-    const isOwner = purchase.requester_user_id === userId
-
-    if (!isOwner && !isAdmin) {
-      return new Response(JSON.stringify({ error: 'Sem permissão para este upload' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    // Solicitante só pode anexar em rascunho ou devolvido
-    if (isOwner && !isAdmin && !['rascunho', 'retornado'].includes(purchase.status)) {
+    const { data: actionContext, error: contextError } = await userClient.rpc('get_entity_action_context', {
+      p_module_key: 'compras',
+      p_entity_id: purchase_id,
+    })
+    const canUpload = purchase.requester_user_id === userId && actionContext?.can_edit === true
+    if (contextError || !canUpload) {
       return new Response(JSON.stringify({ error: 'Anexos só podem ser modificados em rascunho ou solicitação devolvida.' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -96,6 +89,8 @@ Deno.serve(async (req) => {
     const sanitized = file_name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100)
     const path = `requests/${purchase_id}/${Date.now()}_${sanitized}`
 
+    // Service role is used only after authorization, to mint the one-time URL.
+    const adminClient = createClient(supabaseUrl, serviceKey)
     const { data: signedData, error: signedError } = await adminClient.storage
       .from('purchase-attachments')
       .createSignedUploadUrl(path)
