@@ -222,9 +222,15 @@ SELECT is(
 -- MÓDULO 3: DIÁRIA
 -- Fluxo: 3 steps
 -- ============================================================
-INSERT INTO public.fuel_requests (id, requester_user_id, status, type, valor)
+INSERT INTO public.fuel_requests (
+  id, requester_user_id, status, type, data_abastecimento, daily_end_date,
+  daily_days, daily_category, person_name, motivo, daily_value, valor,
+  payment_method, pix_key
+)
 VALUES ('b3000000-0000-0000-0000-000000000001',
-        'b0000000-0000-0000-0000-000000000001', 'rascunho', 'diaria', 80.00)
+        'b0000000-0000-0000-0000-000000000001', 'rascunho', 'diaria',
+        current_date, current_date, 1, 'Viagem', 'Solicitante teste',
+        'Fluxo de diária', 80.00, 80.00, 'pix', '11999999999')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT is(

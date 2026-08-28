@@ -10,7 +10,8 @@ INSERT INTO auth.users(id,email) VALUES
   ('fa000000-0000-0000-0000-000000000004','final-d@test.local'),
   ('fa000000-0000-0000-0000-000000000005','final-s@test.local'),
   ('fa000000-0000-0000-0000-000000000006','final-m@test.local'),
-  ('fa000000-0000-0000-0000-000000000007','final-u@test.local')
+  ('fa000000-0000-0000-0000-000000000007','final-u@test.local'),
+  ('fa000000-0000-0000-0000-000000000008','final-director@test.local')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.profiles(id,full_name,email,active) VALUES
@@ -20,7 +21,8 @@ INSERT INTO public.profiles(id,full_name,email,active) VALUES
   ('fa000000-0000-0000-0000-000000000004','Final D Step 3','final-d@test.local',true),
   ('fa000000-0000-0000-0000-000000000005','Final S Substitute','final-s@test.local',true),
   ('fa000000-0000-0000-0000-000000000006','Final M Master','final-m@test.local',true),
-  ('fa000000-0000-0000-0000-000000000007','Final U Unrelated','final-u@test.local',true)
+  ('fa000000-0000-0000-0000-000000000007','Final U Unrelated','final-u@test.local',true),
+  ('fa000000-0000-0000-0000-000000000008','Final Director','final-director@test.local',true)
 ON CONFLICT (id) DO UPDATE SET active=true;
 
 INSERT INTO public.roles(key,name,is_master,active)
@@ -31,7 +33,9 @@ SELECT 'fa000000-0000-0000-0000-000000000006',id
 FROM public.roles WHERE key='master'
 ON CONFLICT DO NOTHING;
 INSERT INTO public.user_roles(user_id,role) VALUES
-  ('fa000000-0000-0000-0000-000000000003','rh')
+  ('fa000000-0000-0000-0000-000000000001','financeiro'),
+  ('fa000000-0000-0000-0000-000000000003','rh'),
+  ('fa000000-0000-0000-0000-000000000008','diretoria')
 ON CONFLICT DO NOTHING;
 
 -- Configuração real: seis fluxos, 17 etapas, B/C/D e contingência S.
@@ -62,12 +66,30 @@ INSERT INTO public.purchases(id,requester_user_id,status,category,description,pr
 VALUES ('fa100000-0000-0000-0000-000000000001','fa000000-0000-0000-0000-000000000001','rascunho','Operação','Compra final','normal',1000);
 INSERT INTO public.fuel_requests(id,requester_user_id,valor,data_abastecimento,status,type,placa,motivo)
 VALUES ('fa200000-0000-0000-0000-000000000001','fa000000-0000-0000-0000-000000000001',200,current_date+1,'rascunho','abastecimento','ABC1D23','Viagem programada');
-INSERT INTO public.fuel_requests(id,requester_user_id,valor,data_abastecimento,status,type,daily_category,person_name,daily_value)
-VALUES ('fa200000-0000-0000-0000-000000000002','fa000000-0000-0000-0000-000000000001',300,current_date+1,'rascunho','diaria','Viagem','Pessoa Teste',300);
+INSERT INTO public.fuel_requests(
+  id,requester_user_id,valor,data_abastecimento,daily_end_date,daily_days,status,type,
+  daily_category,person_name,daily_value,motivo,payment_method,pix_key
+)
+VALUES (
+  'fa200000-0000-0000-0000-000000000002','fa000000-0000-0000-0000-000000000001',300,
+  current_date+1,current_date+1,1,'rascunho','diaria','Viagem','Pessoa Teste',300,
+  'Visita técnica','pix','11999999999'
+);
 INSERT INTO public.fuel_requests(id,requester_user_id,valor,data_abastecimento,status,type,categoria,notes,payment_method,pix_key)
 VALUES ('fa200000-0000-0000-0000-000000000003','fa000000-0000-0000-0000-000000000001',400,current_date,'rascunho','reembolso','Hospedagem','Despesa empresarial comprovada','pix','12345678901');
 INSERT INTO public.fuel_attachments(fuel_request_id,type,file_path)
 VALUES ('fa200000-0000-0000-0000-000000000003','nota_fiscal','final/reembolso/comprovante.pdf');
+INSERT INTO public.fuel_attachments(fuel_request_id,type,file_path) VALUES
+  ('fa200000-0000-0000-0000-000000000001','comprovante_pagamento','requests/fa200000-0000-0000-0000-000000000001/comprovante_pagamento/pagamento.pdf'),
+  ('fa200000-0000-0000-0000-000000000002','comprovante_pagamento','requests/fa200000-0000-0000-0000-000000000002/comprovante_pagamento/pagamento.pdf'),
+  ('fa200000-0000-0000-0000-000000000003','comprovante_pagamento','requests/fa200000-0000-0000-0000-000000000003/comprovante_pagamento/pagamento.pdf');
+UPDATE public.purchases
+   SET attachments=jsonb_build_array(jsonb_build_object(
+     'id',gen_random_uuid(),'name','pagamento.pdf','kind','comprovante_pagamento',
+     'path','requests/fa100000-0000-0000-0000-000000000001/comprovante_pagamento/pagamento.pdf',
+     'uploaded_at',now()
+   ))
+ WHERE id='fa100000-0000-0000-0000-000000000001';
 INSERT INTO public.admission_requests(
   id,requester_user_id,local_contratacao,centro_custo,cargo_funcao,tipo_contrato,
   jornada,gestor_responsavel,motivo,status
@@ -157,6 +179,21 @@ SELECT ok((SELECT NOT active FROM public.collaborators WHERE id='fa400000-0000-0
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000001',true);
 SELECT set_config('role','authenticated',true);
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','gerar_oc',jsonb_build_object('ocNumber','OC-FINAL-1','approvedValue','950')))->>'code','200','Compras: gera OC');
+SELECT set_config('role','postgres',true);
+UPDATE public.purchases SET attachments='[]'::jsonb WHERE id='fa100000-0000-0000-0000-000000000001';
+SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000001',true);
+SELECT set_config('role','authenticated',true);
+SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','pagar'))->>'code','422','Compras: pagamento sem evidência bancária é bloqueado');
+SELECT set_config('role','postgres',true);
+UPDATE public.purchases
+   SET attachments=jsonb_build_array(jsonb_build_object(
+     'id',gen_random_uuid(),'name','pagamento.pdf','kind','comprovante_pagamento',
+     'path','requests/fa100000-0000-0000-0000-000000000001/comprovante_pagamento/pagamento.pdf',
+     'uploaded_at',now()
+   ))
+ WHERE id='fa100000-0000-0000-0000-000000000001';
+SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000001',true);
+SELECT set_config('role','authenticated',true);
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000001','pagar'))->>'code','200','Compras: paga');
 SELECT set_config(
   'release_gate.payment_history_before',
@@ -245,8 +282,15 @@ SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-00000
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000004','cancelar',jsonb_build_object('notes','Solicitação não é mais necessária')))->>'code','200','A cancela com motivo');
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000005','enviar'))->>'code','200','Override: A envia');
 SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000005','enviar'))->>'code','409','double send é bloqueado');
+SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000008',true);
+SELECT is((SELECT count(*)::integer FROM jsonb_array_elements_text((public.get_entity_action_context('compras','fa100000-0000-0000-0000-000000000005')).allowed_actions) a WHERE a.value IN ('aprovar','devolver','rejeitar')),0,
+  'Diretoria fora da etapa não recebe ações comuns');
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000006',true);
-SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000005','aprovar',jsonb_build_object('notes','Override Master devidamente justificado')))->>'code','200','Master override executa com motivo');
+SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000005','aprovar',jsonb_build_object('notes','Tentativa comum do Master')))->>'code','403','Master não executa ação comum por cargo');
+SELECT ok((SELECT allowed_actions ? 'master_override' AND NOT (allowed_actions ?| ARRAY['aprovar','devolver','rejeitar','cancelar']) FROM public.get_entity_action_context('compras','fa100000-0000-0000-0000-000000000005')),
+  'Master recebe somente override explícito, sem ações comuns');
+SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000005','master_override',jsonb_build_object('notes','curto')))->>'code','422','Override Master exige motivo suficiente');
+SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-000000000005','master_override',jsonb_build_object('notes','Override Master devidamente justificado')))->>'code','200','Master override explícito executa com motivo');
 SELECT ok((SELECT (details->>'master_override')::boolean FROM public.audit_logs WHERE entity_id='fa100000-0000-0000-0000-000000000005' AND action='ENGINE_V2_APROVAR' ORDER BY created_at DESC LIMIT 1),
   'Master override é auditado');
 
@@ -256,6 +300,14 @@ SELECT is((public.execute_entity_action('compras','fa100000-0000-0000-0000-00000
 SELECT set_config('role','postgres',true);
 SELECT is((SELECT current_approver_user_id FROM public.approval_requests WHERE reference_id='fa100000-0000-0000-0000-000000000006' AND ended_at IS NULL),'fa000000-0000-0000-0000-000000000005'::uuid,
   'primary inativo resolve para substitute S');
+SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000005',true);
+SELECT set_config('role','authenticated',true);
+SELECT ok((SELECT allowed_actions ? 'aprovar' FROM public.get_entity_action_context('compras','fa100000-0000-0000-0000-000000000006')),
+  'substitute ativo recebe a ação da etapa');
+SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000002',true);
+SELECT is((SELECT count(*)::integer FROM jsonb_array_elements_text((public.get_entity_action_context('compras','fa100000-0000-0000-0000-000000000006')).allowed_actions) a WHERE a.value IN ('aprovar','devolver','rejeitar')),0,
+  'primary perde ações quando substitute assume');
+SELECT set_config('role','postgres',true);
 UPDATE public.profiles SET active=true WHERE id='fa000000-0000-0000-0000-000000000002';
 
 SELECT set_config('request.jwt.claim.sub','fa000000-0000-0000-0000-000000000007',true);

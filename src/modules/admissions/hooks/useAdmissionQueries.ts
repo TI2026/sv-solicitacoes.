@@ -52,7 +52,7 @@ export function useCreateAdmission() {
       return data as any;
     },
     onSuccess: (result) => {
-      refreshApprovalData(qc, result?.id);
+      refreshApprovalData(qc, result?.id, 'admissoes');
       toast({ title: 'Vaga criada com sucesso' });
     },
     onError: (e: any) => toast({ title: 'Erro ao criar vaga', description: e.message, variant: 'destructive' }),

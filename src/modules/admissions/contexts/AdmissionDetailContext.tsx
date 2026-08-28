@@ -97,7 +97,7 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
     data: approvalCtx,
     isLoading: approvalCtxLoading,
     error: approvalCtxError,
-  } = useApprovalContext(id, 'admissions');
+  } = useApprovalContext(id, 'admissoes');
 
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();

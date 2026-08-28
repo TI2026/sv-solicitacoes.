@@ -23,7 +23,7 @@ export function usePurchaseMutations() {
       return result as PurchaseRequest;
     },
     onSuccess: () => {
-      refreshApprovalData(queryClient);
+      refreshApprovalData(queryClient, undefined, 'compras');
     },
   });
 
@@ -40,14 +40,14 @@ export function usePurchaseMutations() {
       return result as PurchaseRequest;
     },
     onSuccess: (data) => {
-      refreshApprovalData(queryClient, data.id);
+      refreshApprovalData(queryClient, data.id, 'compras');
     },
   });
 
   const submitMutation = useMutation({
     mutationFn: (id: string) => executeEntityAction({ moduleKey: 'compras', entityId: id, action: 'enviar' }),
     onSuccess: (_, id) => {
-      refreshApprovalData(queryClient, id);
+      refreshApprovalData(queryClient, id, 'compras');
     },
   });
 

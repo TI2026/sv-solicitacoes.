@@ -5,7 +5,7 @@ export interface PurchaseAttachment {
   name: string;
   path?: string | null;
   url?: string | null;
-  kind?: 'file' | 'link';
+  kind?: 'file' | 'link' | 'comprovante_pagamento';
   uploaded_at: string;
 }
 

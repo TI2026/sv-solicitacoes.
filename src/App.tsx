@@ -72,15 +72,21 @@ const queryClient = new QueryClient({
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
-function StartupConfigurationGuard({ children }: { children: React.ReactNode }) {
-  if (!supabaseConfigError) return <>{children}</>;
+export function StartupConfigurationGuard({
+  children,
+  error = supabaseConfigError,
+}: {
+  children: React.ReactNode;
+  error?: string | null;
+}) {
+  if (!error) return <>{children}</>;
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="w-full max-w-lg rounded-xl border border-destructive/30 bg-card p-8 shadow-sm">
         <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
         <h1 className="text-xl font-bold text-foreground">Aplicação não configurada</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{supabaseConfigError}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{error}</p>
         <p className="mt-4 rounded-md bg-muted p-3 text-xs text-muted-foreground">
           Copie <code>.env.example</code> para <code>.env.local</code>, preencha as duas variáveis públicas e reinicie a aplicação.
         </p>

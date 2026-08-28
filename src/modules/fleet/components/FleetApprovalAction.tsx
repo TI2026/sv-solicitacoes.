@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, XCircle, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
 import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
+import { WorkflowDecisionActions } from '@/components/WorkflowDecisionActions';
 
 export function FleetApprovalAction() {
   const {
@@ -56,6 +57,11 @@ export function FleetApprovalAction() {
       <div className="mt-4">
         <ApprovalContextSummary ctx={approvalCtx} />
       </div>
+      {approvalCtx?.permissions.allowed_actions.includes('master_override') && (
+        <div className="mt-3">
+          <WorkflowDecisionActions moduleKey={reqType} entityId={req.id} context={approvalCtx} />
+        </div>
+      )}
 
       {/* [Sprint 2 — Onda 2] Botões de ação: ctx.permissions.approve é a fonte de verdade */}
       {canApprove && (

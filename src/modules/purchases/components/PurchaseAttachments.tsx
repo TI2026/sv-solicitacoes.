@@ -17,15 +17,17 @@ interface Props {
   purchaseId: string;
   attachments: PurchaseAttachment[];
   canEdit?: boolean;
+  canUploadPaymentProof?: boolean;
 }
 
-export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }: Props) {
+export function PurchaseAttachments({ purchaseId, attachments, canEdit = false, canUploadPaymentProof = false }: Props) {
   const [uploading, setUploading] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkName, setLinkName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const paymentInputRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
 
   const invalidate = () => {
@@ -75,7 +77,7 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
     if (error) throw error;
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, kind: 'file' | 'comprovante_pagamento' = 'file') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -99,7 +101,13 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
     setUploading(true);
     try {
       const { data: signedData, error: fnError } = await supabase.functions.invoke('purchases-create-signed-upload', {
-        body: { purchase_id: purchaseId, file_type: file.type, file_name: file.name, file_size: file.size },
+        body: {
+          purchase_id: purchaseId,
+          file_type: file.type,
+          file_name: file.name,
+          file_size: file.size,
+          attachment_type: kind === 'comprovante_pagamento' ? 'comprovante_pagamento' : 'anexo',
+        },
       });
       if (fnError || (signedData as any)?.error) {
         throw new Error((signedData as any)?.error || fnError?.message || 'Erro ao gerar URL');
@@ -111,11 +119,22 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
         .uploadToSignedUrl(path, token, file);
       if (uploadError) throw uploadError;
 
-      const next: PurchaseAttachment[] = [
-        ...attachments,
-        { id: crypto.randomUUID(), name: file.name, path, uploaded_at: new Date().toISOString() },
-      ];
-      await persistAttachments(next);
+      if (kind === 'comprovante_pagamento') {
+        const { data: registerResult, error: registerError } = await (supabase as any).rpc('register_purchase_payment_proof', {
+          p_purchase_id: purchaseId,
+          p_path: path,
+          p_file_name: file.name,
+        });
+        if (registerError || Number(registerResult?.code) !== 200) {
+          throw new Error(registerResult?.message || registerError?.message || 'Erro ao vincular comprovante');
+        }
+      } else {
+        const next: PurchaseAttachment[] = [
+          ...attachments,
+          { id: crypto.randomUUID(), name: file.name, path, kind, uploaded_at: new Date().toISOString() },
+        ];
+        await persistAttachments(next);
+      }
       toast.success('Anexo enviado com sucesso!');
       invalidate();
     } catch (err: any) {
@@ -190,6 +209,7 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate flex items-center gap-1.5">
                     {att.url ? <LinkIcon className="w-3.5 h-3.5 text-primary shrink-0" /> : null}
+                    {att.kind === 'comprovante_pagamento' ? 'Comprovante de pagamento · ' : ''}
                     {att.name}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
@@ -248,6 +268,24 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
               <LinkIcon className="w-4 h-4" /> Anexar link
             </Button>
             <p className="text-[11px] text-muted-foreground text-center mt-2">JPEG, PNG, WebP ou PDF · até 10MB</p>
+          </div>
+        )}
+
+        {canUploadPaymentProof && !attachments.some((attachment) => attachment.kind === 'comprovante_pagamento') && (
+          <div className="border-t pt-3 space-y-2">
+            <input
+              ref={paymentInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              className="hidden"
+              onChange={(event) => handleUpload(event, 'comprovante_pagamento')}
+              disabled={uploading}
+            />
+            <Button variant="secondary" size="sm" className="w-full gap-1" onClick={() => paymentInputRef.current?.click()} disabled={uploading}>
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              Anexar comprovante bancário
+            </Button>
+            <p className="text-[11px] text-muted-foreground text-center">Obrigatório para confirmar o pagamento; nota fiscal não substitui esta evidência.</p>
           </div>
         )}
 

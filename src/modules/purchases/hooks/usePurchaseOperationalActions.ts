@@ -58,7 +58,7 @@ export function usePurchaseOperationalActions(purchaseId: string | undefined) {
 
   const invalidate = () => {
     if (purchaseId) {
-      refreshApprovalData(qc, purchaseId);
+      refreshApprovalData(qc, purchaseId, 'compras');
       qc.invalidateQueries({ queryKey: ['purchase', purchaseId] });
       qc.invalidateQueries({ queryKey: approvalKeys.context('compras', purchaseId) });
     }

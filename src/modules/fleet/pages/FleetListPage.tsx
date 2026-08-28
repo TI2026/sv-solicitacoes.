@@ -99,7 +99,10 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
                 <div className="flex items-center gap-x-3 gap-y-1 mt-1.5 text-sm text-muted-foreground flex-wrap min-w-0">
                   <span className="flex items-center gap-1 shrink-0">
                     <Calendar className="w-3.5 h-3.5" />
-                    {new Date(req.data_abastecimento).toLocaleDateString('pt-BR')}
+                    {new Date(`${req.data_abastecimento}T12:00:00`).toLocaleDateString('pt-BR')}
+                    {req.type === 'diaria' && req.daily_end_date && (
+                      <> a {new Date(`${req.daily_end_date}T12:00:00`).toLocaleDateString('pt-BR')}</>
+                    )}
                   </span>
                   {req.placa && <span className="shrink-0">🚗 {req.placa}</span>}
                   {req.categoria && <span className="truncate max-w-[12rem]">{req.categoria}</span>}

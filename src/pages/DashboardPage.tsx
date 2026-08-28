@@ -25,6 +25,7 @@ import { AdmissionMetricsBlock } from '@/modules/dashboard/components/AdmissionM
 import { PurchaseMetricsBlock } from '@/modules/dashboard/components/PurchaseMetricsBlock';
 import { FlowControlPanel } from '@/modules/dashboard/components/FlowControlPanel';
 import { mapDashboardMetrics } from '@/modules/dashboard/adapters/mapDashboardMetrics';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function DashboardPage() {
   const { user, hasAnyRole, isMaster } = useAuth();
@@ -32,6 +33,7 @@ export default function DashboardPage() {
   const { onlineUsers } = usePresence();
   const [exportOpen, setExportOpen] = useState(false);
   const [showTop, setShowTop] = useState(false);
+  const { allowed: canSeeFinancials } = usePermission('dashboard', 'view_financials');
 
   useEffect(() => {
     const onScroll = () => setShowTop(window.scrollY > 400);
@@ -42,7 +44,6 @@ export default function DashboardPage() {
   // Permissões derivadas do perfil
   const isRH = hasAnyRole(['diretoria', 'rh']);
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
-  const canSeeFinancials = !!isMaster;
   const canViewAdmissions = hasAnyRole(['diretoria', 'rh', 'administrativo']);
 
   // ─── Realtime — invalida todos os widgets reativos ────────────────────────
@@ -98,7 +99,10 @@ export default function DashboardPage() {
   const overviewKpis = [
     {
       label: 'Total de Solicitações',
-      value: !metrics ? '—' : (metrics.fuel.total + metrics.admission.total),
+      value: !metrics ? '—' : (
+        metrics.fuel.total + metrics.admission.total
+        + metrics.purchases.total + metrics.terminations.total
+      ),
       icon: Activity,
       tone: 'text-primary',
       bg: 'bg-primary/10',
@@ -132,7 +136,7 @@ export default function DashboardPage() {
       bg: 'bg-orange-50',
     },
     {
-      label: 'Usuários Ativos Agora',
+      label: 'Sessões Ativas Agora',
       value: onlineUsers?.length ?? 0,
       icon: Users,
       tone: 'text-fuchsia-600',

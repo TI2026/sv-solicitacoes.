@@ -35,15 +35,22 @@
  */
 import type { QueryClient } from '@tanstack/react-query';
 
-function refreshApprovalContext(qc: QueryClient, referenceId?: string) {
+function refreshApprovalContext(qc: QueryClient, referenceId?: string, moduleKey?: string) {
   qc.invalidateQueries({ queryKey: ['my_approvals'] });
   qc.invalidateQueries({ queryKey: ['my_approval_history'] });
   // Chaves de contexto são escopadas por módulo (['approval_context', module, id]).
   // Invalidamos por prefixo para cobrir todos os módulos sem duplicar regra.
-  qc.invalidateQueries({ queryKey: ['approval_context'] });
+  qc.invalidateQueries({
+    queryKey: moduleKey && referenceId
+      ? ['approval_context', moduleKey, referenceId]
+      : ['approval_context'],
+  });
   if (referenceId) {
-    // The query key is (module, entity); callers here only have the entity id.
-    qc.invalidateQueries({ queryKey: ['approval_request_for'] });
+    qc.invalidateQueries({
+      queryKey: moduleKey
+        ? ['approval_request_for', moduleKey, referenceId]
+        : ['approval_request_for'],
+    });
     qc.invalidateQueries({ queryKey: ['approval_flow_steps', referenceId] });
   }
 }
@@ -104,12 +111,14 @@ function refreshDashboardWidgets(qc: QueryClient, userId?: string) {
  * Sua única responsabilidade é coordenar
  * a invalidação de cache dos domínios.
  */
-export function refreshApprovalData(qc: QueryClient, referenceId?: string): void {
-  refreshApprovalContext(qc, referenceId);
-  refreshFleetDomain(qc, referenceId);
-  refreshPurchasesDomain(qc, referenceId);
-  refreshAdmissionsDomain(qc, referenceId);
-  refreshTerminationsDomain(qc, referenceId);
+export function refreshApprovalData(qc: QueryClient, referenceId?: string, moduleKey?: string): void {
+  refreshApprovalContext(qc, referenceId, moduleKey);
+  if (!moduleKey || ['abastecimento', 'diaria', 'reembolso'].includes(moduleKey)) {
+    refreshFleetDomain(qc, referenceId);
+  }
+  if (!moduleKey || moduleKey === 'compras') refreshPurchasesDomain(qc, referenceId);
+  if (!moduleKey || ['admissoes', 'admissions'].includes(moduleKey)) refreshAdmissionsDomain(qc, referenceId);
+  if (!moduleKey || moduleKey === 'desligamentos') refreshTerminationsDomain(qc, referenceId);
   refreshMetrics(qc);
   refreshDashboardWidgets(qc);
 }

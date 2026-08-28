@@ -12,11 +12,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { ApprovalContextData } from '@/modules/fleet/hooks/useApprovalContext';
 import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
 import { usePurchaseOperationalActions } from '../hooks/usePurchaseOperationalActions';
+import { WorkflowDecisionActions } from '@/components/WorkflowDecisionActions';
 
 interface PurchaseApprovalBlockProps {
   purchaseId: string;
   approvalCtx: ApprovalContextData;
   approvalRequestId?: string | null;
+  paymentProofAvailable?: boolean;
   onActionCompleted?: () => void;
 }
 
@@ -37,6 +39,7 @@ export function PurchaseApprovalBlock({
   purchaseId,
   approvalCtx,
   approvalRequestId,
+  paymentProofAvailable = false,
   onActionCompleted,
 }: PurchaseApprovalBlockProps) {
   const actions = usePurchaseOperationalActions(purchaseId);
@@ -127,6 +130,7 @@ export function PurchaseApprovalBlock({
         }
 
         case 'payment':
+          if (!paymentProofAvailable) { toast.error('Anexe o comprovante bancário do pagamento.'); return; }
           await actions.confirmPayment.mutateAsync({
             requestId: purchaseId,
             notes:     notes.trim() || undefined,
@@ -191,6 +195,9 @@ export function PurchaseApprovalBlock({
 
           {/* Informação de Etapa */}
           <ApprovalContextSummary ctx={approvalCtx} />
+          {allowedActions.includes('master_override') && (
+            <WorkflowDecisionActions moduleKey="compras" entityId={purchaseId} context={approvalCtx} />
+          )}
           {approvalCtx.meta?.reason_blocked && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
@@ -236,7 +243,7 @@ export function PurchaseApprovalBlock({
                   </Button>
                 )}
                 {allowedActions.includes('pagar') && (
-                  <Button size="sm" className="gap-1.5" onClick={() => setActionDialog('payment')}>
+                  <Button size="sm" className="gap-1.5" onClick={() => setActionDialog('payment')} disabled={!paymentProofAvailable} title={!paymentProofAvailable ? 'Anexe o comprovante bancário antes de pagar' : undefined}>
                     <CreditCard className="w-4 h-4" /> Confirmar Pagamento
                   </Button>
                 )}

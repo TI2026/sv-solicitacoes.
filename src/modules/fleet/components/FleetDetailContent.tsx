@@ -36,7 +36,7 @@ function ReembolsoDetails({ req }: { req: any }) {
       {req.payment_method === 'pix' && req.pix_key && (
         <div className="flex items-center gap-1">Pix ({pixLabel}): <MaskedPix value={req.pix_key} className="inline-flex ml-1" /></div>
       )}
-      {req.payment_method === 'conta_bancaria' && (
+      {req.payment_method === 'banco' && (
         <>
           {req.bank_name && <p>Banco: {req.bank_name}</p>}
           {req.bank_agency && <p>Agência: <span className="font-mono tracking-tight">{req.bank_agency}</span></p>}
@@ -56,21 +56,29 @@ function DiariaDetails({ req }: { req: any }) {
   return (
     <div className="text-sm text-muted-foreground border-t border-border pt-2 space-y-1">
       {req.daily_category && <p>Categoria: {catLabel}</p>}
+      {req.motivo && <p>Destino / finalidade: {req.motivo}</p>}
+      {req.data_abastecimento && (
+        <p>
+          Período: {new Date(`${req.data_abastecimento}T12:00:00`).toLocaleDateString('pt-BR')}
+          {req.daily_end_date && ` a ${new Date(`${req.daily_end_date}T12:00:00`).toLocaleDateString('pt-BR')}`}
+        </p>
+      )}
+      {req.daily_days && <p>Quantidade de dias: {req.daily_days}</p>}
       {req.daily_value && <p>Valor diário: R$ {Number(req.daily_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>}
+      {req.valor && <p>Valor total: R$ {Number(req.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>}
       {req.hours && <p>Horas: {req.hours}h</p>}
       {req.person_name && <p>Profissional: {req.person_name}</p>}
       {req.person_cpf && <p>CPF: <span className="font-mono tracking-tight">{req.person_cpf}</span></p>}
       {req.payment_method === 'pix' && req.pix_key && (
         <div className="flex items-center gap-1">Pix: <MaskedPix value={req.pix_key} className="inline-flex ml-1" /></div>
       )}
-      {req.payment_method === 'conta_bancaria' && (
+      {req.payment_method === 'banco' && (
         <>
           {req.bank_name && <p>Banco: {req.bank_name}</p>}
           {req.bank_agency && <p>Agência: <span className="font-mono tracking-tight">{req.bank_agency}</span></p>}
           {req.bank_account && <p>Conta: <span className="font-mono tracking-tight">{req.bank_account}</span></p>}
         </>
       )}
-      {req.motivo && <p>Motivo: {req.motivo}</p>}
     </div>
   );
 }

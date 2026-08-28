@@ -29,7 +29,8 @@ export type CanonicalAction =
   | 'concluir_revisao'
   | 'confirmar_horas'
   | 'concluir_triagem'
-  | 'concluir_processamento_rh';
+  | 'concluir_processamento_rh'
+  | 'master_override';
 
 export interface EntityActionParams {
   moduleKey: string;
@@ -90,7 +91,7 @@ export function useEntityAction() {
   return useMutation({
     mutationFn: executeEntityAction,
     onSuccess: (_result, params) => {
-      refreshApprovalData(qc, params.entityId);
+      refreshApprovalData(qc, params.entityId, params.moduleKey);
       if (!params.silent) {
         toast({ title: params.successMessage ?? 'Ação registrada com sucesso' });
       }
@@ -131,7 +132,7 @@ export function useModuleWorkflowAction(moduleKey: string) {
         payload: { ...(vars.payload ?? {}), ...(vars.reason ? { notes: vars.reason } : {}) },
       }),
     onSuccess: (_result, vars) => {
-      refreshApprovalData(qc, vars.requestId);
+      refreshApprovalData(qc, vars.requestId, moduleKey);
       toast({ title: vars.successMessage ?? 'Ação registrada com sucesso' });
     },
     onError: (err: Error) => {

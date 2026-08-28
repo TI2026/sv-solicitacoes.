@@ -34,6 +34,7 @@ import { useCreateCollaboratorFromAdmission } from '@/modules/epis/hooks/useAdmi
 import { useAdmissionFiles, useMedicalExam } from '../hooks/useAdmissionQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
+import { WorkflowDecisionActions } from '@/components/WorkflowDecisionActions';
 
 // Document key labels for admin view
 const DOC_KEY_LABELS: Record<string, string> = {
@@ -79,6 +80,7 @@ export function AdmissionDetailContent() {
   // O frontend NÃO DEVE calcular ações permitidas. Deve ler do motor.
   const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
   const canEditLocal = approvalCtx?.raw?.can_edit === true;
+  const hasActiveApproval = !!approvalRequest && !approvalRequest.ended_at;
 
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -161,7 +163,7 @@ export function AdmissionDetailContent() {
       </Card>
 
       {/* ===== ETAPA 0: Enviar para triagem ===== */}
-      {req.requester_user_id === user?.id && status === 'rascunho' && (
+      {req.requester_user_id === user?.id && status === 'rascunho' && hasAction('enviar') && (
         <Card>
           <CardContent className="p-4">
             <Button onClick={() => handleStatusChange('aguardando_triagem')} className="gap-2">
@@ -170,6 +172,17 @@ export function AdmissionDetailContent() {
           </CardContent>
         </Card>
       )}
+
+      {approvalCtx && (
+        <Card>
+          <CardContent className="p-4">
+            <WorkflowDecisionActions moduleKey="admissoes" entityId={id!} context={approvalCtx} />
+          </CardContent>
+        </Card>
+      )}
+
+      {!hasActiveApproval && (
+        <>
 
       {/* ===== ETAPA 1: Iniciar Triagem ===== */}
       {isRH && status === 'aguardando_triagem' && (
@@ -535,6 +548,8 @@ export function AdmissionDetailContent() {
             </div>
           </CardContent>
         </Card>
+      )}
+        </>
       )}
 
         </div>

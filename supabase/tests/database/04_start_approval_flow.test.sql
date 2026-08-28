@@ -117,7 +117,16 @@ INSERT INTO public.approval_flows (id, module_id, name, active, version, approva
 -- Aprovador é o próprio solicitante
 INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, approver_user_id, step_code, active) VALUES ('e0f30000-0000-0000-0000-000000000003', 1, 'usuario_fixo', '10000000-0000-0000-0000-000000000001', 'S1', true);
 UPDATE public.approval_flows SET version='v2' WHERE id='e0f30000-0000-0000-0000-000000000003';
-INSERT INTO public.fuel_requests (id, type, requester_user_id, status, valor) VALUES ('e00d0000-0000-0000-0000-000000000001', 'diaria', '10000000-0000-0000-0000-000000000001', 'rascunho', 100) ON CONFLICT DO NOTHING;
+INSERT INTO public.fuel_requests (
+  id, type, requester_user_id, status, data_abastecimento, daily_end_date,
+  daily_days, daily_category, person_name, motivo, daily_value, valor,
+  payment_method, pix_key
+) VALUES (
+  'e00d0000-0000-0000-0000-000000000001', 'diaria',
+  '10000000-0000-0000-0000-000000000001', 'rascunho', current_date, current_date,
+  1, 'Viagem', 'Solicitante teste', 'Autoaprovação', 100, 100,
+  'pix', '11999999999'
+) ON CONFLICT DO NOTHING;
 
 SELECT set_config('role', 'postgres', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-0000-0000-000000000001", "role":"authenticated"}', true);
@@ -188,7 +197,16 @@ DELETE FROM public.approval_flow_steps WHERE flow_id = 'e0f30000-0000-0000-0000-
 UPDATE public.profiles SET manager_user_id = '10000000-0000-0000-0000-000000000002' WHERE id = '10000000-0000-0000-0000-000000000001';
 INSERT INTO public.approval_flow_steps (flow_id, step_order, approver_type, approver_user_id, step_code, active) VALUES ('e0f30000-0000-0000-0000-000000000003', 2, 'usuario_fixo', '10000000-0000-0000-0000-000000000002', 'S2', true) ON CONFLICT DO NOTHING;
 UPDATE public.approval_flows SET version='v2' WHERE id='e0f30000-0000-0000-0000-000000000003';
-INSERT INTO public.fuel_requests (id, type, requester_user_id, status, valor) VALUES ('e00d0000-0000-0000-0000-000000000002', 'diaria', '10000000-0000-0000-0000-000000000001', 'rascunho', 100) ON CONFLICT DO NOTHING;
+INSERT INTO public.fuel_requests (
+  id, type, requester_user_id, status, data_abastecimento, daily_end_date,
+  daily_days, daily_category, person_name, motivo, daily_value, valor,
+  payment_method, pix_key
+) VALUES (
+  'e00d0000-0000-0000-0000-000000000002', 'diaria',
+  '10000000-0000-0000-0000-000000000001', 'rascunho', current_date, current_date,
+  1, 'Viagem', 'Solicitante teste', 'Fluxo válido', 100, 100,
+  'pix', '11999999999'
+) ON CONFLICT DO NOTHING;
 
 
 SELECT set_config('role', 'postgres', true);

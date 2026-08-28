@@ -52,7 +52,7 @@ export function useCreateTermination() {
       return data as any;
     },
     onSuccess: (result) => {
-      refreshApprovalData(qc, result?.id);
+      refreshApprovalData(qc, result?.id, 'desligamentos');
       toast({ title: 'Desligamento criado com sucesso' });
     },
     onError: (e: any) =>

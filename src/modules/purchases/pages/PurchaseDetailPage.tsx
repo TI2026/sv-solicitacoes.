@@ -34,7 +34,7 @@ export default function PurchaseDetailPage() {
     data: approvalCtx,
     isLoading: approvalCtxLoading,
     error: approvalCtxError,
-  } = useApprovalContext(id, 'purchases');
+  } = useApprovalContext(id, 'compras');
 
   // ── Estados derivados ─────────────────────────────────────
   // Frontend não calcula! Apenas reflete o estado do backend.
@@ -140,7 +140,10 @@ export default function PurchaseDetailPage() {
               isLoading={isUpdating}
             />
           ) : (
-            <PurchaseDetails purchase={purchase} />
+            <PurchaseDetails
+              purchase={purchase}
+              canUploadPaymentProof={approvalCtx?.permissions.allowed_actions.includes('pagar') ?? false}
+            />
           )}
         </div>
 
@@ -156,6 +159,7 @@ export default function PurchaseDetailPage() {
                 purchaseId={purchase.id}
                 approvalCtx={approvalCtx}
                 approvalRequestId={purchase.approval_request_id}
+                paymentProofAvailable={(purchase.attachments || []).some((attachment) => attachment.kind === 'comprovante_pagamento' && !!attachment.path)}
                 onActionCompleted={refetch}
               />
             ) : null}

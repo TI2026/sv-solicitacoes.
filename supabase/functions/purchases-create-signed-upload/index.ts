@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string
 
-    const { purchase_id, file_type, file_name, file_size } = await req.json()
+    const { purchase_id, file_type, file_name, file_size, attachment_type = 'anexo' } = await req.json()
     if (!purchase_id || !file_type || !file_name || !file_size) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios ausentes' }), {
         status: 400,
@@ -54,6 +54,12 @@ Deno.serve(async (req) => {
     }
     if (file_size > MAX_SIZE) {
       return new Response(JSON.stringify({ error: 'Arquivo excede o limite de 10MB.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (!['anexo', 'comprovante_pagamento'].includes(attachment_type)) {
+      return new Response(JSON.stringify({ error: 'Tipo de anexo inválido' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -77,8 +83,24 @@ Deno.serve(async (req) => {
     const { data: roles } = await adminClient.rpc('get_user_roles', { _user_id: userId })
     const isAdmin = (roles || []).some((r: string) => ['diretoria', 'administrativo', 'master'].includes(r))
     const isOwner = purchase.requester_user_id === userId
+    const { data: actionContext } = await userClient.rpc('get_entity_action_context', {
+      p_module_key: 'compras',
+      p_entity_id: purchase_id,
+    })
+    const allowedActions = Array.isArray(actionContext?.allowed_actions)
+      ? actionContext.allowed_actions
+      : []
+    const isPaymentActor = attachment_type === 'comprovante_pagamento'
+      && allowedActions.includes('pagar')
 
-    if (!isOwner && !isAdmin) {
+    if (attachment_type === 'comprovante_pagamento' && !isPaymentActor) {
+      return new Response(JSON.stringify({ error: 'Somente o responsável atual pelo pagamento pode anexar esta evidência' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (attachment_type !== 'comprovante_pagamento' && !isOwner && !isAdmin) {
       return new Response(JSON.stringify({ error: 'Sem permissão para este upload' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -86,7 +108,7 @@ Deno.serve(async (req) => {
     }
 
     // Solicitante só pode anexar em rascunho ou devolvido
-    if (isOwner && !isAdmin && !['rascunho', 'retornado'].includes(purchase.status)) {
+    if (attachment_type !== 'comprovante_pagamento' && isOwner && !isAdmin && !['rascunho', 'retornado'].includes(purchase.status)) {
       return new Response(JSON.stringify({ error: 'Anexos só podem ser modificados em rascunho ou solicitação devolvida.' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -94,7 +116,7 @@ Deno.serve(async (req) => {
     }
 
     const sanitized = file_name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100)
-    const path = `requests/${purchase_id}/${Date.now()}_${sanitized}`
+    const path = `requests/${purchase_id}/${attachment_type}/${Date.now()}_${sanitized}`
 
     const { data: signedData, error: signedError } = await adminClient.storage
       .from('purchase-attachments')

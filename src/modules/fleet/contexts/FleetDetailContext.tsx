@@ -97,7 +97,7 @@ interface FleetDetailContextData {
   handleStatusChange: (toStatus: string, reason?: string, metadata?: Record<string, any>) => Promise<void>;
   handleApprovalAction: (action: 'approve' | 'reject' | 'return', comments?: string) => Promise<void>;
   handlePaymentConfirm: () => Promise<void>;
-  handleUpload: (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal') => Promise<void>;
+  handleUpload: (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal' | 'comprovante_pagamento') => Promise<void>;
   openInlinePreview: (path: string, label: string) => Promise<void>;
   getSignedUrl: (path: string) => Promise<void>;
 }
@@ -171,15 +171,16 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     const channel = supabase
       .channel(`fuel-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fuel_requests', filter: `id=eq.${id}` }, (payload) => { 
-        refreshApprovalData(qc, id); 
+        refreshApprovalData(qc, id, reqType);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fuel_attachments', filter: `fuel_request_id=eq.${id}` }, () => { refetchAttachments(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [id, qc, refetchAttachments]);
+  }, [id, qc, refetchAttachments, reqType]);
 
   const hodometro = attachments?.filter((a: any) => a.type === 'hodometro') || [];
   const notaFiscal = attachments?.filter((a: any) => a.type === 'nota_fiscal') || [];
+  const paymentProof = attachments?.filter((a: any) => a.type === 'comprovante_pagamento') || [];
   // canUpload e canSendToReview usam a comparação direta: regras de UX de upload,
   // não de aprovação. Não dependem do approvalCtx.
   const canUpload = (req?.requester_user_id === user?.id) && (
@@ -198,7 +199,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
       payload: { ...(metadata ?? {}), ...(reason ? { notes: reason } : {}) },
     });
     // Garantir que o approvalCtx seja invalidado imediatamente após qualquer mudança de status
-    refreshApprovalData(qc, id);
+    refreshApprovalData(qc, id, reqType);
     setShowReasonDialog(null);
     setActionReason('');
   };
@@ -225,13 +226,17 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
       comments: finalComments || undefined,
     });
     // Garantir que o approvalCtx seja invalidado imediatamente após qualquer ação de aprovação
-    refreshApprovalData(qc, id);
+    refreshApprovalData(qc, id, reqType);
     setShowReasonDialog(null);
     setActionReason('');
   };
 
   const handlePaymentConfirm = async () => {
     if (!id || statusMutation.isPending) return;
+    if (paymentProof.length === 0) {
+      toast({ title: 'Comprovante de pagamento obrigatório', description: 'Anexe a evidência bancária antes de confirmar.', variant: 'destructive' });
+      return;
+    }
     try {
       await statusMutation.mutateAsync({
         moduleKey: reqType,
@@ -247,7 +252,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal') => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal' | 'comprovante_pagamento') => {
     if (!e.target.files?.[0] || !id) return;
     const file = e.target.files[0];
     

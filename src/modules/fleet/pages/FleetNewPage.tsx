@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { useEntityAction } from '@/hooks/useEntityAction';
 import { requestDetailRoute, requestListRoute } from '../requestRoutes';
 import { validateFileMagicNumber } from '@/lib/fileValidation';
+import { dailyAllowanceTotal, inclusiveDailyCount } from '@/lib/dailyAllowance';
 
 export default function FleetNewPage({ requestType }: { requestType?: 'abastecimento' | 'diaria' | 'reembolso' }) {
   const { user, hasAnyRole } = useAuth();
@@ -68,6 +69,9 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
   const [hours, setHours] = useState('');
   const [dailyValueFormatted, setDailyValueFormatted] = useState('');
   const [dailyValueNum, setDailyValueNum] = useState(0);
+  const [dailyEndDate, setDailyEndDate] = useState(todayBR());
+  const dailyDays = inclusiveDailyCount(data, dailyEndDate);
+  const dailyTotal = dailyAllowanceTotal(dailyDays, dailyValueNum);
 
   // ===== DRAFT PERSISTENCE (sessionStorage) =====
   const DRAFT_KEY = `draft_${type}`;
@@ -126,6 +130,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
       if (d.hours) setHours(d.hours);
       if (d.dailyValueFormatted) setDailyValueFormatted(d.dailyValueFormatted);
       if (d.dailyValueNum) setDailyValueNum(d.dailyValueNum);
+      if (d.dailyEndDate) setDailyEndDate(d.dailyEndDate);
     } catch { /* ignore */ }
     setShowSessionDraft(false);
   };
@@ -145,7 +150,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
       const draft = {
         valorFormatted, valorNum, data, notes, placa, km, motivo,
         categoria, paymentMethod, pixKeyType, pixKey, bankName, bankAgency, bankAccount,
-        dailyCategory, personName, personCpf, hours, dailyValueFormatted, dailyValueNum,
+        dailyCategory, personName, personCpf, hours, dailyValueFormatted, dailyValueNum, dailyEndDate,
       };
       const hasContent = valorNum > 0 || placa || categoria || personName || notes;
       if (hasContent) {
@@ -153,7 +158,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
       }
     }, 500);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [valorFormatted, valorNum, data, notes, placa, km, motivo, categoria, paymentMethod, pixKeyType, pixKey, bankName, bankAgency, bankAccount, dailyCategory, personName, personCpf, hours, dailyValueFormatted, dailyValueNum]);
+  }, [valorFormatted, valorNum, data, notes, placa, km, motivo, categoria, paymentMethod, pixKeyType, pixKey, bankName, bankAgency, bankAccount, dailyCategory, personName, personCpf, hours, dailyValueFormatted, dailyValueNum, dailyEndDate]);
 
   const canCreateDiaria = hasAnyRole(['diretoria', 'administrativo']);
   if (type === 'diaria' && !canCreateDiaria) {
@@ -176,6 +181,10 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
     return digits.length === 10 || digits.length === 11;
   };
 
+  const isPaymentValid = () => paymentMethod === 'pix'
+    ? isPixValid()
+    : paymentMethod === 'banco' && !!bankName.trim() && !!bankAgency && !!bankAccount;
+
   // Abastecimento: atual ou futura.
   // Diária: atual ou futura.
   // Reembolso: atual ou passada.
@@ -183,7 +192,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
     if (!data) return false;
     const today = todayBR();
     if (type === 'abastecimento') return data >= today;
-    if (type === 'diaria') return data >= today;
+    if (type === 'diaria') return data >= today && dailyDays >= 1;
     if (type === 'reembolso') return data <= today;
     return false;
   };
@@ -195,11 +204,13 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
     }
     if (type === 'reembolso') {
       return valorNum > 0 && valorNum <= 50000 && !!categoria && !!data &&
-        (paymentMethod === 'pix' ? isPixValid() : !!bankName.trim() && !!bankAgency && !!bankAccount) && !!notes.trim() &&
+        isPaymentValid() && !!notes.trim() &&
         (!forSend || !!reimbursementProof);
     }
     if (type === 'diaria') {
-      return !!dailyCategory && !!personName && dailyValueNum > 0 && dailyValueNum <= 50000 && !!data;
+      return !!dailyCategory && !!personName.trim() && !!motivo.trim()
+        && dailyValueNum > 0 && dailyTotal > 0 && dailyTotal <= 50000
+        && !!data && !!dailyEndDate && dailyDays >= 1 && isPaymentValid();
     }
     return false;
   };
@@ -256,12 +267,21 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
         payload.bank_agency = paymentMethod === 'banco' ? bankAgency.replace(/\D/g, '') : null;
         payload.bank_account = paymentMethod === 'banco' ? bankAccount.replace(/\D/g, '') : null;
       } else {
-        payload.valor = dailyValueNum;
+        payload.valor = dailyTotal;
         payload.daily_category = dailyCategory;
         payload.person_name = personName.trim().slice(0, 100);
         payload.person_cpf = personCpf.replace(/\D/g, '') || null;
         payload.hours = hours ? parseFloat(hours) : null;
         payload.daily_value = dailyValueNum;
+        payload.daily_end_date = dailyEndDate;
+        payload.daily_days = dailyDays;
+        payload.motivo = motivo.trim().slice(0, 200);
+        payload.payment_method = paymentMethod;
+        payload.pix_key = paymentMethod === 'pix' ? pixKey.trim() : null;
+        payload.pix_key_type = paymentMethod === 'pix' ? pixKeyType : null;
+        payload.bank_name = paymentMethod === 'banco' ? bankName.trim() : null;
+        payload.bank_agency = paymentMethod === 'banco' ? bankAgency.replace(/\D/g, '') : null;
+        payload.bank_account = paymentMethod === 'banco' ? bankAccount.replace(/\D/g, '') : null;
       }
 
       const result = await createMutation.mutateAsync(payload);
@@ -346,7 +366,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
           {/* Abastecimento */}
           {type === 'abastecimento' && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Placa do Veículo *</Label>
                   <Popover open={placaPopoverOpen} onOpenChange={setPlacaPopoverOpen}>
@@ -591,32 +611,82 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Destino / finalidade *</Label>
+                <Input
+                  value={motivo}
+                  onChange={e => setMotivo(e.target.value.slice(0, 200))}
+                  placeholder="Ex.: atendimento técnico em filial"
+                  maxLength={200}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Horas</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    max="24"
-                    value={hours}
-                    onChange={e => setHours(e.target.value)}
-                    placeholder="8"
-                    inputMode="decimal"
-                  />
+                  <Label>Data inicial *</Label>
+                  <Input type="date" value={data} onChange={e => setData(e.target.value)} min={todayBR()} />
+                  {data && data < todayBR() && <p className="text-xs text-destructive">A data inicial deve ser hoje ou futura.</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label>Valor *</Label>
+                  <Label>Data final *</Label>
+                  <Input type="date" value={dailyEndDate} onChange={e => setDailyEndDate(e.target.value)} min={data || todayBR()} />
+                  {dailyEndDate && dailyDays < 1 && <p className="text-xs text-destructive">A data final não pode ser anterior à inicial.</p>}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Quantidade de dias</Label>
+                  <Input value={dailyDays > 0 ? String(dailyDays) : ''} readOnly aria-readonly="true" placeholder="Calculado" />
+                  <p className="text-xs text-muted-foreground">Contagem inclusiva, incluindo início e fim.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor da diária *</Label>
                   <MoneyInput
                     value={dailyValueFormatted}
                     onChange={(fmt, num) => { setDailyValueFormatted(fmt); setDailyValueNum(num); }}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} min={todayBR()} />
+                  <Label>Valor total</Label>
+                  <Input value={dailyTotal > 0 ? dailyTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''} readOnly aria-readonly="true" placeholder="Calculado" />
+                  {dailyTotal > 50000 && <p className="text-xs text-destructive">O total não pode superar R$ 50.000.</p>}
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Horas por dia (opcional)</Label>
+                <Input type="number" step="0.5" min="0.5" max="24" value={hours} onChange={e => setHours(e.target.value)} placeholder="8" inputMode="decimal" />
+              </div>
+              <div className="space-y-2">
+                <Label>Forma de Pagamento *</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="banco">Dados Bancários</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {paymentMethod === 'pix' ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Tipo da Chave PIX *</Label>
+                    <Select value={pixKeyType} onValueChange={(v) => { setPixKeyType(v as 'cpf' | 'celular'); setPixKey(''); }}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="cpf">CPF</SelectItem><SelectItem value="celular">Celular</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Chave PIX ({pixKeyType === 'cpf' ? 'CPF' : 'Celular'}) *</Label>
+                    <Input value={pixKey} onChange={e => handlePixKeyChange(e.target.value)} placeholder={pixKeyType === 'cpf' ? '000.000.000-00' : '(00) 00000-0000'} maxLength={pixKeyType === 'cpf' ? 14 : 15} inputMode="numeric" />
+                    {pixKey && !isPixValid() && <p className="text-xs text-destructive">{pixKeyType === 'cpf' ? 'CPF inválido' : 'Celular inválido'}</p>}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="space-y-2"><Label>Banco *</Label><Input value={bankName} onChange={e => setBankName(e.target.value.slice(0, 50))} placeholder="Banco" maxLength={50} /></div>
+                  <div className="space-y-2"><Label>Agência *</Label><Input value={bankAgency} onChange={e => setBankAgency(maskAgency(e.target.value))} placeholder="0001" maxLength={7} inputMode="numeric" /></div>
+                  <div className="space-y-2"><Label>Conta *</Label><Input value={bankAccount} onChange={e => setBankAccount(maskAccount(e.target.value))} placeholder="12345-6" maxLength={15} inputMode="numeric" /></div>
+                </div>
+              )}
             </>
           )}
 

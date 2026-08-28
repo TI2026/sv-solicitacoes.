@@ -12,6 +12,7 @@ import { FinalReviewChecklist } from '@/components/FinalReviewChecklist';
 import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { useApprovalContext } from '@/modules/fleet/hooks/useApprovalContext';
 import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
+import { WorkflowDecisionActions } from '@/components/WorkflowDecisionActions';
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
@@ -210,7 +211,12 @@ export default function TerminationDetailPage() {
               Contexto de ações indisponível: {approvalCtxError.message}
             </p>
           ) : (
-            <ApprovalContextSummary ctx={approvalCtx} />
+            <div className="space-y-3">
+              <ApprovalContextSummary ctx={approvalCtx} />
+              {approvalCtx && id && (
+                <WorkflowDecisionActions moduleKey="desligamentos" entityId={id} context={approvalCtx} />
+              )}
+            </div>
           )}
           {approvalRequest && (
             <ApprovalStatusBlock

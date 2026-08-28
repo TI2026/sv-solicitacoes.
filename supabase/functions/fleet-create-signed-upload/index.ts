@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 Deno.serve(async (req) => {
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate attachment_type
-    if (!['hodometro', 'nota_fiscal'].includes(attachment_type)) {
+    if (!['hodometro', 'nota_fiscal', 'comprovante_pagamento'].includes(attachment_type)) {
       return new Response(JSON.stringify({ error: 'Tipo de anexo inválido.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
 
     const { data: fuelReq, error: fuelError } = await adminClient
       .from('fuel_requests')
-      .select('id, requester_user_id')
+      .select('id, requester_user_id, type')
       .eq('id', fuel_request_id)
       .maybeSingle();
 
@@ -96,8 +96,24 @@ Deno.serve(async (req) => {
     // Check ownership or admin role
     const { data: roles } = await adminClient.rpc('get_user_roles', { _user_id: userId });
     const isAdmin = (roles || []).some((r: string) => ['diretoria', 'administrativo'].includes(r));
+    const { data: actionContext } = await userClient.rpc('get_entity_action_context', {
+      p_module_key: fuelReq.type,
+      p_entity_id: fuel_request_id,
+    });
+    const allowedActions = Array.isArray(actionContext?.allowed_actions)
+      ? actionContext.allowed_actions
+      : [];
+    const isPaymentActor = attachment_type === 'comprovante_pagamento'
+      && allowedActions.includes('pagar');
 
-    if (fuelReq.requester_user_id !== userId && !isAdmin) {
+    if (attachment_type === 'comprovante_pagamento' && !isPaymentActor) {
+      return new Response(JSON.stringify({ error: 'Somente o responsável atual pelo pagamento pode anexar esta evidência' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (attachment_type !== 'comprovante_pagamento' && fuelReq.requester_user_id !== userId && !isAdmin) {
       return new Response(JSON.stringify({ error: 'Sem permissão para este upload' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

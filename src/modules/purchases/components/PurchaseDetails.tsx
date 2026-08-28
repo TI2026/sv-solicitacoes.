@@ -12,9 +12,10 @@ import { ptBR } from 'date-fns/locale';
 
 interface Props {
   purchase: PurchaseRequest;
+  canUploadPaymentProof?: boolean;
 }
 
-export function PurchaseDetails({ purchase }: Props) {
+export function PurchaseDetails({ purchase, canUploadPaymentProof = false }: Props) {
   const { data: approvalRequest } = useApprovalRequestForReference('compras', purchase.id);
   const { data: previousCycles = [] } = useApprovalRequestsForReference('compras', purchase.id);
   const { user } = useAuth();
@@ -153,6 +154,7 @@ export function PurchaseDetails({ purchase }: Props) {
           purchaseId={purchase.id}
           attachments={purchase.attachments || []}
           canEdit={canEditAttachments}
+          canUploadPaymentProof={canUploadPaymentProof}
         />
 
         <Card>

@@ -197,7 +197,7 @@ describe('Checkpoint B — arquitetura do frontend', () => {
   it('permite data futura apenas no contrato de Abastecimento/Diária', () => {
     const source = readFileSync(resolve('src/modules/fleet/pages/FleetNewPage.tsx'), 'utf8');
     expect(source).toContain("if (type === 'abastecimento') return data >= today;");
-    expect(source).toContain("if (type === 'diaria') return data >= today;");
+    expect(source).toContain("if (type === 'diaria') return data >= today && dailyDays >= 1;");
     expect(source).toContain("if (type === 'reembolso') return data <= today;");
     expect(source).not.toContain('min={minDateToday()} max={todayBR()}');
   });
