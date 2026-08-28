@@ -21,9 +21,8 @@
 
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FolderOpen, ChevronRight, ExternalLink } from 'lucide-react';
+import { FolderOpen, ChevronRight } from 'lucide-react';
 import { useMyRequests } from '../hooks/useMyRequests';
 import type { MyRequest } from '../hooks/useMyRequests';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -119,14 +118,6 @@ export function MyRequestsWidget({ userId }: Props) {
         <div className="flex items-center gap-2">
           <FolderOpen className="w-5 h-5 text-muted-foreground shrink-0" />
           <h2 className="text-base font-bold text-foreground flex-1">Minhas Solicitações</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs gap-1 text-muted-foreground"
-            onClick={() => navigate('/abastecimento?filter=minhas')}
-          >
-            Ver todas <ExternalLink className="w-3 h-3" />
-          </Button>
         </div>
 
         {total === 0 ? (

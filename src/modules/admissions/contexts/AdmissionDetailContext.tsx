@@ -62,6 +62,7 @@ interface AdmissionDetailContextData {
 
   // Handlers
   handleStatusChange: (toStatus: string, reason?: string) => Promise<void>;
+  handleWorkflowAction: (action: string, reason?: string) => Promise<void>;
   handleAddCandidate: () => Promise<void>;
   handleEditCandidate: (c: any) => void;
   handleDeleteCandidate: (candidateId: string) => Promise<void>;
@@ -86,8 +87,8 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
   const qc = useQueryClient();
 
   const { data: req, isLoading } = useAdmissionRequest(id!);
-  const { data: approvalRequest } = useApprovalRequestForReference(id);
-  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const { data: approvalRequest } = useApprovalRequestForReference('admissoes', id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference('admissoes', id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   const { data: candidates } = useCandidates(id!);
   const { data: interviews } = useAdmissionInterviews(id!);
@@ -97,7 +98,7 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
     data: approvalCtx,
     isLoading: approvalCtxLoading,
     error: approvalCtxError,
-  } = useApprovalContext(id, 'admissions');
+  } = useApprovalContext(id, 'admissoes');
 
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
@@ -119,7 +120,7 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
   const [showEditDialog, setShowEditDialog] = useState(false);
 
   useRealtimeSubscription({
-    channelName: `admission-detail-${id}`,
+    channelName: `admission-detail-${id}-${approvalRequest?.id ?? 'pending'}`,
     enabled: !!id,
     tables: [
       { table: 'admission_requests', filter: `id=eq.${id}`, queryKeys: [['admission_request', id!], ['admission_requests'], ['adm_all']] },
@@ -131,6 +132,8 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
       { table: 'status_history', queryKeys: [['status_history']] },
       { table: 'admission_interviews', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_interviews', id!]] },
       { table: 'notifications', queryKeys: [['notifications']] },
+      { table: 'approval_requests', filter: `reference_id=eq.${id}`, queryKeys: [['approval_request_for', 'admissoes', id!], ['approval_context']] },
+      { table: 'approval_request_steps', filter: `approval_request_id=eq.${approvalRequest?.id ?? id}`, queryKeys: [['approval_request_for', 'admissoes', id!], ['approval_context']] },
     ],
   });
 
@@ -159,6 +162,16 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
       action: 'avancar_etapa',
       payload: { to_status: toStatus, ...(reason ? { notes: reason } : {}) },
       successMessage: 'Etapa atualizada',
+    });
+  };
+
+  const handleWorkflowAction = async (action: string, reason?: string) => {
+    if (!id) return;
+    await statusMutation.mutateAsync({
+      requestId: id,
+      action,
+      reason,
+      successMessage: 'Ação de aprovação registrada',
     });
   };
 
@@ -339,7 +352,7 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
     editCandidateId, setEditCandidateId, showDeleteConfirm, setShowDeleteConfirm,
     interviewCandidate, setInterviewCandidate, generatedLinks, linksGenerating,
     docsConfirmed, setDocsConfirmed, showEditDialog, setShowEditDialog,
-    handleStatusChange, handleAddCandidate, handleEditCandidate, handleDeleteCandidate,
+    handleStatusChange, handleWorkflowAction, handleAddCandidate, handleEditCandidate, handleDeleteCandidate,
     handleScheduleInterview, handleInterviewResult, handleConfirmInterview,
     copyToClipboard, generateLinksForCandidates, isInterviewPast, getInterviewStatusLabel, canDecideInterview,
     updateInterview

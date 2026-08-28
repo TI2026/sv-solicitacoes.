@@ -1,16 +1,22 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTermination, useTerminationSetStatus } from '../hooks/useTerminationQueries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, UserMinus, Building2, Calendar, Briefcase, User, Hash, Clock, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, UserMinus, Building2, Calendar, Briefcase, User, Hash, Clock, CheckCircle2, XCircle, RotateCcw, Loader2 } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { StatusTimeline } from '@/components/StatusTimeline';
 import { FinalReviewChecklist } from '@/components/FinalReviewChecklist';
 import { useApprovalRequestForReference, useApprovalRequestsForReference } from '@/hooks/useApprovalFlow';
 import { useApprovalContext } from '@/modules/fleet/hooks/useApprovalContext';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { ApprovalContextSummary } from '@/components/ApprovalContextSummary';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 const STATUS_LABELS: Record<string, string> = {
   rascunho: 'Rascunho',
@@ -54,11 +60,24 @@ export default function TerminationDetailPage() {
   const { data: item, isLoading } = useTermination(id!);
   const setStatusMutation = useTerminationSetStatus();
   
-  const { data: approvalCtx } = useApprovalContext(id, 'desligamentos');
+  const { data: approvalCtx, isLoading: approvalCtxLoading, error: approvalCtxError } = useApprovalContext(id, 'desligamentos');
   const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
 
-  const { data: approvalRequest } = useApprovalRequestForReference(id);
-  const { data: previousCycles = [] } = useApprovalRequestsForReference(id);
+  const { data: approvalRequest } = useApprovalRequestForReference('desligamentos', id);
+  const { data: previousCycles = [] } = useApprovalRequestsForReference('desligamentos', id);
+  const [reasonAction, setReasonAction] = useState<'devolver' | 'rejeitar' | null>(null);
+  const [reason, setReason] = useState('');
+
+  useRealtimeSubscription({
+    channelName: `termination-detail-${id}-${approvalRequest?.id ?? 'pending'}`,
+    enabled: !!id,
+    tables: [
+      { table: 'termination_requests', filter: `id=eq.${id}`, queryKeys: [['termination_request', id!], ['termination_requests']] },
+      { table: 'approval_requests', filter: `reference_id=eq.${id}`, queryKeys: [['approval_request_for', 'desligamentos', id!], ['approval_context']] },
+      { table: 'approval_request_steps', filter: `approval_request_id=eq.${approvalRequest?.id ?? id}`, queryKeys: [['approval_request_for', 'desligamentos', id!], ['approval_context']] },
+      { table: 'status_history', filter: `entity_id=eq.${id}`, queryKeys: [['status_history'], ['termination_request', id!]] },
+    ],
+  });
 
   if (isLoading) {
     return (
@@ -95,6 +114,16 @@ export default function TerminationDetailPage() {
 
   const handleConcludeProcessing = () => {
     setStatusMutation.mutate({ requestId: item.id, action: 'concluir_processamento_rh' });
+  };
+
+  const handleConcludeFinal = () => {
+    setStatusMutation.mutate({ requestId: item.id, action: 'concluir' });
+  };
+
+  const handleApprovalAction = async (action: 'aprovar' | 'devolver' | 'rejeitar', notes?: string) => {
+    await setStatusMutation.mutateAsync({ requestId: item.id, action, reason: notes });
+    setReasonAction(null);
+    setReason('');
   };
 
   const handleCancel = () => {
@@ -174,6 +203,21 @@ export default function TerminationDetailPage() {
                 Cancelar Solicitação
               </Button>
             )}
+            {hasAction('aprovar') && (
+              <Button onClick={() => void handleApprovalAction('aprovar')} disabled={setStatusMutation.isPending}>
+                Aprovar
+              </Button>
+            )}
+            {hasAction('devolver') && (
+              <Button variant="outline" onClick={() => setReasonAction('devolver')} disabled={setStatusMutation.isPending}>
+                <RotateCcw className="w-4 h-4 mr-1" /> Devolver
+              </Button>
+            )}
+            {hasAction('rejeitar') && (
+              <Button variant="destructive" onClick={() => setReasonAction('rejeitar')} disabled={setStatusMutation.isPending}>
+                <XCircle className="w-4 h-4 mr-1" /> Rejeitar
+              </Button>
+            )}
           </div>
 
           {hasAction('concluir_processamento_rh') && (
@@ -192,7 +236,24 @@ export default function TerminationDetailPage() {
                   disabled={!allChecked || setStatusMutation.isPending}
                   className="w-full sm:w-auto"
                 >
-                  Concluir Desligamento
+                  Concluir processamento de RH
+                </Button>
+              )}
+            </FinalReviewChecklist>
+          )}
+
+          {hasAction('concluir') && (
+            <FinalReviewChecklist
+              description="Confirme o offboarding antes da conclusão final e irreversível."
+              items={[
+                { id: 'identidade', label: 'Colaborador e solicitação conferidos' },
+                { id: 'devolucoes', label: 'EPIs, materiais e acessos finalizados' },
+                { id: 'rescisao', label: 'Documentação e verbas rescisórias concluídas' },
+              ]}
+            >
+              {(allChecked) => (
+                <Button onClick={handleConcludeFinal} disabled={!allChecked || setStatusMutation.isPending} className="w-full sm:w-auto">
+                  Concluir offboarding
                 </Button>
               )}
             </FinalReviewChecklist>
@@ -202,6 +263,14 @@ export default function TerminationDetailPage() {
         </div>
 
         <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+          <Card>
+            <CardHeader className="pb-3"><CardTitle className="text-sm">Contexto da aprovação</CardTitle></CardHeader>
+            <CardContent>
+              {approvalCtxLoading && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+              {approvalCtxError && <p className="text-xs text-destructive">Action Context indisponível: {approvalCtxError.message}</p>}
+              {approvalCtx && <ApprovalContextSummary ctx={approvalCtx} />}
+            </CardContent>
+          </Card>
           {approvalRequest && (
             <ApprovalStatusBlock
               approvalRequest={approvalRequest}
@@ -226,6 +295,23 @@ export default function TerminationDetailPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={reasonAction !== null} onOpenChange={(open) => { if (!open) { setReasonAction(null); setReason(''); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{reasonAction === 'rejeitar' ? 'Rejeitar Desligamento' : 'Devolver Desligamento'}</DialogTitle></DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Justificativa *</Label>
+            <Textarea value={reason} onChange={event => setReason(event.target.value)} rows={4} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReasonAction(null); setReason(''); }}>Cancelar</Button>
+            <Button
+              onClick={() => { if (reasonAction) void handleApprovalAction(reasonAction, reason.trim()); }}
+              disabled={reason.trim().length < 5 || setStatusMutation.isPending}
+            >Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

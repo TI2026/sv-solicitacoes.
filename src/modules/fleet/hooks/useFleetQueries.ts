@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
 import { refreshApprovalData } from '@/lib/refreshApprovalData';
+import { executeEntityAction } from '@/hooks/useEntityAction';
 
 type FuelStatus = Database['public']['Enums']['fuel_status'];
 const FINAL_STATUSES: FuelStatus[] = ['aprovado', 'concluido', 'encerrado'];
@@ -168,21 +169,18 @@ export function useCreateFuelRequest() {
   });
 }
 
-export function useSoftDeleteRequest() {
+export function useCancelFleetRequest() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (params: { requestId: string; reason?: string }) => {
-      const { data, error } = await supabase.rpc('soft_delete_request', {
-        _request_id: params.requestId,
-        _reason: params.reason || null,
-      });
-      if (error) throw error;
-      const result = data as any;
-      if (result?.error) throw new Error(result.error);
-      return result;
-    },
+    mutationFn: (params: { requestId: string; moduleKey: string; reason?: string }) =>
+      executeEntityAction({
+        moduleKey: params.moduleKey,
+        entityId: params.requestId,
+        action: 'cancelar',
+        payload: params.reason ? { notes: params.reason } : {},
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['fuel_requests'] });
       qc.invalidateQueries({ queryKey: ['fuel_requests_pending'] });
@@ -190,10 +188,10 @@ export function useSoftDeleteRequest() {
       qc.invalidateQueries({ queryKey: ['fuel_requests_completed'] });
       qc.invalidateQueries({ queryKey: ['fuel_metrics'] });
       qc.invalidateQueries({ queryKey: ['fuel_all'] });
-      toast({ title: 'Solicitação excluída com sucesso' });
+      toast({ title: 'Solicitação cancelada com sucesso' });
     },
     onError: (err: any) => {
-      toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro ao cancelar', description: err.message, variant: 'destructive' });
     },
   });
 }

@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { AppRole } from '@/types';
 import { toBackendApproverType } from '@/lib/approvalLabels';
 import { executeEntityAction } from '@/hooks/useEntityAction';
+import { refreshApprovalData } from '@/lib/refreshApprovalData';
 
 export * from './usePermissionsSession';
 export * from './usePermissionsAdmin';
@@ -209,15 +210,10 @@ export function useProcessApproval() {
         payload: params.comments ? { notes: params.comments } : {},
       });
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['my_approvals'] });
-      qc.invalidateQueries({ queryKey: ['my_approval_history'] });
+    onSuccess: (_result, params) => {
+      refreshApprovalData(qc, params.entityId);
       qc.invalidateQueries({ queryKey: ['all_approval_requests'] });
       qc.invalidateQueries({ queryKey: ['approval_flows'] });
-      qc.invalidateQueries({ queryKey: ['approval_request_for'] });
-      qc.invalidateQueries({ queryKey: ['approval_context'] });
-      qc.invalidateQueries({ queryKey: ['fuel_requests'] });
-      qc.invalidateQueries({ queryKey: ['fuel_request'] });
       toast({ title: 'Ação registrada com sucesso' });
     },
     onError: (err: any) => {

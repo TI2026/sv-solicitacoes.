@@ -77,12 +77,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use service role to verify ownership
-    const adminClient = createClient(supabaseUrl, serviceKey);
-
-    const { data: fuelReq, error: fuelError } = await adminClient
+    // Action Context is the authority for visibility and workflow permissions.
+    // The service role is used only after authorization to mint the signed token.
+    const { data: fuelReq, error: fuelError } = await userClient
       .from('fuel_requests')
-      .select('id, requester_user_id')
+      .select('id, requester_user_id, type')
       .eq('id', fuel_request_id)
       .maybeSingle();
 
@@ -93,16 +92,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check ownership or admin role
-    const { data: roles } = await adminClient.rpc('get_user_roles', { _user_id: userId });
-    const isAdmin = (roles || []).some((r: string) => ['diretoria', 'administrativo'].includes(r));
+    const { data: actionContext, error: contextError } = await userClient.rpc('get_entity_action_context', {
+      p_module_key: fuelReq.type,
+      p_entity_id: fuel_request_id,
+    });
+    const allowedActions = Array.isArray(actionContext?.allowed_actions)
+      ? actionContext.allowed_actions
+      : [];
+    const canUpload = actionContext?.requester_user_id === userId
+      && (actionContext?.can_edit === true || allowedActions.includes('enviar_comprovantes'));
 
-    if (fuelReq.requester_user_id !== userId && !isAdmin) {
+    if (contextError || !canUpload) {
       return new Response(JSON.stringify({ error: 'Sem permissão para este upload' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const adminClient = createClient(supabaseUrl, serviceKey);
 
     // Sanitize filename
     const sanitized = file_name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);

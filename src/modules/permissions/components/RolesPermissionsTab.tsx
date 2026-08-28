@@ -8,9 +8,8 @@ import { Separator } from '@/components/ui/separator';
 
 export default function RolesPermissionsTab() {
   const { data: roles, isLoading: rolesLoading } = useRoles();
-  // Regra de negócio do cliente: Diretoria === Master. O papel `master` é
-  // ocultado da UI; Diretoria assume todos os privilégios automaticamente.
-  const visibleRoles = (roles || []).filter((r: any) => r.key !== 'master');
+  // Master é um papel próprio e protegido; Diretoria permanece independente.
+  const visibleRoles = roles || [];
   const { data: modules } = usePermissionModules();
   const { data: actions } = usePermissionActions();
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
@@ -19,8 +18,7 @@ export default function RolesPermissionsTab() {
 
   const selectedRole = roles?.find((r: any) => r.id === selectedRoleId);
 
-  // Regra de negócio: Diretoria === Master (mesmo nível hierárquico e privilégios).
-  const isEffectivelyMaster = (role: any) => !!role && (role.is_master || role.key === 'diretoria');
+  const isEffectivelyMaster = (role: any) => !!role && (role.is_master || role.key === 'master');
   const selectedIsMaster = isEffectivelyMaster(selectedRole);
 
   const isAllowed = (moduleId: string, actionId: string) => {
@@ -124,9 +122,7 @@ export default function RolesPermissionsTab() {
                   <Separator className="mt-3" />
                   <p className="text-xs text-muted-foreground mt-3">
                     {selectedIsMaster
-                      ? selectedRole.key === 'diretoria'
-                        ? '🔒 Diretoria opera no mesmo nível de Master — acesso total automático. Não é necessário marcar permissões individuais.'
-                        : '🔒 Master possui acesso total — todas as permissões são concedidas automaticamente.'
+                      ? '🔒 Master possui acesso total — todas as permissões são concedidas automaticamente.'
                       : '✏️ Marque as permissões desejadas. Alterações são salvas automaticamente.'}
                   </p>
                 </div>

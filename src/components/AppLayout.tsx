@@ -11,7 +11,8 @@ import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import logo from '@/assets/logo.png';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { requestDetailRoute } from '@/modules/fleet/requestRoutes';
+import { isFleetBusinessModule, requestDetailRoute } from '@/modules/fleet/requestRoutes';
+import { approvalQueueKeys } from '@/lib/refreshApprovalData';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, hasAnyRole, isMaster } = useAuth();
@@ -78,7 +79,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Badges reativos
   const { data: myPendingApprovals = 0 } = useQuery({
-    queryKey: ['sidebar_my_pending_approvals', user?.id],
+    queryKey: approvalQueueKeys.sidebarPending(user?.id),
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc('get_my_approval_queue');
@@ -108,7 +109,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {
         table: 'approval_requests',
         filter: `current_approver_user_id=eq.${user?.id}`,
-        queryKeys: [['sidebar_my_pending_approvals', user?.id], ['my_approvals', user?.id]],
+        queryKeys: [
+          [...approvalQueueKeys.sidebarPending(user?.id)],
+          [...approvalQueueKeys.myApprovals(user?.id)],
+        ],
       },
       {
         table: 'fuel_requests',
@@ -246,8 +250,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const entityId = metadata?.entity_id;
     if (!entityId) return null;
     const moduleKey = metadata?.module_key || entityType;
-    if (['abastecimento', 'diaria', 'reembolso'].includes(moduleKey)) return requestDetailRoute(moduleKey, entityId);
-    if (entityType === 'fuel_requests') return requestDetailRoute(metadata?.request_type || 'abastecimento', entityId);
+    if (isFleetBusinessModule(moduleKey)) return requestDetailRoute(moduleKey, entityId);
+    if (entityType === 'fuel_requests' && isFleetBusinessModule(metadata?.request_type)) {
+      return requestDetailRoute(metadata.request_type, entityId);
+    }
     if (['compras', 'purchases'].includes(moduleKey)) return `/purchases/${entityId}`;
     if (entityType === 'admission_requests') return `/admissions/${entityId}`;
     if (['admissoes', 'admissions'].includes(moduleKey)) return `/admissions/${entityId}`;

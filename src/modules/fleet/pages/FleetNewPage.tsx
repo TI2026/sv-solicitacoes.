@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCheckDailyLimit } from '@/hooks/useRequestLimits';
-import { useCreateFuelRequest } from '../hooks/useFleetQueries';
+import { useCreateFuelRequest, useFuelRequest } from '../hooks/useFleetQueries';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MoneyInput } from '@/components/MoneyInput';
 import { DynamicCategorySelect } from '@/components/DynamicCategorySelect';
-import { ArrowLeft, Loader2, Send, AlertCircle, FileText } from 'lucide-react';
-import { maskCPF, maskPhone, maskKM, maskAgency, maskAccount, minDateToday, todayBR, isValidPlate, isValidCPF } from '@/lib/masks';
+import { ArrowLeft, Loader2, Send, AlertCircle, FileText, CalendarDays } from 'lucide-react';
+import { maskCPF, maskPhone, maskKM, maskAgency, maskAccount, maskCurrency, minDateToday, todayBR, isValidPlate, isValidCPF } from '@/lib/masks';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useQuery } from '@tanstack/react-query';
@@ -22,12 +22,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEntityAction } from '@/hooks/useEntityAction';
+import { parseEntityActionResult, useEntityAction } from '@/hooks/useEntityAction';
 import { requestDetailRoute, requestListRoute } from '../requestRoutes';
 import { validateFileMagicNumber } from '@/lib/fileValidation';
+import { calculateDailyQuantity, calculateDailyTotal, isDailyDateTimeRangeValid, normalizeDailyPeriod } from '../dailyPeriod';
 
 export default function FleetNewPage({ requestType }: { requestType?: 'abastecimento' | 'diaria' | 'reembolso' }) {
   const { user, hasAnyRole } = useAuth();
+  const { id: editId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const initialType = requestType || 'abastecimento';
@@ -35,6 +37,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
   const statusMutation = useEntityAction();
   const checkLimit = useCheckDailyLimit();
   const [submitting, setSubmitting] = useState(false);
+  const { data: editRequest } = useFuelRequest(editId || '');
 
   const [type] = useState(initialType);
   const backRoute = requestListRoute(type);
@@ -68,13 +71,47 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
   const [hours, setHours] = useState('');
   const [dailyValueFormatted, setDailyValueFormatted] = useState('');
   const [dailyValueNum, setDailyValueNum] = useState(0);
+  const [dailyPeriodMode, setDailyPeriodMode] = useState<'single' | 'period'>('single');
+  const [dailyStartDate, setDailyStartDate] = useState(todayBR());
+  const [dailyEndDate, setDailyEndDate] = useState(todayBR());
+  const [dailyStartTime, setDailyStartTime] = useState('08:00');
+  const [dailyEndTime, setDailyEndTime] = useState('18:00');
+  const [dailyDestination, setDailyDestination] = useState('');
+
+  const dailyQuantity = useMemo(() => {
+    try { return calculateDailyQuantity(dailyStartDate, dailyEndDate); }
+    catch { return 0; }
+  }, [dailyStartDate, dailyEndDate]);
+  const dailyTotal = useMemo(() => {
+    try { return calculateDailyTotal(dailyQuantity, dailyValueNum); }
+    catch { return 0; }
+  }, [dailyQuantity, dailyValueNum]);
 
   // ===== DRAFT PERSISTENCE (sessionStorage) =====
   const DRAFT_KEY = `draft_${type}`;
   const [showSessionDraft, setShowSessionDraft] = useState(false);
   const [showDbDraft, setShowDbDraft] = useState(false);
   const draftLoaded = useRef(false);
+  const editLoaded = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    if (!editId || !editRequest || editLoaded.current || editRequest.type !== 'diaria') return;
+    const period = normalizeDailyPeriod(editRequest as any);
+    setDailyStartDate(period.startDate);
+    setDailyEndDate(period.endDate);
+    setDailyPeriodMode(period.startDate === period.endDate ? 'single' : 'period');
+    setDailyStartTime((editRequest as any).daily_start_time?.slice(0, 5) || '08:00');
+    setDailyEndTime((editRequest as any).daily_end_time?.slice(0, 5) || '18:00');
+    setDailyValueNum(period.dailyRate);
+    setDailyValueFormatted(maskCurrency(String(Math.round(period.dailyRate * 100))));
+    setDailyCategory((editRequest as any).daily_category || '');
+    setDailyDestination((editRequest as any).daily_destination || '');
+    setPersonName((editRequest as any).person_name || '');
+    setPersonCpf(maskCPF((editRequest as any).person_cpf || ''));
+    setNotes((editRequest as any).notes || '');
+    editLoaded.current = true;
+  }, [editId, editRequest]);
 
   const { data: existingDbDraft } = useQuery({
     queryKey: ['existing_draft', user?.id, type],
@@ -90,16 +127,17 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
         .limit(1);
       return data?.[0] || null;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !editId,
   });
 
   useEffect(() => {
+    if (editId) return;
     if (draftLoaded.current) return;
     const saved = sessionStorage.getItem(DRAFT_KEY);
     if (saved) setShowSessionDraft(true);
     if (existingDbDraft) setShowDbDraft(true);
     draftLoaded.current = true;
-  }, [existingDbDraft]);
+  }, [DRAFT_KEY, editId, existingDbDraft]);
 
   const restoreFromSession = () => {
     const saved = sessionStorage.getItem(DRAFT_KEY);
@@ -126,6 +164,12 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
       if (d.hours) setHours(d.hours);
       if (d.dailyValueFormatted) setDailyValueFormatted(d.dailyValueFormatted);
       if (d.dailyValueNum) setDailyValueNum(d.dailyValueNum);
+      if (d.dailyPeriodMode) setDailyPeriodMode(d.dailyPeriodMode);
+      if (d.dailyStartDate) setDailyStartDate(d.dailyStartDate);
+      if (d.dailyEndDate) setDailyEndDate(d.dailyEndDate);
+      if (d.dailyStartTime) setDailyStartTime(d.dailyStartTime);
+      if (d.dailyEndTime) setDailyEndTime(d.dailyEndTime);
+      if (d.dailyDestination) setDailyDestination(d.dailyDestination);
     } catch { /* ignore */ }
     setShowSessionDraft(false);
   };
@@ -140,12 +184,14 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
   }, [DRAFT_KEY]);
 
   useEffect(() => {
+    if (editId) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       const draft = {
         valorFormatted, valorNum, data, notes, placa, km, motivo,
         categoria, paymentMethod, pixKeyType, pixKey, bankName, bankAgency, bankAccount,
         dailyCategory, personName, personCpf, hours, dailyValueFormatted, dailyValueNum,
+        dailyPeriodMode, dailyStartDate, dailyEndDate, dailyStartTime, dailyEndTime, dailyDestination,
       };
       const hasContent = valorNum > 0 || placa || categoria || personName || notes;
       if (hasContent) {
@@ -153,7 +199,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
       }
     }, 500);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [valorFormatted, valorNum, data, notes, placa, km, motivo, categoria, paymentMethod, pixKeyType, pixKey, bankName, bankAgency, bankAccount, dailyCategory, personName, personCpf, hours, dailyValueFormatted, dailyValueNum]);
+  }, [DRAFT_KEY, editId, valorFormatted, valorNum, data, notes, placa, km, motivo, categoria, paymentMethod, pixKeyType, pixKey, bankName, bankAgency, bankAccount, dailyCategory, personName, personCpf, hours, dailyValueFormatted, dailyValueNum, dailyPeriodMode, dailyStartDate, dailyEndDate, dailyStartTime, dailyEndTime, dailyDestination]);
 
   const canCreateDiaria = hasAnyRole(['diretoria', 'administrativo']);
   if (type === 'diaria' && !canCreateDiaria) {
@@ -176,14 +222,27 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
     return digits.length === 10 || digits.length === 11;
   };
 
+  const applyDailyShortcut = (days: number) => {
+    const start = new Date(`${dailyStartDate || todayBR()}T00:00:00Z`);
+    start.setUTCDate(start.getUTCDate() + days - 1);
+    setDailyPeriodMode(days === 1 ? 'single' : 'period');
+    setDailyEndDate(start.toISOString().slice(0, 10));
+  };
+
   // Abastecimento: atual ou futura.
   // Diária: atual ou futura.
   // Reembolso: atual ou passada.
   const isDateValid = () => {
-    if (!data) return false;
     const today = todayBR();
+    if (type === 'diaria') {
+      return !!dailyStartDate
+        && !!dailyEndDate
+        && dailyStartDate >= today
+        && dailyEndDate >= dailyStartDate
+        && isDailyDateTimeRangeValid(dailyStartDate, dailyStartTime, dailyEndDate, dailyEndTime);
+    }
+    if (!data) return false;
     if (type === 'abastecimento') return data >= today;
-    if (type === 'diaria') return data >= today;
     if (type === 'reembolso') return data <= today;
     return false;
   };
@@ -199,7 +258,15 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
         (!forSend || !!reimbursementProof);
     }
     if (type === 'diaria') {
-      return !!dailyCategory && !!personName && dailyValueNum > 0 && dailyValueNum <= 50000 && !!data;
+      return !!dailyCategory
+        && !!personName.trim()
+        && !!dailyDestination.trim()
+        && !!notes.trim()
+        && dailyValueNum > 0
+        && dailyQuantity > 0
+        && dailyTotal > 0
+        && dailyTotal <= 50000
+        && isDateValid();
     }
     return false;
   };
@@ -210,32 +277,37 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
         title: 'Revise os campos obrigatórios',
         description: type === 'reembolso' && sendImmediately && !reimbursementProof
           ? 'Anexe o comprovante da despesa antes de enviar.'
+          : type === 'diaria'
+            ? 'Informe período, horários, finalidade, destino, justificativa e valor unitário válidos.'
           : 'Preencha os campos destacados e verifique a data informada.',
         variant: 'destructive',
       });
       return;
     }
+    let persistedRequestId = editId;
+    let dataSaved = false;
     setSubmitting(true);
     try {
-      // Check daily limit
-      const limitResult = await checkLimit.mutateAsync({
-        userId: user.id,
-        requestType: type,
-        roles: user.roles || [],
-      });
-      if (!limitResult.canCreate) {
-        toast({
-          title: 'Limite diário atingido',
-          description: `Você já criou ${limitResult.used} de ${limitResult.limit} solicitações hoje.`,
-          variant: 'destructive',
+      if (!editId) {
+        const limitResult = await checkLimit.mutateAsync({
+          userId: user.id,
+          requestType: type,
+          roles: user.roles || [],
         });
-        setSubmitting(false);
-        return;
+        if (!limitResult.canCreate) {
+          toast({
+            title: 'Limite diário atingido',
+            description: `Você já criou ${limitResult.used} de ${limitResult.limit} solicitações hoje.`,
+            variant: 'destructive',
+          });
+          setSubmitting(false);
+          return;
+        }
       }
 
       const payload: Record<string, any> = {
         requester_user_id: user.id,
-        data_abastecimento: data,
+        data_abastecimento: type === 'diaria' ? dailyStartDate : data,
         notes: notes.trim() || null,
         type,
         status: 'rascunho',
@@ -256,15 +328,44 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
         payload.bank_agency = paymentMethod === 'banco' ? bankAgency.replace(/\D/g, '') : null;
         payload.bank_account = paymentMethod === 'banco' ? bankAccount.replace(/\D/g, '') : null;
       } else {
-        payload.valor = dailyValueNum;
+        payload.valor = dailyTotal;
         payload.daily_category = dailyCategory;
         payload.person_name = personName.trim().slice(0, 100);
         payload.person_cpf = personCpf.replace(/\D/g, '') || null;
         payload.hours = hours ? parseFloat(hours) : null;
         payload.daily_value = dailyValueNum;
+        payload.daily_start_date = dailyStartDate;
+        payload.daily_end_date = dailyEndDate;
+        payload.daily_start_time = dailyStartTime;
+        payload.daily_end_time = dailyEndTime;
+        payload.daily_quantity = dailyQuantity;
+        payload.daily_destination = dailyDestination.trim().slice(0, 200);
       }
 
-      const result = await createMutation.mutateAsync(payload);
+      let result: any;
+      if (editId) {
+        const { data: updateResult, error: updateError } = await (supabase as any).rpc('update_daily_request_draft', {
+          p_entity_id: editId,
+          p_start_date: dailyStartDate,
+          p_end_date: dailyEndDate,
+          p_start_time: dailyStartTime,
+          p_end_time: dailyEndTime,
+          p_daily_rate: dailyValueNum,
+          p_service_type: dailyCategory,
+          p_destination: dailyDestination.trim(),
+          p_person_name: personName.trim(),
+          p_person_cpf: personCpf.replace(/\D/g, '') || null,
+          p_notes: notes.trim(),
+        });
+        if (updateError) throw updateError;
+        parseEntityActionResult(updateResult);
+        result = { id: editId };
+        toast({ title: 'Rascunho atualizado!' });
+      } else {
+        result = await createMutation.mutateAsync(payload);
+      }
+      persistedRequestId = result?.id;
+      dataSaved = true;
       if (result?.id && type === 'reembolso' && reimbursementProof) {
         const { data: signedData, error: fnError } = await supabase.functions.invoke('fleet-create-signed-upload', {
           body: {
@@ -292,8 +393,13 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
       }
       clearDraft();
       navigate(backRoute);
-    } catch {
-      // toast handled by mutation
+    } catch (error: any) {
+      if (editId && !dataSaved) {
+        toast({ title: 'Não foi possível atualizar a Diária', description: error?.message, variant: 'destructive' });
+      }
+      if (persistedRequestId && sendImmediately) {
+        navigate(requestDetailRoute(type, persistedRequestId));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -335,7 +441,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
 
       <Card>
         <CardHeader>
-          <CardTitle>Nova Solicitação — {typeLabels[type]}</CardTitle>
+          <CardTitle>{editId ? 'Editar' : 'Nova Solicitação —'} {typeLabels[type]}</CardTitle>
           <CardDescription>
             {type === 'abastecimento' && 'Solicitação de abastecimento de combustível'}
             {type === 'reembolso' && 'Solicitação de reembolso de despesas'}
@@ -537,15 +643,15 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
                 <Label>Comprovante da despesa *</Label>
                 <Input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  accept="image/jpeg,image/png,application/pdf"
                   onChange={async (event) => {
                     const file = event.target.files?.[0] ?? null;
                     if (!file) { setReimbursementProof(null); return; }
-                    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
+                    const allowed = ['image/jpeg', 'image/png', 'application/pdf'] as const;
                     if (file.size > 10 * 1024 * 1024 || !allowed.includes(file.type as any) || !(await validateFileMagicNumber(file, allowed as any))) {
                       setReimbursementProof(null);
                       event.target.value = '';
-                      toast({ title: 'Comprovante inválido', description: 'Use JPEG, PNG, WebP ou PDF de até 10MB.', variant: 'destructive' });
+                      toast({ title: 'Comprovante inválido', description: 'Use JPEG, PNG ou PDF de até 10MB.', variant: 'destructive' });
                       return;
                     }
                     setReimbursementProof(file);
@@ -562,7 +668,66 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
           {type === 'diaria' && (
             <>
               <div className="space-y-2">
-                <Label>Categoria *</Label>
+                <Label>Formato do período *</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={dailyPeriodMode === 'single' ? 'default' : 'outline'}
+                    onClick={() => { setDailyPeriodMode('single'); setDailyEndDate(dailyStartDate); }}
+                  >Um dia</Button>
+                  <Button
+                    type="button"
+                    variant={dailyPeriodMode === 'period' ? 'default' : 'outline'}
+                    onClick={() => setDailyPeriodMode('period')}
+                  >Período</Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>{dailyPeriodMode === 'single' ? 'Data' : 'Data inicial'} *</Label>
+                  <Input
+                    type="date"
+                    value={dailyStartDate}
+                    min={todayBR()}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      setDailyStartDate(next);
+                      if (dailyPeriodMode === 'single' || dailyEndDate < next) setDailyEndDate(next);
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Horário inicial *</Label>
+                  <Input type="time" value={dailyStartTime} onChange={event => setDailyStartTime(event.target.value)} />
+                </div>
+                {dailyPeriodMode === 'period' && (
+                  <div className="space-y-2">
+                    <Label>Data final *</Label>
+                    <Input
+                      type="date"
+                      value={dailyEndDate}
+                      min={dailyStartDate || todayBR()}
+                      onChange={event => setDailyEndDate(event.target.value)}
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Horário final *</Label>
+                  <Input type="time" value={dailyEndTime} onChange={event => setDailyEndTime(event.target.value)} />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2" aria-label="Atalhos de período">
+                {[1, 3, 5, 7, 14].map(days => (
+                  <Button key={days} type="button" size="sm" variant="outline" onClick={() => applyDailyShortcut(days)}>
+                    {days === 1 ? '1 dia' : days === 7 ? '1 semana' : days === 14 ? '2 semanas' : `${days} dias`}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tipo / finalidade *</Label>
                 <DynamicCategorySelect
                   module="fleet"
                   fieldKey="diaria_categoria"
@@ -570,7 +735,16 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
                   onValueChange={setDailyCategory}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Destino / local *</Label>
+                <Input
+                  value={dailyDestination}
+                  onChange={event => setDailyDestination(event.target.value.slice(0, 200))}
+                  placeholder="Cidade, unidade ou local da atividade"
+                  maxLength={200}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Nome do Prestador *</Label>
                   <Input
@@ -591,37 +765,41 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Horas</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    max="24"
-                    value={hours}
-                    onChange={e => setHours(e.target.value)}
-                    placeholder="8"
-                    inputMode="decimal"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor *</Label>
+                  <Label>Valor unitário da diária *</Label>
                   <MoneyInput
                     value={dailyValueFormatted}
                     onChange={(fmt, num) => { setDailyValueFormatted(fmt); setDailyValueNum(num); }}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Data *</Label>
-                  <Input type="date" value={data} onChange={e => setData(e.target.value)} min={todayBR()} />
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total calculado</p>
+                  <p className="text-xl font-bold">{dailyTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <p className="text-xs text-muted-foreground">{dailyQuantity} {dailyQuantity === 1 ? 'diária' : 'diárias'}</p>
                 </div>
               </div>
+
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+                <p className="font-semibold flex items-center gap-2"><CalendarDays className="w-4 h-4" /> Resumo da Diária</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                  <p><span className="text-muted-foreground">Período:</span><br />{dailyStartDate || '—'} às {dailyStartTime || '—'} até {dailyEndDate || '—'} às {dailyEndTime || '—'}</p>
+                  <p><span className="text-muted-foreground">Duração:</span><br />{dailyQuantity} {dailyQuantity === 1 ? 'dia' : 'dias'}</p>
+                  <p><span className="text-muted-foreground">Valor unitário:</span><br />{dailyValueNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <p><span className="text-muted-foreground">Total:</span><br /><strong>{dailyTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></p>
+                  <p><span className="text-muted-foreground">Destino:</span><br />{dailyDestination || '—'}</p>
+                  <p><span className="text-muted-foreground">Finalidade:</span><br />{dailyCategory || '—'}</p>
+                </div>
+              </div>
+
+              {!isDateValid() && (
+                <p className="text-xs text-destructive">O período deve começar hoje ou no futuro e o término deve ser posterior ao início.</p>
+              )}
             </>
           )}
 
           <div className="space-y-2">
-            <Label>{type === 'reembolso' ? 'Descrição / justificativa *' : 'Observações'}</Label>
+            <Label>{type === 'reembolso' ? 'Descrição / justificativa *' : type === 'diaria' ? 'Justificativa *' : 'Observações'}</Label>
             <Textarea
               value={notes}
               onChange={e => setNotes(e.target.value.slice(0, 500))}
@@ -635,7 +813,7 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !isValid(false)}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Salvar Rascunho
+              {editId ? 'Salvar alterações' : 'Salvar Rascunho'}
             </Button>
             <Button onClick={() => handleSubmit(true)} disabled={submitting || !isValid(true)} className="gap-2">
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

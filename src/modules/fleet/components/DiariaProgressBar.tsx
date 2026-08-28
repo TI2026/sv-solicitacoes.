@@ -29,9 +29,10 @@ import { useDiariaProgress } from '../hooks/useDiariaProgress';
  * backend realmente aplica ao módulo.
  */
 const STEPS: { key: string; label: string; completedBy: string[] }[] = [
+  { key: 'rascunho',            label: 'Solicitação', completedBy: ['rascunho', 'em_aprovacao', 'ativa', 'em_revisao', 'aguardando_pagamento', 'concluido'] },
   { key: 'em_aprovacao',         label: 'Autorização', completedBy: ['em_aprovacao', 'ativa', 'em_revisao', 'aguardando_pagamento', 'concluido'] },
-  { key: 'ativa',                label: 'Execução',    completedBy: ['ativa', 'em_revisao', 'aguardando_pagamento', 'concluido'] },
-  { key: 'em_revisao',           label: 'Conferência', completedBy: ['em_revisao', 'aguardando_pagamento', 'concluido'] },
+  { key: 'ativa',                label: 'Execução / comprovantes', completedBy: ['ativa', 'em_revisao', 'aguardando_pagamento', 'concluido'] },
+  { key: 'em_revisao',           label: 'Verificação de horas', completedBy: ['em_revisao', 'aguardando_pagamento', 'concluido'] },
   { key: 'aguardando_pagamento', label: 'Pagamento',  completedBy: ['aguardando_pagamento', 'concluido'] },
   { key: 'concluido',            label: 'Concluída',  completedBy: ['concluido'] },
 ];

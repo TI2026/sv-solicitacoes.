@@ -11,7 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { validateFileMagicNumber, type AllowedFileType } from '@/lib/fileValidation';
 
 const BUCKET = 'purchase-attachments';
-const ALLOWED: AllowedFileType[] = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const ALLOWED: AllowedFileType[] = ['image/jpeg', 'image/png', 'application/pdf'];
 
 interface Props {
   purchaseId: string;
@@ -85,7 +85,7 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
       return;
     }
     if (!ALLOWED.includes(file.type as AllowedFileType)) {
-      toast.error('Tipo de arquivo não permitido', { description: 'Use JPEG, PNG, WebP ou PDF' });
+      toast.error('Tipo de arquivo não permitido', { description: 'Use JPEG, PNG ou PDF' });
       e.target.value = '';
       return;
     }
@@ -223,7 +223,7 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
             <input
               ref={inputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
+              accept="image/jpeg,image/png,application/pdf"
               className="hidden"
               onChange={handleUpload}
               disabled={uploading}
@@ -247,7 +247,7 @@ export function PurchaseAttachments({ purchaseId, attachments, canEdit = false }
             >
               <LinkIcon className="w-4 h-4" /> Anexar link
             </Button>
-            <p className="text-[11px] text-muted-foreground text-center mt-2">JPEG, PNG, WebP ou PDF · até 10MB</p>
+            <p className="text-[11px] text-muted-foreground text-center mt-2">JPEG, PNG ou PDF · até 10MB</p>
           </div>
         )}
 

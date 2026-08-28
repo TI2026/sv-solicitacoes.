@@ -24,16 +24,16 @@ export function useStartApprovalFlow() {
   };
 }
 
-/** Fetch ALL approval_requests for a specific reference_id (all cycles) */
-export function useApprovalRequestsForReference(referenceId?: string) {
+/** Fetch all approval cycles for one canonical module + entity pair. */
+export function useApprovalRequestsForReference(moduleCode: string, referenceId?: string) {
   return useQuery({
-    queryKey: ['approval_request_for', referenceId],
+    queryKey: ['approval_request_for', moduleCode, referenceId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_requests')
         .select(`
           *,
-          approval_modules(code, name),
+          approval_modules!inner(code, name),
           approval_flows(name, approval_type, allow_return_for_adjustment, return_mode),
           profiles!approval_requests_requester_user_id_fkey(full_name),
           approval_request_steps(
@@ -42,16 +42,17 @@ export function useApprovalRequestsForReference(referenceId?: string) {
           )
         `)
         .eq('reference_id', referenceId!)
+        .eq('approval_modules.code', moduleCode)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!referenceId,
+    enabled: !!moduleCode && !!referenceId,
   });
 }
 
-/** Fetch the latest (current) approval_request for a reference_id — backward compat */
-export function useApprovalRequestForReference(referenceId?: string) {
-  const { data, ...rest } = useApprovalRequestsForReference(referenceId);
+/** Fetch the latest approval cycle for one canonical module + entity pair. */
+export function useApprovalRequestForReference(moduleCode: string, referenceId?: string) {
+  const { data, ...rest } = useApprovalRequestsForReference(moduleCode, referenceId);
   return { data: data?.[0] || null, ...rest };
 }

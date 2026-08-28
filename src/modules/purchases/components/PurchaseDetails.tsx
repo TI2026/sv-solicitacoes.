@@ -15,8 +15,8 @@ interface Props {
 }
 
 export function PurchaseDetails({ purchase }: Props) {
-  const { data: approvalRequest } = useApprovalRequestForReference(purchase.id);
-  const { data: previousCycles = [] } = useApprovalRequestsForReference(purchase.id);
+  const { data: approvalRequest } = useApprovalRequestForReference('compras', purchase.id);
+  const { data: previousCycles = [] } = useApprovalRequestsForReference('compras', purchase.id);
   const { user } = useAuth();
   const canEditAttachments =
     !!user &&

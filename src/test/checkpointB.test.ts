@@ -18,6 +18,11 @@ describe('Checkpoint B — contrato único do executor', () => {
     expect(() => parseEntityActionResult({ success: false, message: 'Falha legada' })).toThrow('Falha legada');
   });
 
+  it('aceita sucesso legado explícito e rejeita resposta ambígua', () => {
+    expect(parseEntityActionResult({ success: true }).success).toBe(true);
+    expect(() => parseEntityActionResult({ message: 'sem código' })).toThrow('sem código');
+  });
+
   it('rejeita código malformado', () => {
     expect(() => parseEntityActionResult({ code: 'ENGINE-400' })).toThrow('ENGINE_INVALID_CODE');
   });
@@ -100,7 +105,7 @@ describe('Checkpoint B — arquitetura do frontend', () => {
 
   it('envia Diária imediatamente pelo executor canônico', () => {
     const source = readFileSync(resolve('src/modules/fleet/pages/FleetNewPage.tsx'), 'utf8');
-    expect(source).not.toContain("type !== 'diaria'");
+    expect(source).not.toContain("sendImmediately && type !== 'diaria'");
     expect(source).toContain("moduleKey: type, entityId: result.id, action: 'enviar'");
   });
 
@@ -118,7 +123,7 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     expect(source).toContain('useDashboardQueue(user?.id)');
     expect(source).toContain('useApprovalContext(item.reference_id, moduleKey)');
     expect(source).toContain("action: 'approve', completionAction");
-    expect(queue).toContain("queryKey: ['my_approvals', userId]");
+    expect(queue).toContain('queryKey: approvalQueueKeys.myApprovals(userId)');
     expect(mutation).toContain("queryKey: ['my_approval_history', userId]");
     expect(mutation).toContain("if (!canonical) throw new Error('ENGINE_ACTION_CONTEXT_REQUIRED')");
     expect(mutation).not.toContain("params.completionAction || 'aprovar'");
@@ -140,7 +145,8 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     expect(shortcuts).toContain("newRoute: '/diarias/new'");
     expect(shortcuts).toContain("newRoute: '/reembolsos/new'");
     expect(shortcuts).not.toContain('/fleet/new?type=');
-    expect(activity).toContain("requestDetailRoute(requestType || 'abastecimento', entityId)");
+    expect(activity).toContain('isFleetBusinessModule(requestType)');
+    expect(activity).not.toContain("requestType || 'abastecimento'");
     expect(requests).toContain('requestDetailRoute(row.type, row.id)');
   });
 
@@ -196,7 +202,8 @@ describe('Checkpoint B — arquitetura do frontend', () => {
   it('permite data futura apenas no contrato de Abastecimento/Diária', () => {
     const source = readFileSync(resolve('src/modules/fleet/pages/FleetNewPage.tsx'), 'utf8');
     expect(source).toContain("if (type === 'abastecimento') return data >= today;");
-    expect(source).toContain("if (type === 'diaria') return data >= today;");
+    expect(source).toContain('dailyStartDate >= today');
+    expect(source).toContain('dailyEndDate >= dailyStartDate');
     expect(source).toContain("if (type === 'reembolso') return data <= today;");
     expect(source).not.toContain('min={minDateToday()} max={todayBR()}');
   });
@@ -208,5 +215,93 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     expect(source).toContain("? 'Concluir revisão'");
     expect(source).toContain('canApprove && showPrimaryAction');
     expect(source).toContain("reqType === 'reembolso' && stepAction === 'aprovar'");
+  });
+});
+
+describe('Checkpoint B — fronteiras de segurança empresarial', () => {
+  const migration = readFileSync(
+    resolve('supabase/migrations/20260828010000_checkpoint_b_enterprise_hardening.sql'),
+    'utf8',
+  );
+  const edge = readFileSync(resolve('supabase/functions/purchases-create-signed-upload/index.ts'), 'utf8');
+  const attachments = readFileSync(
+    resolve('src/modules/purchases/components/PurchaseAttachments.tsx'),
+    'utf8',
+  );
+
+  it('remove privilégios de tabela incompatíveis com RLS e protege a configuração do motor', () => {
+    expect(migration).toContain('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM anon');
+    expect(migration).toContain('REVOKE TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM authenticated');
+    expect(migration).toContain('public.approval_flows');
+    expect(migration).toContain('public.approval_flow_steps');
+  });
+
+  it('vincula leitura e escrita de anexos ao Action Context', () => {
+    expect(migration).toContain('entity_action_context_can_read');
+    expect(migration).toContain('purchase_attachment_can_write');
+    expect(migration).toContain('Action Context reads purchase files');
+    expect(migration).toContain('Action Context inserts purchase files');
+  });
+
+  it('não usa service role para descobrir compras nem concede upload por papel', () => {
+    expect(edge).toMatch(/userClient\s*\.from\('purchases'\)/);
+    expect(edge).toMatch(/userClient\s*\.rpc\('get_entity_action_context'/);
+    expect(edge).toContain('actionContext?.can_edit === true');
+    expect(edge.indexOf("createClient(supabaseUrl, serviceKey)")).toBeGreaterThan(
+      edge.indexOf('actionContext?.can_edit === true'),
+    );
+    expect(edge).not.toContain('isAdmin');
+  });
+
+  it('aceita somente JPEG, PNG e PDF com validação de assinatura no cliente', () => {
+    for (const source of [edge, attachments]) {
+      expect(source).toContain('image/jpeg');
+      expect(source).toContain('image/png');
+      expect(source).toContain('application/pdf');
+      expect(source).not.toContain('image/webp');
+    }
+    expect(attachments).toContain('validateFileMagicNumber(file, ALLOWED)');
+  });
+
+  it('impede que telemetria do cliente se passe por auditoria autoritativa', () => {
+    expect(migration).toContain("jsonb_build_object('audit_source', 'client_telemetry')");
+    expect(migration).toContain('tr_guard_audit_log_client_insert');
+  });
+
+  it('não ativa o motor V2 durante o hardening', () => {
+    expect(migration).not.toMatch(/UPDATE\s+public\.approval_flows[\s\S]*SET\s+is_active\s*=\s*true/i);
+  });
+
+  it('escopa ciclos e lote por módulo + entidade', () => {
+    const flow = readFileSync(resolve('src/hooks/useApprovalFlow.ts'), 'utf8');
+    const batch = readFileSync(resolve('src/modules/dashboard/hooks/useFlowControlBatch.ts'), 'utf8');
+    const panel = readFileSync(resolve('src/modules/dashboard/components/FlowControlPanel.tsx'), 'utf8');
+    expect(flow).toContain("queryKey: ['approval_request_for', moduleCode, referenceId]");
+    expect(flow).toContain(".eq('approval_modules.code', moduleCode)");
+    expect(batch).toContain('p_module_key: target.moduleKey');
+    expect(batch).toContain('p_entity_id: target.entityId');
+    expect(batch).not.toContain(".from('approval_requests')");
+    expect(panel).toContain('approvalTargetKey(item.module_code!, item.reference_id)');
+    expect(panel).toContain('approvalTargetKey(item.type, item.id)');
+  });
+
+  it('cancela Frota pelo executor e fecha RPCs operacionais legadas', () => {
+    const fleet = readFileSync(resolve('src/modules/fleet/hooks/useFleetQueries.ts'), 'utf8');
+    const finalMigration = readFileSync(
+      resolve('supabase/migrations/20260828020000_final_mvp_authority_convergence.sql'),
+      'utf8',
+    );
+    expect(fleet).toContain("action: 'cancelar'");
+    expect(fleet).not.toContain("rpc('soft_delete_request'");
+    for (const name of [
+      'soft_delete_request',
+      'advance_purchase_to_oc',
+      'cancel_purchase_request',
+      'confirm_purchase_delivery',
+      'confirm_purchase_payment',
+      'confirm_purchase_receipt',
+    ]) {
+      expect(finalMigration).toContain(`FUNCTION public.${name}`);
+    }
   });
 });

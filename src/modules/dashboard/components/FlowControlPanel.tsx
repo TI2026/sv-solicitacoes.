@@ -14,6 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardQueue } from '../hooks/useDashboardQueue';
 import { requestDetailRoute } from '@/modules/fleet/requestRoutes';
 
+const approvalTargetKey = (moduleKey: string, entityId: string) => `${moduleKey}:${entityId}`;
+
 export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
   navigate: (p: string) => void; isRH: boolean; canSeeFinancials: boolean;
 }) {
@@ -62,8 +64,12 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [admData, showFinalized]);
-  const actionableEntityIds = useMemo(
-    () => new Set(approvalQueue.map(item => item.reference_id)),
+  const actionableTargets = useMemo(
+    () => new Set(
+      approvalQueue
+        .filter(item => !!item.module_code)
+        .map(item => approvalTargetKey(item.module_code!, item.reference_id)),
+    ),
     [approvalQueue],
   );
 
@@ -79,13 +85,19 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
 
   const handleBatchApprove = async () => {
     if (selectedIds.size === 0) return;
-    await processBatch(selectedIds, 'approve', 'Aprovação em lote');
+    const targets = approvalQueue
+      .filter(item => !!item.module_code && selectedIds.has(approvalTargetKey(item.module_code!, item.reference_id)))
+      .map(item => ({ moduleKey: item.module_code!, entityId: item.reference_id }));
+    await processBatch(targets, 'approve', 'Aprovação em lote');
     setSelectedIds(new Set());
   };
 
   const handleBatchReject = async () => {
     if (selectedIds.size === 0 || !rejectReason.trim()) return;
-    await processBatch(selectedIds, 'reject', rejectReason.trim());
+    const targets = approvalQueue
+      .filter(item => !!item.module_code && selectedIds.has(approvalTargetKey(item.module_code!, item.reference_id)))
+      .map(item => ({ moduleKey: item.module_code!, entityId: item.reference_id }));
+    await processBatch(targets, 'reject', rejectReason.trim());
     setSelectedIds(new Set());
     setBatchAction(null);
     setRejectReason('');
@@ -158,11 +170,11 @@ export function FlowControlPanel({ navigate, isRH, canSeeFinancials }: {
                 <div className="space-y-1">
                   {items.slice(0, 5).map((item: any) => (
                     <div key={item.id} className="flex items-center gap-2 text-sm hover:bg-muted/50 rounded px-2 py-1">
-                      {actionableEntityIds.has(item.id) && (
+                      {actionableTargets.has(approvalTargetKey(item.type, item.id)) && (
                         <input
                           type="checkbox"
-                          checked={selectedIds.has(item.id)}
-                          onChange={() => toggleSelect(item.id)}
+                          checked={selectedIds.has(approvalTargetKey(item.type, item.id))}
+                          onChange={() => toggleSelect(approvalTargetKey(item.type, item.id))}
                           className="h-4 w-4 rounded border-border accent-primary shrink-0"
                           onClick={e => e.stopPropagation()}
                         />

@@ -11,7 +11,7 @@ import { useVehicleByPlate } from '../hooks/useVehicles';
 import { 
   useFuelRequest, 
   useFuelAttachments, 
-  useSoftDeleteRequest 
+  useCancelFleetRequest
 } from '../hooks/useFleetQueries';
 import { useApprovalAction } from '../hooks/useApprovalAction';
 import { 
@@ -21,6 +21,7 @@ import {
 // [Sprint 2 — Onda 1] Contrato canônico do Motor de Aprovação
 import { useApprovalContext, type ApprovalContextData } from '../hooks/useApprovalContext';
 import { useEntityAction } from '@/hooks/useEntityAction';
+import { isFleetBusinessModule, requestDetailRoute, type FleetBusinessModule } from '../requestRoutes';
 
 interface FleetDetailContextData {
   id: string;
@@ -34,7 +35,7 @@ interface FleetDetailContextData {
   previousCycles: any[];
   statusMutation: any;
   approvalAction: any;
-  softDelete: any;
+  cancelRequest: any;
 
   // [Sprint 2 — Onda 1] Fonte canônica de permissões e visibilidade.
   approvalCtx: ApprovalContextData | undefined;
@@ -87,6 +88,9 @@ interface FleetDetailContextData {
   setPreviewType: (v: 'image' | 'pdf' | null) => void;
   previewTitle: string;
   setPreviewTitle: (v: string) => void;
+  previewLoading: boolean;
+  previewError: string | null;
+  previewPath: string | null;
 
   // Reembolso Checklist
   reembChecklist: { valorConfere: boolean; beneficiarioConfere: boolean; comprovanteOk: boolean; categoriaOk: boolean };
@@ -99,12 +103,14 @@ interface FleetDetailContextData {
   handlePaymentConfirm: () => Promise<void>;
   handleUpload: (e: React.ChangeEvent<HTMLInputElement>, type: 'hodometro' | 'nota_fiscal') => Promise<void>;
   openInlinePreview: (path: string, label: string) => Promise<void>;
+  refreshInlinePreview: () => Promise<void>;
+  closeInlinePreview: () => void;
   getSignedUrl: (path: string) => Promise<void>;
 }
 
 const FleetDetailContext = createContext<FleetDetailContextData | undefined>(undefined);
 
-export function FleetDetailProvider({ children }: { children: React.ReactNode }) {
+export function FleetDetailProvider({ children, expectedType }: { children: React.ReactNode; expectedType?: FleetBusinessModule }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasAnyRole, isMaster } = useAuth();
@@ -113,21 +119,28 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
 
   const { data: req, isLoading, refetch } = useFuelRequest(id!);
   const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
-  const { data: approvalRequest } = useApprovalRequestForReference(id);
-  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const approvalModule = expectedType ?? ((req as any)?.type as FleetBusinessModule | undefined) ?? 'abastecimento';
+  const { data: approvalRequest } = useApprovalRequestForReference(approvalModule, id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference(approvalModule, id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   
   const statusMutation = useEntityAction();
-  const softDelete = useSoftDeleteRequest();
+  const cancelRequest = useCancelFleetRequest();
   const approvalAction = useApprovalAction();
 
   // [Sprint 2 — Onda 1] Fonte canônica — carrega o contexto do Motor para este request.
-  const reqType_raw = (req as any)?.type || 'abastecimento';
+  const reqType_raw = (req as any)?.type;
   const {
     data: approvalCtx,
     isLoading: approvalCtxLoading,
     error: approvalCtxError,
-  } = useApprovalContext(id, reqType_raw);
+  } = useApprovalContext(reqType_raw ? id : undefined, reqType_raw);
+
+  useEffect(() => {
+    const actualType = (req as any)?.type;
+    if (!id || !expectedType || !isFleetBusinessModule(actualType) || actualType === expectedType) return;
+    navigate(requestDetailRoute(actualType, id), { replace: true });
+  }, [expectedType, id, navigate, req]);
 
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
@@ -147,6 +160,9 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<'image' | 'pdf' | null>(null);
   const [previewTitle, setPreviewTitle] = useState<string>('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
 
   const [reembChecklist, setReembChecklist] = useState({
     valorConfere: false,
@@ -162,7 +178,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
 
   // isOwner removido (Sprint 5): era duplicata de approvalCtx.
   // Mantido apenas inline nas condições de upload (regra de negócio de UX, não de aprovação).
-  const reqType = (req as any)?.type || 'abastecimento';
+  const reqType = (req as any)?.type || expectedType || 'abastecimento';
   const vehicle = useVehicleByPlate((req as any)?.placa);
 
   useEffect(() => {
@@ -186,7 +202,7 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     || approvalCtx?.permissions.allowed_actions.includes('enviar_comprovantes')
   );
   const canSendToReview = (req?.requester_user_id === user?.id) && req?.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
-  const isPending = statusMutation.isPending || approvalAction.isPending || softDelete.isPending;
+  const isPending = statusMutation.isPending || approvalAction.isPending || cancelRequest.isPending;
 
   const handleStatusChange = async (action: string, reason?: string, metadata?: Record<string, any>) => {
     if (!id || statusMutation.isPending) return;
@@ -254,9 +270,9 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
       toast({ title: 'Arquivo muito grande', description: 'Máximo 10MB', variant: 'destructive' });
       return;
     }
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
+    const allowed = ['image/jpeg', 'image/png', 'application/pdf'] as const;
     if (!allowed.includes(file.type as any)) {
-      toast({ title: 'Tipo de arquivo não permitido', description: 'Use JPEG, PNG, WebP ou PDF', variant: 'destructive' });
+      toast({ title: 'Tipo de arquivo não permitido', description: 'Use JPEG, PNG ou PDF', variant: 'destructive' });
       return;
     }
 
@@ -293,19 +309,44 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     if (data?.signedUrl) openSecureWindow(data.signedUrl);
   };
 
-  const openInlinePreview = async (path: string, label: string) => {
-    const { data } = await supabase.storage.from('fleet').createSignedUrl(path, 300);
-    if (!data?.signedUrl) return;
-    const isPdf = /\.pdf$/i.test(path);
-    setPreviewUrl(data.signedUrl);
-    setPreviewType(isPdf ? 'pdf' : 'image');
+  const loadInlinePreview = async (path: string, label: string) => {
+    setPreviewLoading(true);
+    setPreviewError(null);
     setPreviewTitle(label);
+    setPreviewType(/\.pdf$/i.test(path) ? 'pdf' : 'image');
+    const { data, error } = await supabase.storage.from('fleet').createSignedUrl(path, 300);
+    if (error || !data?.signedUrl) {
+      setPreviewUrl(null);
+      setPreviewError(error?.message || 'Arquivo inexistente ou sem permissão de leitura.');
+      setPreviewLoading(false);
+      return;
+    }
+    setPreviewUrl(data.signedUrl);
+    setPreviewLoading(false);
+  };
+
+  const openInlinePreview = async (path: string, label: string) => {
+    setPreviewPath(path);
+    await loadInlinePreview(path, label);
+  };
+
+  const refreshInlinePreview = async () => {
+    if (!previewPath) return;
+    await loadInlinePreview(previewPath, previewTitle || 'Comprovante');
+  };
+
+  const closeInlinePreview = () => {
+    setPreviewPath(null);
+    setPreviewUrl(null);
+    setPreviewType(null);
+    setPreviewError(null);
+    setPreviewLoading(false);
   };
 
   const value = {
     id: id!, req, isLoading, refetch, attachments: attachments || [], refetchAttachments,
     approvalRequest, allApprovalCycles: allApprovalCycles || [], previousCycles,
-    statusMutation, approvalAction, softDelete,
+    statusMutation, approvalAction, cancelRequest,
     // [Sprint 2 — Onda 1] Contexto canônico do Motor
     approvalCtx, approvalCtxLoading, approvalCtxError: approvalCtxError as Error | null,
     
@@ -318,8 +359,10 @@ export function FleetDetailProvider({ children }: { children: React.ReactNode })
     reviewKmReal, setReviewKmReal, reviewKmOk, setReviewKmOk, reviewNfReal, setReviewNfReal,
     reviewNfOk, setReviewNfOk, reviewDivergenceReason, setReviewDivergenceReason,
     previewUrl, setPreviewUrl, previewType, setPreviewType, previewTitle, setPreviewTitle,
+    previewLoading, previewError, previewPath,
     reembChecklist, setReembChecklist, reembChecklistComplete,
-    handleStatusChange, handleApprovalAction, handlePaymentConfirm, handleUpload, openInlinePreview, getSignedUrl
+    handleStatusChange, handleApprovalAction, handlePaymentConfirm, handleUpload, openInlinePreview,
+    refreshInlinePreview, closeInlinePreview, getSignedUrl
   };
 
   return <FleetDetailContext.Provider value={value}>{children}</FleetDetailContext.Provider>;

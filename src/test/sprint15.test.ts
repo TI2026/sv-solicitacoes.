@@ -48,8 +48,8 @@ const MODULE_ROUTE: Record<string, string> = {
 
 function resolveRoute(moduleCode: string | null, referenceId: string | null): string | null {
   if (!referenceId) return null;
-  const base = MODULE_ROUTE[moduleCode || ''] || '/abastecimento';
-  return `${base}/${referenceId}`;
+  const base = MODULE_ROUTE[moduleCode || ''];
+  return base ? `${base}/${referenceId}` : null;
 }
 
 function handleRpcResult(result: any, label: string) {
@@ -168,8 +168,8 @@ describe('resolveRoute (criticalPendingsLoader)', () => {
   it('mantém reembolso fora da rota de abastecimento', () => {
     expect(resolveRoute('reembolso', uuid)).toBe(`/reembolsos/${uuid}`);
   });
-  it('retorna /abastecimento para módulo desconhecido (fallback)', () => {
-    expect(resolveRoute('modulo_inexistente', uuid)).toBe(`/abastecimento/${uuid}`);
+  it('não inventa rota de abastecimento para módulo desconhecido', () => {
+    expect(resolveRoute('modulo_inexistente', uuid)).toBeNull();
   });
   it('retorna null se referenceId for null', () => {
     expect(resolveRoute('compras', null)).toBeNull();
