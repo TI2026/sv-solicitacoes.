@@ -122,6 +122,10 @@ test.describe('Sprint 15.1 - Flows Admin Canonical Structure', () => {
   });
 
   test('Master acessa a tela e vê a estrutura canônica', async ({ page }) => {
+    // O WebKit móvel percorre uma página longa (6 módulos/17 etapas) e pode
+    // exceder o timeout padrão sem que nenhuma asserção funcional falhe.
+    test.slow();
+
     // 1. Master acessa a tela
     await page.goto('/permissoes?tab=chains', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Permissões e Aprovações' })).toBeVisible({ timeout: 15000 });

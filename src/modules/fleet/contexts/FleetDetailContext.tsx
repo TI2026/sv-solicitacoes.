@@ -11,7 +11,7 @@ import { useVehicleByPlate } from '../hooks/useVehicles';
 import { 
   useFuelRequest, 
   useFuelAttachments, 
-  useSoftDeleteRequest 
+  useCancelFleetRequest
 } from '../hooks/useFleetQueries';
 import { useApprovalAction } from '../hooks/useApprovalAction';
 import { 
@@ -35,7 +35,7 @@ interface FleetDetailContextData {
   previousCycles: any[];
   statusMutation: any;
   approvalAction: any;
-  softDelete: any;
+  cancelRequest: any;
 
   // [Sprint 2 — Onda 1] Fonte canônica de permissões e visibilidade.
   approvalCtx: ApprovalContextData | undefined;
@@ -119,12 +119,13 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
 
   const { data: req, isLoading, refetch } = useFuelRequest(id!);
   const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
-  const { data: approvalRequest } = useApprovalRequestForReference(id);
-  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const approvalModule = expectedType ?? ((req as any)?.type as FleetBusinessModule | undefined) ?? 'abastecimento';
+  const { data: approvalRequest } = useApprovalRequestForReference(approvalModule, id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference(approvalModule, id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   
   const statusMutation = useEntityAction();
-  const softDelete = useSoftDeleteRequest();
+  const cancelRequest = useCancelFleetRequest();
   const approvalAction = useApprovalAction();
 
   // [Sprint 2 — Onda 1] Fonte canônica — carrega o contexto do Motor para este request.
@@ -201,7 +202,7 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
     || approvalCtx?.permissions.allowed_actions.includes('enviar_comprovantes')
   );
   const canSendToReview = (req?.requester_user_id === user?.id) && req?.status === 'aguardando_fotos' && hodometro.length > 0 && notaFiscal.length > 0;
-  const isPending = statusMutation.isPending || approvalAction.isPending || softDelete.isPending;
+  const isPending = statusMutation.isPending || approvalAction.isPending || cancelRequest.isPending;
 
   const handleStatusChange = async (action: string, reason?: string, metadata?: Record<string, any>) => {
     if (!id || statusMutation.isPending) return;
@@ -345,7 +346,7 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
   const value = {
     id: id!, req, isLoading, refetch, attachments: attachments || [], refetchAttachments,
     approvalRequest, allApprovalCycles: allApprovalCycles || [], previousCycles,
-    statusMutation, approvalAction, softDelete,
+    statusMutation, approvalAction, cancelRequest,
     // [Sprint 2 — Onda 1] Contexto canônico do Motor
     approvalCtx, approvalCtxLoading, approvalCtxError: approvalCtxError as Error | null,
     

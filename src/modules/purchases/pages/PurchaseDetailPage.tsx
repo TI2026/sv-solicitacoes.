@@ -35,15 +35,15 @@ export default function PurchaseDetailPage() {
     data: approvalCtx,
     isLoading: approvalCtxLoading,
     error: approvalCtxError,
-  } = useApprovalContext(id, 'purchases');
+  } = useApprovalContext(id, 'compras');
 
   useRealtimeSubscription({
     channelName: `purchase-detail-${id}-${purchase?.approval_request_id ?? 'pending'}`,
     enabled: !!id,
     tables: [
       { table: 'purchases', filter: `id=eq.${id}`, queryKeys: [['purchase', id!], ['purchases']] },
-      { table: 'approval_requests', filter: `reference_id=eq.${id}`, queryKeys: [['approval_request_for', id!], ['approval_context'], ['purchase', id!]] },
-      { table: 'approval_request_steps', filter: `approval_request_id=eq.${purchase?.approval_request_id ?? id}`, queryKeys: [['approval_request_for', id!], ['approval_context'], ['purchase', id!]] },
+      { table: 'approval_requests', filter: `reference_id=eq.${id}`, queryKeys: [['approval_request_for', 'compras', id!], ['approval_context'], ['purchase', id!]] },
+      { table: 'approval_request_steps', filter: `approval_request_id=eq.${purchase?.approval_request_id ?? id}`, queryKeys: [['approval_request_for', 'compras', id!], ['approval_context'], ['purchase', id!]] },
       { table: 'status_history', filter: `entity_id=eq.${id}`, queryKeys: [['status_history'], ['purchase', id!]] },
     ],
   });

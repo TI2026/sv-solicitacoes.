@@ -48,7 +48,7 @@ function refreshApprovalContext(qc: QueryClient, referenceId?: string) {
   // Invalidamos por prefixo para cobrir todos os módulos sem duplicar regra.
   qc.invalidateQueries({ queryKey: ['approval_context'] });
   if (referenceId) {
-    qc.invalidateQueries({ queryKey: ['approval_request_for', referenceId] });
+    qc.invalidateQueries({ queryKey: ['approval_request_for'] });
     qc.invalidateQueries({ queryKey: ['approval_flow_steps', referenceId] });
   }
 }

@@ -137,7 +137,7 @@ export function FleetDetailContent() {
     reviewKmReal, setReviewKmReal, reviewKmOk, setReviewKmOk, reviewNfReal, setReviewNfReal,
     reviewNfOk, setReviewNfOk, reviewDivergenceReason, setReviewDivergenceReason,
     previewUrl, previewType, previewTitle, previewLoading, previewError, previewPath,
-    handleStatusChange, handleUpload, openInlinePreview, refreshInlinePreview, closeInlinePreview, softDelete,
+    handleStatusChange, handleUpload, openInlinePreview, refreshInlinePreview, closeInlinePreview, cancelRequest,
     // [Sprint 2 — Onda 2] Fonte canônica
     approvalCtx,
   } = useFleetDetail();
@@ -198,7 +198,7 @@ export function FleetDetailContent() {
         {/* [Sprint 2 — Onda 2] ctx.permissions.cancel substitui canMasterDelete */}
         {approvalCtx?.permissions.cancel && (
           <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 gap-2" onClick={() => setShowDeleteDialog(true)}>
-            <Trash2 className="w-4 h-4" /> Excluir
+            <Trash2 className="w-4 h-4" /> Cancelar
           </Button>
         )}
       </div>
@@ -573,24 +573,24 @@ export function FleetDetailContent() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-5 h-5" /> Confirmar Exclusão</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-5 h-5" /> Confirmar cancelamento</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <Alert variant="destructive">
-              <AlertDescription>Esta solicitação será desativada e ocultada de todas as visões padrão do sistema.</AlertDescription>
+              <AlertDescription>Esta solicitação será cancelada pelo executor e a ação ficará registrada na auditoria.</AlertDescription>
             </Alert>
             <div className="space-y-2">
-              <Label>Motivo da exclusão (obrigatório para auditoria)</Label>
-              <Textarea placeholder="Descreva por que esta solicitação está sendo excluída..." value={deleteReason} onChange={e => setDeleteReason(e.target.value)} rows={3} />
+              <Label>Motivo do cancelamento (obrigatório para auditoria)</Label>
+              <Textarea placeholder="Descreva por que esta solicitação está sendo cancelada..." value={deleteReason} onChange={e => setDeleteReason(e.target.value)} rows={3} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isPending}>Cancelar</Button>
             <Button variant="destructive" onClick={() => {
-                softDelete.mutateAsync({ requestId: id!, reason: deleteReason }).then(() => {
-                  toast({ title: 'Excluída com sucesso' }); navigate(routeBase);
+                cancelRequest.mutateAsync({ requestId: id!, moduleKey: reqType, reason: deleteReason }).then(() => {
+                  toast({ title: 'Cancelada com sucesso' }); navigate(routeBase);
                 });
-              }} disabled={isPending || deleteReason.trim().length < 5}>Excluir Solicitação</Button>
+              }} disabled={isPending || deleteReason.trim().length < 5}>Cancelar solicitação</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -20,50 +20,40 @@ export function useFlowControlBatch(userId?: string) {
   const [results, setResults] = useState<{ ok: number; fail: number } | null>(null);
 
   const processBatch = async (
-    referenceIds: Set<string>,
+    targets: Array<{ moduleKey: string; entityId: string }>,
     action: 'approve' | 'reject',
     comments: string
   ) => {
-    if (referenceIds.size === 0) return;
+    if (targets.length === 0) return;
     setIsProcessing(true);
     let ok = 0;
     let fail = 0;
 
-    for (const itemId of referenceIds) {
+    for (const target of targets) {
       try {
-        // [Sprint Final 1] Lote também converge no executor único.
-        // O contexto informa o módulo e a ação canônica da etapa atual.
-        const { data: ar } = await supabase
-          .from('approval_requests')
-          .select('id, current_approver_user_id, ended_at, approval_modules(code)')
-          .eq('reference_id', itemId)
-          .is('ended_at', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        const moduleKey = (ar as any)?.approval_modules?.code as string | undefined;
-        if (ar && ar.current_approver_user_id === userId && moduleKey) {
-          const { data: ctx } = await (supabase as any).rpc('get_entity_action_context', {
-            p_module_key: moduleKey,
-            p_entity_id: itemId,
-          });
-          const allowed: string[] = (ctx as any)?.allowed_actions ?? [];
-          const canonical =
-            action === 'reject'
-              ? 'rejeitar'
-              : allowed.find((a) => (STEP_COMPLETION_ACTIONS as readonly string[]).includes(a)) ?? 'aprovar';
-          if (!allowed.includes(canonical)) { fail++; continue; }
-          await executeEntityAction({
-            moduleKey,
-            entityId: itemId,
-            action: canonical,
-            payload: comments ? { notes: comments } : {},
-          });
-          ok++;
-        } else {
+        // Targets come from get_my_approval_queue(), already scoped by
+        // module + entity. Action Context remains authoritative per item.
+        const { data: ctx, error: contextError } = await (supabase as any).rpc('get_entity_action_context', {
+          p_module_key: target.moduleKey,
+          p_entity_id: target.entityId,
+        });
+        if (contextError || (ctx as any)?.current_approver_user_id !== userId) {
           fail++;
+          continue;
         }
+        const allowed: string[] = (ctx as any)?.allowed_actions ?? [];
+        const canonical =
+          action === 'reject'
+            ? 'rejeitar'
+            : allowed.find((a) => (STEP_COMPLETION_ACTIONS as readonly string[]).includes(a)) ?? 'aprovar';
+        if (!allowed.includes(canonical)) { fail++; continue; }
+        await executeEntityAction({
+          moduleKey: target.moduleKey,
+          entityId: target.entityId,
+          action: canonical,
+          payload: comments ? { notes: comments } : {},
+        });
+        ok++;
       } catch {
         fail++;
       }

@@ -86,7 +86,7 @@ export class EngineContextError extends Error {
 }
 
 export function useApprovalContext(referenceId: string | undefined, moduleCode?: string) {
-  const moduleKey = moduleCode ?? 'purchases';
+  const moduleKey = moduleCode ?? 'compras';
   return useQuery<ApprovalContextData>({
     queryKey: approvalKeys.context(moduleKey, referenceId),
     queryFn: async () => {

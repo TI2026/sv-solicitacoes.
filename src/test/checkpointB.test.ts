@@ -271,4 +271,37 @@ describe('Checkpoint B — fronteiras de segurança empresarial', () => {
   it('não ativa o motor V2 durante o hardening', () => {
     expect(migration).not.toMatch(/UPDATE\s+public\.approval_flows[\s\S]*SET\s+is_active\s*=\s*true/i);
   });
+
+  it('escopa ciclos e lote por módulo + entidade', () => {
+    const flow = readFileSync(resolve('src/hooks/useApprovalFlow.ts'), 'utf8');
+    const batch = readFileSync(resolve('src/modules/dashboard/hooks/useFlowControlBatch.ts'), 'utf8');
+    const panel = readFileSync(resolve('src/modules/dashboard/components/FlowControlPanel.tsx'), 'utf8');
+    expect(flow).toContain("queryKey: ['approval_request_for', moduleCode, referenceId]");
+    expect(flow).toContain(".eq('approval_modules.code', moduleCode)");
+    expect(batch).toContain('p_module_key: target.moduleKey');
+    expect(batch).toContain('p_entity_id: target.entityId');
+    expect(batch).not.toContain(".from('approval_requests')");
+    expect(panel).toContain('approvalTargetKey(item.module_code!, item.reference_id)');
+    expect(panel).toContain('approvalTargetKey(item.type, item.id)');
+  });
+
+  it('cancela Frota pelo executor e fecha RPCs operacionais legadas', () => {
+    const fleet = readFileSync(resolve('src/modules/fleet/hooks/useFleetQueries.ts'), 'utf8');
+    const finalMigration = readFileSync(
+      resolve('supabase/migrations/20260828020000_final_mvp_authority_convergence.sql'),
+      'utf8',
+    );
+    expect(fleet).toContain("action: 'cancelar'");
+    expect(fleet).not.toContain("rpc('soft_delete_request'");
+    for (const name of [
+      'soft_delete_request',
+      'advance_purchase_to_oc',
+      'cancel_purchase_request',
+      'confirm_purchase_delivery',
+      'confirm_purchase_payment',
+      'confirm_purchase_receipt',
+    ]) {
+      expect(finalMigration).toContain(`FUNCTION public.${name}`);
+    }
+  });
 });

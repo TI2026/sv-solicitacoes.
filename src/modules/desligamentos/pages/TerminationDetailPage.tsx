@@ -63,8 +63,8 @@ export default function TerminationDetailPage() {
   const { data: approvalCtx, isLoading: approvalCtxLoading, error: approvalCtxError } = useApprovalContext(id, 'desligamentos');
   const hasAction = (action: string) => !!approvalCtx?.permissions?.allowed_actions?.includes(action);
 
-  const { data: approvalRequest } = useApprovalRequestForReference(id);
-  const { data: previousCycles = [] } = useApprovalRequestsForReference(id);
+  const { data: approvalRequest } = useApprovalRequestForReference('desligamentos', id);
+  const { data: previousCycles = [] } = useApprovalRequestsForReference('desligamentos', id);
   const [reasonAction, setReasonAction] = useState<'devolver' | 'rejeitar' | null>(null);
   const [reason, setReason] = useState('');
 
@@ -73,8 +73,8 @@ export default function TerminationDetailPage() {
     enabled: !!id,
     tables: [
       { table: 'termination_requests', filter: `id=eq.${id}`, queryKeys: [['termination_request', id!], ['termination_requests']] },
-      { table: 'approval_requests', filter: `reference_id=eq.${id}`, queryKeys: [['approval_request_for', id!], ['approval_context']] },
-      { table: 'approval_request_steps', filter: `approval_request_id=eq.${approvalRequest?.id ?? id}`, queryKeys: [['approval_request_for', id!], ['approval_context']] },
+      { table: 'approval_requests', filter: `reference_id=eq.${id}`, queryKeys: [['approval_request_for', 'desligamentos', id!], ['approval_context']] },
+      { table: 'approval_request_steps', filter: `approval_request_id=eq.${approvalRequest?.id ?? id}`, queryKeys: [['approval_request_for', 'desligamentos', id!], ['approval_context']] },
       { table: 'status_history', filter: `entity_id=eq.${id}`, queryKeys: [['status_history'], ['termination_request', id!]] },
     ],
   });

@@ -87,8 +87,8 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
   const qc = useQueryClient();
 
   const { data: req, isLoading } = useAdmissionRequest(id!);
-  const { data: approvalRequest } = useApprovalRequestForReference(id);
-  const { data: allApprovalCycles } = useApprovalRequestsForReference(id);
+  const { data: approvalRequest } = useApprovalRequestForReference('admissoes', id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference('admissoes', id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   const { data: candidates } = useCandidates(id!);
   const { data: interviews } = useAdmissionInterviews(id!);
@@ -98,7 +98,7 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
     data: approvalCtx,
     isLoading: approvalCtxLoading,
     error: approvalCtxError,
-  } = useApprovalContext(id, 'admissions');
+  } = useApprovalContext(id, 'admissoes');
 
   const createCandidate = useCreateCandidate();
   const updateCandidate = useUpdateCandidate();
@@ -132,8 +132,8 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
       { table: 'status_history', queryKeys: [['status_history']] },
       { table: 'admission_interviews', filter: `admission_request_id=eq.${id}`, queryKeys: [['admission_interviews', id!]] },
       { table: 'notifications', queryKeys: [['notifications']] },
-      { table: 'approval_requests', filter: `reference_id=eq.${id}`, queryKeys: [['approval_request_for', id!], ['approval_context']] },
-      { table: 'approval_request_steps', filter: `approval_request_id=eq.${approvalRequest?.id ?? id}`, queryKeys: [['approval_request_for', id!], ['approval_context']] },
+      { table: 'approval_requests', filter: `reference_id=eq.${id}`, queryKeys: [['approval_request_for', 'admissoes', id!], ['approval_context']] },
+      { table: 'approval_request_steps', filter: `approval_request_id=eq.${approvalRequest?.id ?? id}`, queryKeys: [['approval_request_for', 'admissoes', id!], ['approval_context']] },
     ],
   });
 

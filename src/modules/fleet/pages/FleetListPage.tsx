@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useFuelRequests, useSoftDeleteRequest } from '../hooks/useFleetQueries';
+import { useFuelRequests } from '../hooks/useFleetQueries';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useDailyLimitForRole } from '@/hooks/useRequestLimits';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,11 +8,10 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusCircle, Loader2, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { PlusCircle, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { FiltersBar } from '@/components/FiltersBar';
@@ -83,7 +82,7 @@ function RequestPeriod({ request }: { request: any }) {
   );
 }
 
-function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyIcon, emptyText, canDelete, onDelete }: any) {
+function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyIcon, emptyText }: any) {
   if (isLoading) return (
     <div className="space-y-3">
       {[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
@@ -129,11 +128,6 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
                   </span>
                 </div>
               </Link>
-              {canDelete && (
-                <Button variant="ghost" size="icon" className="shrink-0 text-destructive hover:text-destructive" onClick={(e) => { e.preventDefault(); onDelete?.(req); }}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -150,8 +144,6 @@ export default function FleetListPage({ requestType }: { requestType?: string })
   const initialTab = requestType || 'abastecimento';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'aprovadas' | 'concluidos'>('pendentes');
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const softDelete = useSoftDeleteRequest();
   const abastLimit = useDailyLimitForRole(user?.roles, 'abastecimento');
   const reembolsoLimit = useDailyLimitForRole(user?.roles, 'reembolso');
 
@@ -208,12 +200,6 @@ export default function FleetListPage({ requestType }: { requestType?: string })
       ? { icon: Receipt, title: 'Reembolsos', subtitle: isAdmin ? 'Todos os reembolsos' : 'Seus reembolsos' }
       : { icon: Fuel, title: 'Abastecimentos', subtitle: isAdmin ? 'Todos os abastecimentos' : 'Seus abastecimentos' };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    await softDelete.mutateAsync({ requestId: deleteTarget.id });
-    setDeleteTarget(null);
-  };
-
   return (
     <div className="space-y-4 animate-fade-in">
       <PageHeader
@@ -256,7 +242,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
           {subFilter === 'pendentes' ? (
             <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.pending} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação pendente" />
           ) : subFilter === 'negados' ? (
-            <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.rejected} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.rejected} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação negada" />
           ) : (
             <RequestList userId={user?.id} roles={user?.roles || []} requests={abastGroups.completed} isAdmin={isAdmin} isLoading={abastLoading} navigate={navigate} emptyIcon={Fuel} emptyText="Nenhuma solicitação concluída" />
           )}
@@ -286,7 +272,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
           {subFilter === 'pendentes' ? (
             <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.pending} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação pendente" />
           ) : subFilter === 'negados' ? (
-            <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.rejected} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+            <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.rejected} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação negada" />
           ) : (
             <RequestList userId={user?.id} roles={user?.roles || []} requests={reembolsoGroups.completed} isAdmin={isAdmin} isLoading={reembolsoLoading} navigate={navigate} emptyIcon={Receipt} emptyText="Nenhuma solicitação concluída" />
           )}
@@ -317,38 +303,18 @@ export default function FleetListPage({ requestType }: { requestType?: string })
             </FiltersBar>
 
             {subFilter === 'pendentes' ? (
-              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.pending} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária pendente" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.pending} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária pendente" />
             ) : subFilter === 'negados' ? (
-              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.rejected} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária negada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.rejected} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária negada" />
             ) : subFilter === 'aprovadas' ? (
-              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.approved} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária aprovada" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.approved} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária aprovada" />
             ) : (
-              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.completed} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária concluída" canDelete={isAdmin} onDelete={setDeleteTarget} />
+              <RequestList userId={user?.id} roles={user?.roles || []} requests={diariaGroups.completed} isAdmin={isAdmin} isLoading={diariaLoading} navigate={navigate} emptyIcon={Briefcase} emptyText="Nenhuma diária concluída" />
             )}
           </TabsContent>
         )}
       </Tabs>
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-destructive" /> Excluir solicitação
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Tem certeza? Isso só oculta do app (pode ser restaurado por auditoria). O registro não será apagado fisicamente.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={softDelete.isPending}>
-              {softDelete.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Confirmar Exclusão
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
