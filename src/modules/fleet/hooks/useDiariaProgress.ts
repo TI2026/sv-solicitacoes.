@@ -26,11 +26,12 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { loadDiariaStatusDates } from '../queries/diariaProgressLoader';
+import type { FleetBusinessModule } from '../requestRoutes';
 
-export function useDiariaProgress(requestId: string) {
+export function useDiariaProgress(requestId: string, moduleKey: FleetBusinessModule) {
   return useQuery<Record<string, string>>({
-    queryKey: ['diaria_progress', requestId],
-    queryFn: () => loadDiariaStatusDates(requestId),
+    queryKey: ['fleet_progress', moduleKey, requestId],
+    queryFn: () => loadDiariaStatusDates(requestId, moduleKey),
     enabled: !!requestId,
     staleTime: 30_000,
     // retry, gcTime e refetchOnWindowFocus: defaults do React Query v5

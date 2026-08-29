@@ -42,42 +42,6 @@ export function useDailyLimitForRole(roles: string[] | undefined, requestType: s
   return maxLimit >= 0 ? maxLimit : null;
 }
 
-export function useCheckDailyLimit() {
-  return useMutation({
-    mutationFn: async ({ userId, requestType, roles }: { userId: string; requestType: string; roles: string[] }) => {
-      // 1. Get the limit
-      const { data: limits } = await supabase
-        .from('request_limits')
-        .select('*')
-        .in('role', roles)
-        .eq('request_type', requestType);
-
-      const maxLimit = limits && limits.length > 0
-        ? Math.max(...limits.map((l: any) => l.daily_limit))
-        : null;
-
-      // 2. Count today's requests
-      const today = new Date().toISOString().split('T')[0];
-      const { count, error } = await supabase
-        .from('fuel_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('requester_user_id', userId)
-        .eq('type', requestType)
-        .is('deleted_at', null)
-        .gte('created_at', `${today}T00:00:00`)
-        .lte('created_at', `${today}T23:59:59`);
-
-      if (error) throw error;
-
-      return {
-        limit: maxLimit,
-        used: count || 0,
-        canCreate: maxLimit === null || (count || 0) < maxLimit,
-      };
-    },
-  });
-}
-
 export function useUpsertRequestLimit() {
   const qc = useQueryClient();
   const { toast } = useToast();

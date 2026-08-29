@@ -175,23 +175,7 @@ export function mergeTimeline({
     });
   }
 
-  // Marcadores de OC e pagamento a partir do req (fallback defensivo)
-  if (req?.oc_number) {
-    const hasOcEvent = history.some(
-      (h) => h.to_status === 'aguardando_oc' || h.to_status === 'aguardando_pagamento'
-    );
-    if (!hasOcEvent) {
-      all.push({
-        id: `oc-${requestId}`,
-        at: req.updated_at || req.created_at,
-        kind: 'oc',
-        title: `OC registrada: ${req.oc_number}`,
-        detail: req.oc_notes,
-        icon: 'oc',
-      });
-    }
-  }
-
+  // Fleet business types never synthesize Purchase/OC lifecycle events.
   if (req?.paid_at) {
     all.push({
       id: `paid-${requestId}`,

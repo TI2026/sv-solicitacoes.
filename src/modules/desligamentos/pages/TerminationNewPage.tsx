@@ -226,7 +226,7 @@ export default function TerminationNewPage() {
             <Button
               variant="outline"
               onClick={() => handleSubmit(false)}
-              disabled={submitting || !isFormValid()}
+              disabled={submitting}
               className="gap-2"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -234,7 +234,7 @@ export default function TerminationNewPage() {
             </Button>
             <Button
               onClick={() => handleSubmit(true)}
-              disabled={submitting || !isFormValid()}
+              disabled={submitting}
               className="gap-2"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PresenceProvider } from "@/contexts/PresenceContext";
 import AppLayout from "@/components/AppLayout";
-import { RoleGuard } from "@/lib/roleGuard";
+import { PermissionGuard, RoleGuard } from "@/lib/roleGuard";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,25 +151,25 @@ const AppRoutes = () => (
     <Route path="/centros-custo" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="cost_center" title="Centros de Custo" description="Gerencie a lista de centros de custo." /></ProtectedRoute>} />
 
     {/* Diárias e Reembolsos */}
-    <Route path="/reembolsos" element={<ProtectedRoute><ReembolsosListPage /></ProtectedRoute>} />
-    <Route path="/reembolsos/new" element={<ProtectedRoute><FleetNewPage requestType="reembolso" /></ProtectedRoute>} />
-    <Route path="/reembolsos/:id" element={<ProtectedRoute><FleetDetailPage requestType="reembolso" /></ProtectedRoute>} />
-    <Route path="/diarias" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><DiariasListPage /></RoleGuard></ProtectedRoute>} />
-    <Route path="/diarias/new" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><FleetNewPage requestType="diaria" /></RoleGuard></ProtectedRoute>} />
-    <Route path="/diarias/:id/edit" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><FleetNewPage requestType="diaria" /></RoleGuard></ProtectedRoute>} />
-    <Route path="/diarias/:id" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><FleetDetailPage requestType="diaria" /></RoleGuard></ProtectedRoute>} />
+    <Route path="/reembolsos" element={<ProtectedRoute><PermissionGuard moduleCode="reembolso" fallbackAuthenticated><ReembolsosListPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/reembolsos/new" element={<ProtectedRoute><PermissionGuard moduleCode="reembolso" fallbackAuthenticated><FleetNewPage requestType="reembolso" /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/reembolsos/:id" element={<ProtectedRoute><PermissionGuard moduleCode="reembolso" fallbackAuthenticated><FleetDetailPage requestType="reembolso" /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/diarias" element={<ProtectedRoute><PermissionGuard moduleCode="diaria" fallbackAuthenticated><DiariasListPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/diarias/new" element={<ProtectedRoute><PermissionGuard moduleCode="diaria" fallbackAuthenticated><FleetNewPage requestType="diaria" /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/diarias/:id/edit" element={<ProtectedRoute><PermissionGuard moduleCode="diaria" fallbackAuthenticated><FleetNewPage requestType="diaria" /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/diarias/:id" element={<ProtectedRoute><PermissionGuard moduleCode="diaria" fallbackAuthenticated><FleetDetailPage requestType="diaria" /></PermissionGuard></ProtectedRoute>} />
 
     {/* Abastecimento */}
-    <Route path="/abastecimento" element={<ProtectedRoute><FleetListPage /></ProtectedRoute>} />
-    <Route path="/abastecimento/new" element={<ProtectedRoute><FleetNewPage /></ProtectedRoute>} />
+    <Route path="/abastecimento" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetListPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/abastecimento/new" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetNewPage /></PermissionGuard></ProtectedRoute>} />
     <Route path="/abastecimento/vehicles-admin" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><VehiclesAdminPage /></RoleGuard></ProtectedRoute>} />
-    <Route path="/abastecimento/:id" element={<ProtectedRoute><FleetDetailPage requestType="abastecimento" /></ProtectedRoute>} />
+    <Route path="/abastecimento/:id" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetDetailPage requestType="abastecimento" /></PermissionGuard></ProtectedRoute>} />
 
     {/* Admissions */}
-    <Route path="/admissions" element={<ProtectedRoute><AdmissionListPage /></ProtectedRoute>} />
-    <Route path="/admissions/new" element={<ProtectedRoute><AdmissionNewPage /></ProtectedRoute>} />
-    <Route path="/admissions/:id" element={<ProtectedRoute><AdmissionDetailPage /></ProtectedRoute>} />
-    <Route path="/admissions/candidate/:candidateId" element={<ProtectedRoute><CandidateDetailPage /></ProtectedRoute>} />
+    <Route path="/admissions" element={<ProtectedRoute><PermissionGuard moduleCode="admissoes" fallbackRoles={['diretoria', 'rh', 'administrativo']}><AdmissionListPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/admissions/new" element={<ProtectedRoute><PermissionGuard moduleCode="admissoes" fallbackRoles={['diretoria', 'rh', 'administrativo']}><AdmissionNewPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/admissions/:id" element={<ProtectedRoute><PermissionGuard moduleCode="admissoes" fallbackRoles={['diretoria', 'rh', 'administrativo']}><AdmissionDetailPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/admissions/candidate/:candidateId" element={<ProtectedRoute><PermissionGuard moduleCode="admissoes" fallbackRoles={['diretoria', 'rh', 'administrativo']}><CandidateDetailPage /></PermissionGuard></ProtectedRoute>} />
 
     {/* EPIs */}
     <Route path="/epis" element={<ProtectedRoute><EpiCatalogPage /></ProtectedRoute>} />
@@ -183,14 +183,14 @@ const AppRoutes = () => (
     <Route path="/epis/kit-rules" element={<ProtectedRoute><EpiKitRulesPage /></ProtectedRoute>} />
 
     {/* Purchases (Sprint 14) */}
-    <Route path="/purchases" element={<ProtectedRoute><PurchaseListPage /></ProtectedRoute>} />
-    <Route path="/purchases/new" element={<ProtectedRoute><PurchaseFormPage /></ProtectedRoute>} />
-    <Route path="/purchases/:id" element={<ProtectedRoute><PurchaseDetailPage /></ProtectedRoute>} />
+    <Route path="/purchases" element={<ProtectedRoute><PermissionGuard moduleCode="compras" fallbackAuthenticated><PurchaseListPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/purchases/new" element={<ProtectedRoute><PermissionGuard moduleCode="compras" fallbackAuthenticated><PurchaseFormPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/purchases/:id" element={<ProtectedRoute><PermissionGuard moduleCode="compras" fallbackAuthenticated><PurchaseDetailPage /></PermissionGuard></ProtectedRoute>} />
 
     {/* Desligamentos */}
-    <Route path="/desligamentos" element={<ProtectedRoute><TerminationListPage /></ProtectedRoute>} />
-    <Route path="/desligamentos/new" element={<ProtectedRoute><TerminationNewPage /></ProtectedRoute>} />
-    <Route path="/desligamentos/:id" element={<ProtectedRoute><TerminationDetailPage /></ProtectedRoute>} />
+    <Route path="/desligamentos" element={<ProtectedRoute><PermissionGuard moduleCode="desligamentos" fallbackRoles={['diretoria', 'rh', 'administrativo']}><TerminationListPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/desligamentos/new" element={<ProtectedRoute><PermissionGuard moduleCode="desligamentos" fallbackRoles={['diretoria', 'rh', 'administrativo']}><TerminationNewPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/desligamentos/:id" element={<ProtectedRoute><PermissionGuard moduleCode="desligamentos" fallbackRoles={['diretoria', 'rh', 'administrativo']}><TerminationDetailPage /></PermissionGuard></ProtectedRoute>} />
 
     {/* Redirects */}
     <Route path="/" element={<Navigate to="/dashboard" replace />} />

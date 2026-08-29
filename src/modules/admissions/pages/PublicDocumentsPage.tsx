@@ -139,21 +139,23 @@ export default function PublicDocumentsPage() {
     setDocStates(prev => ({ ...prev, [docKey]: { file, uploading: true, uploaded: false, filename: file.name } }));
 
     try {
+      const formData = new FormData();
+      formData.append('token', token);
+      formData.append('file', file);
+      formData.append('file_type', docKey);
+
       const res = await fetch(
         `${supabaseUrl}/functions/v1/public-documents-submit`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, filename: file.name, content_type: file.type, file_type: docKey }),
+          body: formData,
         }
       );
+      const result = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Erro ao gerar URL');
+        throw new Error(result.error || 'Erro ao enviar documento');
       }
-      const { signedUrl } = await res.json();
-      const uploadRes = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
-      if (!uploadRes.ok) throw new Error('Falha no upload');
+      if (result.success !== true) throw new Error(result.error || 'Upload nao confirmado');
 
       setDocStates(prev => ({ ...prev, [docKey]: { file: null, uploading: false, uploaded: true, filename: file.name } }));
       toast({ title: 'Documento enviado!' });
@@ -188,7 +190,7 @@ export default function PublicDocumentsPage() {
     if (!token || !canFinalize) return;
     setSubmitting(true);
     try {
-      await fetch(
+      const res = await fetch(
         `${supabaseUrl}/functions/v1/admissions-finalize-signed-docs`,
         {
           method: 'POST',
@@ -196,10 +198,14 @@ export default function PublicDocumentsPage() {
           body: JSON.stringify({ token, bank_info: { banco: bankName, agencia: bankInfo.agencia.replace(/\D/g, ''), conta: bankInfo.conta.replace(/\D/g, ''), tipo: bankInfo.tipo } }),
         }
       );
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || result.error) {
+        throw new Error(result.error || 'Falha ao finalizar documentos');
+      }
       setSubmitted(true);
       toast({ title: 'Documentos finalizados com sucesso!' });
-    } catch {
-      toast({ title: 'Erro ao finalizar', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao finalizar', description: error.message, variant: 'destructive' });
     }
     setSubmitting(false);
   };

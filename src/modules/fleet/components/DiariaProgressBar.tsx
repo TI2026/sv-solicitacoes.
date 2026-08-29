@@ -22,29 +22,48 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Check, Clock, Circle, Loader2 } from 'lucide-react';
 import { useDiariaProgress } from '../hooks/useDiariaProgress';
+import type { FleetBusinessModule } from '../requestRoutes';
 
 /**
  * Progressão canônica da Diária V2. Não inclui etapas de Compras (como OC).
  * A aprovação e o estágio operacional são representados pelos estados que o
  * backend realmente aplica ao módulo.
  */
-const STEPS: { key: string; label: string; completedBy: string[] }[] = [
-  { key: 'rascunho',            label: 'Solicitação', completedBy: ['rascunho', 'em_aprovacao', 'ativa', 'em_revisao', 'aguardando_pagamento', 'concluido'] },
-  { key: 'em_aprovacao',         label: 'Autorização', completedBy: ['em_aprovacao', 'ativa', 'em_revisao', 'aguardando_pagamento', 'concluido'] },
-  { key: 'ativa',                label: 'Execução / comprovantes', completedBy: ['ativa', 'em_revisao', 'aguardando_pagamento', 'concluido'] },
-  { key: 'em_revisao',           label: 'Verificação de horas', completedBy: ['em_revisao', 'aguardando_pagamento', 'concluido'] },
-  { key: 'aguardando_pagamento', label: 'Pagamento',  completedBy: ['aguardando_pagamento', 'concluido'] },
-  { key: 'concluido',            label: 'Concluída',  completedBy: ['concluido'] },
-];
+const REQUEST_PROGRESS_STEPS: Record<FleetBusinessModule, { key: string; label: string }[]> = {
+  abastecimento: [
+    { key: 'rascunho', label: 'Solicitação' },
+    { key: 'em_aprovacao', label: 'Autorização / pagamento' },
+    { key: 'aguardando_fotos', label: 'NF e hodômetro' },
+    { key: 'em_revisao_admin', label: 'Revisão' },
+    { key: 'concluido', label: 'Concluído' },
+  ],
+  diaria: [
+    { key: 'rascunho', label: 'Solicitação' },
+    { key: 'em_aprovacao', label: 'Autorização' },
+    { key: 'ativa', label: 'Execução / comprovantes' },
+    { key: 'em_revisao', label: 'Verificação de horas' },
+    { key: 'aguardando_pagamento', label: 'Pagamento' },
+    { key: 'concluido', label: 'Concluída' },
+  ],
+  reembolso: [
+    { key: 'rascunho', label: 'Solicitação e comprovante' },
+    { key: 'em_aprovacao', label: 'Aprovação / revisão' },
+    { key: 'aguardando_pagamento', label: 'Pagamento' },
+    { key: 'pago', label: 'Confirmação' },
+    { key: 'concluido', label: 'Concluído' },
+  ],
+};
 
 interface Props {
   requestId: string;
+  requestType: FleetBusinessModule;
   currentStatus: string;
 }
 
-export function DiariaProgressBar({ requestId, currentStatus }: Props) {
+export function FleetProgressBar({ requestId, requestType, currentStatus }: Props) {
   const queryClient = useQueryClient();
-  const { data: dates = {}, isLoading } = useDiariaProgress(requestId);
+  const { data: dates = {}, isLoading } = useDiariaProgress(requestId, requestType);
+  const steps = REQUEST_PROGRESS_STEPS[requestType];
 
   // Realtime: APENAS invalida o cache. Nunca busca dados diretamente.
   // O React Query decide se e quando recarregar com base no staleTime e nos triggers.
@@ -52,7 +71,7 @@ export function DiariaProgressBar({ requestId, currentStatus }: Props) {
     if (!requestId) return;
 
     const channel = supabase
-      .channel(`diaria-progress-${requestId}`)
+      .channel(`fleet-progress-${requestType}-${requestId}`)
       .on(
         'postgres_changes',
         {
@@ -66,7 +85,7 @@ export function DiariaProgressBar({ requestId, currentStatus }: Props) {
           const record = payload.new as any;
           if (record?.entity_id !== requestId) return;
 
-          queryClient.invalidateQueries({ queryKey: ['diaria_progress', requestId] });
+          queryClient.invalidateQueries({ queryKey: ['fleet_progress', requestType, requestId] });
         }
       )
       .subscribe();
@@ -74,26 +93,25 @@ export function DiariaProgressBar({ requestId, currentStatus }: Props) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [requestId, queryClient]);
+  }, [requestId, requestType, queryClient]);
 
   // — JSX idêntico ao anterior. Nenhuma alteração visual. —
 
-  const isCancelled = ['cancelado', 'reprovado', 'encerrado', 'retornado'].includes(currentStatus);
+  const isCancelled = ['cancelado', 'cancelled', 'reprovado', 'rejected', 'encerrado', 'retornado', 'returned'].includes(currentStatus);
 
   if (isLoading) {
     return <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>;
   }
 
   // Determine state per step
-  const stepStates = STEPS.map(step => {
-    const completed = step.completedBy.includes(currentStatus) && currentStatus !== step.key;
+  const stepStates = steps.map(step => {
     const isCurrent = step.key === currentStatus;
     const reachedAt = dates[step.key] || null;
-    return { ...step, completed: completed || isCurrent && step.key === 'concluido', isCurrent, reachedAt };
+    return { ...step, isCurrent, reachedAt };
   });
 
   // Find current step index (or last completed)
-  const currentIdx = STEPS.findIndex(s => s.key === currentStatus);
+  const currentIdx = steps.findIndex(s => s.key === currentStatus);
 
   return (
     <div className="space-y-2">
@@ -116,7 +134,7 @@ export function DiariaProgressBar({ requestId, currentStatus }: Props) {
                    isCurr ? <Clock className="w-4 h-4" /> :
                    <Circle className="w-3 h-3" />}
                 </div>
-                <div className={`flex-1 h-1 rounded-full ${idx === STEPS.length - 1 ? 'opacity-0' : (past && currentIdx > idx) || (isCurr && s.key === 'concluido') ? 'bg-emerald-500' : 'bg-border'}`} />
+                <div className={`flex-1 h-1 rounded-full ${idx === steps.length - 1 ? 'opacity-0' : (past && currentIdx > idx) || (isCurr && s.key === 'concluido') ? 'bg-emerald-500' : 'bg-border'}`} />
               </div>
               <div className="text-center mt-1.5">
                 <p className={`text-[10px] font-medium ${isCurr ? 'text-amber-700' : past ? 'text-emerald-700' : 'text-muted-foreground'}`}>{s.label}</p>

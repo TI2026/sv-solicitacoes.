@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCheckDailyLimit } from '@/hooks/useRequestLimits';
 import { useCreateFuelRequest, useFuelRequest } from '../hooks/useFleetQueries';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +34,6 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
   const initialType = requestType || 'abastecimento';
   const createMutation = useCreateFuelRequest();
   const statusMutation = useEntityAction();
-  const checkLimit = useCheckDailyLimit();
   const [submitting, setSubmitting] = useState(false);
   const { data: editRequest } = useFuelRequest(editId || '');
 
@@ -288,23 +286,6 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
     let dataSaved = false;
     setSubmitting(true);
     try {
-      if (!editId) {
-        const limitResult = await checkLimit.mutateAsync({
-          userId: user.id,
-          requestType: type,
-          roles: user.roles || [],
-        });
-        if (!limitResult.canCreate) {
-          toast({
-            title: 'Limite diário atingido',
-            description: `Você já criou ${limitResult.used} de ${limitResult.limit} solicitações hoje.`,
-            variant: 'destructive',
-          });
-          setSubmitting(false);
-          return;
-        }
-      }
-
       const payload: Record<string, any> = {
         requester_user_id: user.id,
         data_abastecimento: type === 'diaria' ? dailyStartDate : data,
@@ -811,11 +792,11 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !isValid(false)}>
+            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {editId ? 'Salvar alterações' : 'Salvar Rascunho'}
             </Button>
-            <Button onClick={() => handleSubmit(true)} disabled={submitting || !isValid(true)} className="gap-2">
+            <Button onClick={() => handleSubmit(true)} disabled={submitting} className="gap-2">
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               <Send className="w-4 h-4" /> Enviar
             </Button>

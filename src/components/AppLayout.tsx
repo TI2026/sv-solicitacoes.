@@ -13,6 +13,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { isFleetBusinessModule, requestDetailRoute } from '@/modules/fleet/requestRoutes';
 import { approvalQueueKeys } from '@/lib/refreshApprovalData';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, hasAnyRole, isMaster } = useAuth();
@@ -71,11 +72,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [user?.id, queryClient, navigate]);
 
   const canManage = hasAnyRole(['diretoria', 'administrativo']);
-  const canViewAdmission = hasAnyRole(['diretoria', 'rh', 'administrativo']);
   const canManageVehicles = hasAnyRole(['diretoria']);
   const canViewEpis = hasAnyRole(['diretoria', 'rh', 'administrativo', 'supervisor']);
   const canViewSectors = hasAnyRole(['diretoria']);
   const primaryRole = user?.roles[0];
+  const canViewFuel = usePermission('abastecimento', 'view', { fallbackAuthenticated: true }).allowed;
+  const canViewDaily = usePermission('diaria', 'view', { fallbackAuthenticated: true }).allowed;
+  const canViewReimbursement = usePermission('reembolso', 'view', { fallbackAuthenticated: true }).allowed;
+  const canViewPurchases = usePermission('compras', 'view', { fallbackAuthenticated: true }).allowed;
+  const canViewAdmission = usePermission('admissoes', 'view', {
+    fallbackRoles: ['diretoria', 'rh', 'administrativo'],
+  }).allowed;
+  const canViewTermination = usePermission('desligamentos', 'view', {
+    fallbackRoles: ['diretoria', 'rh', 'administrativo'],
+  }).allowed;
 
   // Badges reativos
   const { data: myPendingApprovals = 0 } = useQuery({
@@ -149,12 +159,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           to: '/abastecimento',
           label: 'Abastecimento',
           icon: Fuel,
-          show: true,
+          show: canViewFuel,
           badge: myReturnedRequests > 0 ? { count: myReturnedRequests, tone: 'warning' as const } : null,
         },
-        { to: '/diarias', label: 'Diárias', icon: CalendarDays, show: canManage || isMaster },
-        { to: '/reembolsos', label: 'Reembolsos', icon: Receipt, show: true },
-        { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: true },
+        { to: '/diarias', label: 'Diárias', icon: CalendarDays, show: canViewDaily },
+        { to: '/reembolsos', label: 'Reembolsos', icon: Receipt, show: canViewReimbursement },
+        { to: '/purchases', label: 'Compras', icon: ShoppingCart, show: canViewPurchases },
         { to: '/admissions', label: 'Admissões', icon: UserPlus, show: canViewAdmission },
       ],
     },
@@ -162,7 +172,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       label: 'Cadastros',
       items: [
         { to: '/colaboradores', label: 'Colaboradores', icon: Users, show: canManage },
-        { to: '/desligamentos', label: 'Desligamentos', icon: UserMinus, show: canViewAdmission },
+        { to: '/desligamentos', label: 'Desligamentos', icon: UserMinus, show: canViewTermination },
         { to: '/abastecimento/vehicles-admin', label: 'Veículos', icon: Car, show: canManageVehicles },
         { to: '/setores', label: 'Setores', icon: Building2, show: canViewSectors },
         { to: '/epis', label: 'EPIs', icon: HardHat, show: canViewEpis },

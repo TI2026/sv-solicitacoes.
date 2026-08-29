@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/StatusBadge';
-import { DiariaProgressBar } from './DiariaProgressBar';
+import { FleetProgressBar } from './DiariaProgressBar';
 import { FleetTimeline } from './FleetTimeline';
 import { ApprovalStatusBlock } from '@/components/ApprovalStatusBlock';
 import { ApprovalFlowViewer } from './ApprovalFlowViewer';
@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { useDynamicCategories } from '@/hooks/useDynamicCategories';
-import { requestListRoute } from '../requestRoutes';
+import { isFleetBusinessModule, requestListRoute } from '../requestRoutes';
 import { normalizeDailyPeriod } from '../dailyPeriod';
 
 function PrivateFleetThumbnail({ path, alt }: { path: string; alt: string }) {
@@ -298,13 +298,13 @@ export function FleetDetailContent() {
           </CardContent>
         </Card>
 
-        {reqType === 'diaria' && (
+        {isFleetBusinessModule(reqType) && (
           <Card className="lg:col-span-3 order-first lg:order-none">
             <CardContent className="p-4">
               <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4" /> Progresso da Diária
+                <Clock className="w-4 h-4" /> Progresso de {REQUEST_TYPE_LABELS[reqType]}
               </h3>
-              <DiariaProgressBar requestId={id!} currentStatus={req.status} />
+              <FleetProgressBar requestId={id!} requestType={reqType} currentStatus={req.status} />
             </CardContent>
           </Card>
         )}
@@ -320,14 +320,14 @@ export function FleetDetailContent() {
               </Button>
             )}
 
-            {/* [Sprint 3.0] ctx.permissions.edit + ctx.status — solicitante envia/reenvia */}
-            {approvalCtx?.permissions.edit && approvalCtx?.status === 'rascunho' && (
+            {/* Workflow actions come from Action Context; can_edit governs fields only. */}
+            {approvalCtx?.permissions.allowed_actions.includes('enviar') && approvalCtx?.status === 'rascunho' && (
               <Button onClick={() => handleStatusChange('enviar')} disabled={isPending} className="gap-2 w-full sm:w-auto">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar Solicitação
               </Button>
             )}
 
-            {approvalCtx?.permissions.edit && approvalCtx?.status === 'retornado' && (
+            {approvalCtx?.permissions.allowed_actions.includes('enviar') && approvalCtx?.status === 'retornado' && (
               <Button onClick={() => handleStatusChange('enviar')} disabled={isPending} className="gap-2 w-full sm:w-auto">
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Reenviar
               </Button>

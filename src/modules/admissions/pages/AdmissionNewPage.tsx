@@ -225,11 +225,11 @@ export default function AdmissionNewPage() {
           )}
 
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting || !isFormValid()}>
+            <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Salvar Rascunho
             </Button>
-            <Button onClick={() => handleSubmit(true)} disabled={submitting || !isFormValid()} className="gap-2">
+            <Button onClick={() => handleSubmit(true)} disabled={submitting} className="gap-2">
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               <Send className="w-4 h-4" /> Enviar para Triagem
             </Button>

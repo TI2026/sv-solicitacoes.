@@ -164,7 +164,8 @@ describe('Checkpoint B — arquitetura do frontend', () => {
     const layout = readFileSync(resolve('src/components/AppLayout.tsx'), 'utf8');
     const pendings = readFileSync(resolve('src/modules/dashboard/queries/criticalPendingsLoader.ts'), 'utf8');
     expect(layout).toContain("rpc('get_my_approval_queue')");
-    expect(pendings).toContain(".or('status.eq.awaiting_step,status.like.awaiting_step_%')");
+    expect(pendings).toContain(".eq('status', 'awaiting_step')");
+    expect(pendings).not.toContain('status.like.awaiting_step_%');
     expect(pendings).not.toContain("status.eq.waiting_operational,status.eq.awaiting_step");
   });
 
