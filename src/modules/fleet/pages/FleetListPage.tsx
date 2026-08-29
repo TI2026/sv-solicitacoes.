@@ -17,6 +17,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { FiltersBar } from '@/components/FiltersBar';
 import { requestDetailRoute, requestNewRoute } from '../requestRoutes';
 import { normalizeDailyPeriod } from '../dailyPeriod';
+import { usePermission } from '@/hooks/usePermission';
 
 const REJECTED_STATUSES = new Set(['reprovado']);
 const COMPLETED_STATUSES = new Set(['aprovado', 'concluido', 'encerrado']);
@@ -139,7 +140,7 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
 export default function FleetListPage({ requestType }: { requestType?: string }) {
   const { user, hasAnyRole } = useAuth();
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
-  const canSeeDiaria = hasAnyRole(['diretoria', 'administrativo']);
+  const canSeeDiaria = usePermission('diaria', 'view', { fallbackAuthenticated: true }).allowed;
   const navigate = useNavigate();
   const initialTab = requestType || 'abastecimento';
   const [activeTab, setActiveTab] = useState(initialTab);

@@ -9,9 +9,9 @@
  *
  * 4 verificações cobertas:
  *   1. fuel_requests com status 'retornado' (devolvidas para o solicitante)
- *   2. approval_requests ativas sem current_approver_user_id (sem aprovador)
- *   3. approval_requests ativas sem current_step_order (sem etapa definida)
- *   4. approval_requests com status 'em_aprovacao' e ended_at preenchido (inconsistência)
+ *   2. approval_requests V2 aguardando etapa sem ator esperado
+ *   3. approval_requests V2 aguardando etapa sem etapa definida
+ *   4. approval_requests V2 aguardando etapa, mas encerradas
  *
  * Padrão: Component → Hook → Loader (este arquivo) → Supabase
  */
@@ -63,13 +63,14 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
     });
   }
 
-  // 2. Approval requests ativas sem current_approver_user_id
+  // 2. V2 somente: waiting_operational/returned não esperam aprovador.
+  // Compatibilidade V1 permanece isolada no RPC get_my_approval_queue().
   const { data: noApprover, error: noApproverError } = await supabase
     .from('approval_requests')
     .select('id, reference_id, status, created_at, approval_modules(code, name)')
     .is('ended_at', null)
     .is('current_approver_user_id', null)
-    .or('status.eq.awaiting_step,status.like.awaiting_step_%')
+    .eq('status', 'awaiting_step')
     .order('created_at', { ascending: true })
     .limit(20);
   if (noApproverError) throw noApproverError;
@@ -85,14 +86,13 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
     });
   }
 
-  // 3. Approval requests ativas sem current_step_order
-  // B4 Fix: incluir 'returned_for_adjustment' além de 'returned_to_requester' pois o motor usa ambos em versões distintas
+  // 3. V2 aguardando etapa sem current_step_order.
   const { data: noStep, error: noStepError } = await supabase
     .from('approval_requests')
     .select('id, reference_id, status, created_at, approval_modules(code, name)')
     .is('ended_at', null)
     .is('current_step_order', null)
-    .or('status.eq.awaiting_step,status.like.awaiting_step_%')
+    .eq('status', 'awaiting_step')
     .order('created_at', { ascending: true })
     .limit(20);
   if (noStepError) throw noStepError;
@@ -108,14 +108,11 @@ export async function loadCriticalPendings(): Promise<CriticalPending[]> {
     });
   }
 
-  // 4. Inconsistência: approval_requests com status awaiting_step_N mas ended_at preenchido.
-  // B3 Fix: o motor NUNCA escreve 'pending_approval'. Ele usa 'awaiting_step_1', 'awaiting_step_2', etc.
-  // A inconsistência real é: fluxo em etapa ativa (awaiting_step_%) porém ended_at já está preenchido,
-  // indicando que foi encerrado prematuramente sem transição correta de status.
+  // 4. Inconsistência V2: fluxo aguardando etapa, mas já encerrado.
   const { data: inconsistent, error: inconsistentError } = await supabase
     .from('approval_requests')
     .select('id, reference_id, status, created_at, approval_modules(code, name)')
-    .or('status.eq.awaiting_step,status.like.awaiting_step_%')
+    .eq('status', 'awaiting_step')
     .not('ended_at', 'is', null)
     .order('created_at', { ascending: true })
     .limit(20);

@@ -1,23 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { AppRole } from '@/types';
+
+export interface PermissionFallback {
+  fallbackRoles?: AppRole[];
+  fallbackAuthenticated?: boolean;
+}
 
 /**
- * Hook oficial de verificação de permissão (Sprint 13.9 — Frente 4.2).
+ * Resolves module visibility through the persisted RBAC matrix.
  *
- * Consulta a matriz oficial via RPC `current_user_has_permission`.
- * Se a RPC falhar (rede/erro), aplica fallback conservador para `hasRole`
- * usando o AuthContext — mantém compatibilidade enquanto os hotspots
- * migram gradualmente na Sprint 14.
- *
- * NÃO substitui os `hasRole()` existentes automaticamente. A adoção deve
- * ser feita tela a tela, com validação funcional.
+ * Older installations may not have a permission catalog yet. Only in that
+ * unconfigured state, the declared role/authenticated fallback preserves the
+ * current MVP access model. Once module + action exist in the catalog, the
+ * backend RPC result is authoritative, including an explicit denial.
  */
-export function usePermission(moduleCode: string, actionCode: string) {
-  const { user, hasRole } = useAuth() as {
-    user: { id: string } | null;
-    hasRole: (role: string) => boolean;
-  };
+export function usePermission(
+  moduleCode: string,
+  actionCode: string,
+  fallback: PermissionFallback = {},
+) {
+  const { user, hasAnyRole, isMaster } = useAuth();
 
   const query = useQuery({
     queryKey: ['permission', user?.id, moduleCode, actionCode],
@@ -25,21 +29,45 @@ export function usePermission(moduleCode: string, actionCode: string) {
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('current_user_has_permission', {
-        p_module_code: moduleCode,
-        p_action_code: actionCode,
-      });
-      if (error) throw error;
-      return Boolean(data);
+      const [permission, module, action] = await Promise.all([
+        supabase.rpc('current_user_has_permission', {
+          p_module_code: moduleCode,
+          p_action_code: actionCode,
+        }),
+        supabase
+          .from('permission_modules')
+          .select('id')
+          .eq('code', moduleCode)
+          .eq('active', true)
+          .maybeSingle(),
+        supabase
+          .from('permission_actions')
+          .select('id')
+          .eq('code', actionCode)
+          .eq('active', true)
+          .maybeSingle(),
+      ]);
+      if (permission.error) throw permission.error;
+      if (module.error) throw module.error;
+      if (action.error) throw action.error;
+      return {
+        configured: Boolean(module.data && action.data),
+        allowed: Boolean(permission.data),
+      };
     },
   });
 
-  // Fallback conservador: Master/Diretoria sempre têm acesso enquanto a RPC
-  // não responde ou falha. Evita telas em branco em caso de indisponibilidade.
-  const roleFallback = hasRole?.('master') || hasRole?.('diretoria') || false;
+  const compatibilityFallback = fallback.fallbackAuthenticated
+    || hasAnyRole(fallback.fallbackRoles || []);
+  const allowed = isMaster || (
+    query.data?.configured
+      ? query.data.allowed
+      : (!query.isError && compatibilityFallback)
+  );
 
   return {
-    allowed: query.data ?? (query.isError ? roleFallback : false),
+    allowed,
+    configured: query.data?.configured ?? false,
     isLoading: query.isLoading,
     isError: query.isError,
     refetch: query.refetch,
