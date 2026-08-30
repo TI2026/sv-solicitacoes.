@@ -108,7 +108,7 @@ export default function EpiDismissalReportPage() {
       doc.save(`Relatorio_EPIs_Desligamento_${safeName}.pdf`);
 
       // Audit log
-      await supabase.from('audit_logs').insert({ user_id: user!.id, action: 'epi_dismissal_report', entity_type: 'collaborators', entity_id: selectedId, details: { collaborator_name: selectedCollab.full_name, total_items: history.length } });
+      await (supabase as any).rpc('log_client_event', { p_action: 'epi_dismissal_report', p_entity_type: 'collaborators', p_entity_id: selectedId, p_details: { collaborator_name: selectedCollab.full_name, total_items: history.length } });
     } finally {
       setGenerating(false);
     }

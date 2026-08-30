@@ -27,7 +27,7 @@ export function useCreateEpiItem() {
     mutationFn: async (item: Record<string, any>) => {
       const { data, error } = await (supabase.from('epi_items') as any).insert(item).select().single();
       if (error) throw error;
-      await supabase.from('audit_logs').insert({ user_id: user!.id, action: 'create', entity_type: 'epi_items', entity_id: data.id, details: { name: item.name } });
+      await (supabase as any).rpc('log_client_event', { p_action: 'create', p_entity_type: 'epi_items', p_entity_id: data.id, p_details: { name: item.name } });
       return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epi-items'] }); toast({ title: 'EPI criado com sucesso' }); },
@@ -43,7 +43,7 @@ export function useUpdateEpiItem() {
     mutationFn: async ({ id, ...updates }: Record<string, any>) => {
       const { error } = await (supabase.from('epi_items') as any).update(updates).eq('id', id);
       if (error) throw error;
-      await supabase.from('audit_logs').insert({ user_id: user!.id, action: 'update', entity_type: 'epi_items', entity_id: id, details: updates });
+      await (supabase as any).rpc('log_client_event', { p_action: 'update', p_entity_type: 'epi_items', p_entity_id: id, p_details: updates });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epi-items'] }); toast({ title: 'EPI atualizado' }); },
     onError: (e: any) => toast({ title: 'Erro ao atualizar', description: e.message, variant: 'destructive' }),
@@ -102,7 +102,7 @@ export function useCreateDelivery() {
         reason: delivery.reason || 'primeira_entrega',
         notes: delivery.notes || '',
       });
-      await supabase.from('audit_logs').insert({ user_id: user!.id, action: 'epi_delivery', entity_type: 'epi_deliveries', entity_id: data.id, details: { collaborator_id: delivery.collaborator_id, epi_item_id: delivery.epi_item_id } });
+      await (supabase as any).rpc('log_client_event', { p_action: 'epi_delivery', p_entity_type: 'epi_deliveries', p_entity_id: data.id, p_details: { collaborator_id: delivery.collaborator_id, epi_item_id: delivery.epi_item_id } });
       return data;
     },
     onSuccess: () => {
@@ -131,7 +131,7 @@ export function useUpdateDeliveryStatus() {
         notes: notes || '',
       });
       if (movError) throw movError;
-      await supabase.from('audit_logs').insert({ user_id: user!.id, action: `epi_${movement_type}`, entity_type: 'epi_deliveries', entity_id: id, details: { status, reason } });
+      await (supabase as any).rpc('log_client_event', { p_action: `epi_${movement_type}`, p_entity_type: 'epi_deliveries', p_entity_id: id, p_details: { status, reason } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['epi-deliveries'] });

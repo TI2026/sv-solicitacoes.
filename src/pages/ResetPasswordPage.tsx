@@ -61,12 +61,11 @@ export default function ResetPasswordPage() {
       // Get current user for audit log
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id,
-          action: 'password_reset_completed',
-          entity_type: 'auth',
-          entity_id: user.id,
-          details: { method: 'email_link' },
+        await (supabase as any).rpc('log_client_event', {
+          p_action: 'password_reset_completed',
+          p_entity_type: 'auth',
+          p_entity_id: user.id,
+          p_details: { method: 'email_link' },
         });
       }
 

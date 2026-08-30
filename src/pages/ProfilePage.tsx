@@ -163,12 +163,11 @@ export default function ProfilePage() {
         setChangingPw(false);
         return;
       }
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action: 'password_changed',
-        entity_type: 'auth',
-        entity_id: user.id,
-        details: { method: 'profile' },
+      await (supabase as any).rpc('log_client_event', {
+        p_action: 'password_changed',
+        p_entity_type: 'auth',
+        p_entity_id: user.id,
+        p_details: { method: 'profile' },
       });
       toast({ title: 'Senha alterada com sucesso.' });
       setCurrentPassword('');
