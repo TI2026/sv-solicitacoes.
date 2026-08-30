@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
         [],
         ['Resumo por Tipo'],
         ['Tipo', 'Quantidade', 'Valor Total'],
-        ...Object.entries(byType).map(([t, v]) => [typeLabels[t] || t, v.count, fmtCurrency(v.total)]),
+        ...Object.entries(byType).map(([t, v]) => [cell(typeLabels[t] || t), v.count, fmtCurrency(v.total)]),
       ];
       const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
       wsResumo['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }];
