@@ -2933,6 +2933,10 @@ export type Database = {
         }
         Returns: Json
       }
+      can_view_approval_flow_step: {
+        Args: { p_step_id: string }
+        Returns: boolean
+      }
       cancel_purchase_request: {
         Args: { p_reason?: string; p_request_id: string }
         Returns: Json
@@ -3047,6 +3051,15 @@ export type Database = {
         Returns: boolean
       }
       is_master: { Args: { _uid?: string }; Returns: boolean }
+      log_client_event: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_entity_id?: string
+          p_entity_type: string
+        }
+        Returns: undefined
+      }
       process_approval_action: {
         Args: {
           p_action: string
