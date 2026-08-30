@@ -111,12 +111,11 @@ export function EditAdmissionDialog({ open, onOpenChange, admission }: EditAdmis
 
       const user = (await supabase.auth.getUser()).data.user;
       if (user) {
-        await supabase.from('audit_logs').insert({
-          user_id: user.id,
-          action: 'edit_admission',
-          entity_type: 'admission_requests',
-          entity_id: admission.id,
-          details: { fields_updated: Object.keys(form) },
+        await (supabase as any).rpc('log_client_event', {
+          p_action: 'edit_admission',
+          p_entity_type: 'admission_requests',
+          p_entity_id: admission.id,
+          p_details: { fields_updated: Object.keys(form) },
         });
       }
 
