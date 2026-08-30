@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
 
       // Por Tipo
       const tipoRows = Object.entries(byType).map(([t, v]) => ({
-        Tipo: typeLabels[t] || t, Quantidade: v.count, 'Valor Total': fmtCurrency(v.total),
+        Tipo: cell(typeLabels[t] || t), Quantidade: v.count, 'Valor Total': fmtCurrency(v.total),
         'Média': fmtCurrency(v.count > 0 ? v.total / v.count : 0),
       }));
       const wsTipo = XLSX.utils.json_to_sheet(tipoRows);
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
       const setorRows = Object.entries(bySector)
         .sort((a, b) => b[1].total - a[1].total)
         .map(([s, v]) => ({
-          Setor: s, Quantidade: v.count, 'Valor Total': fmtCurrency(v.total),
+          Setor: cell(s), Quantidade: v.count, 'Valor Total': fmtCurrency(v.total),
         }));
       const wsSetor = XLSX.utils.json_to_sheet(setorRows);
       wsSetor['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 18 }];
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
       const collabRows = Object.entries(byCollab)
         .sort((a, b) => b[1].total - a[1].total)
         .map(([n, v]) => ({
-          Colaborador: n, Quantidade: v.count, 'Valor Total': fmtCurrency(v.total),
+          Colaborador: cell(n), Quantidade: v.count, 'Valor Total': fmtCurrency(v.total),
         }));
       const wsCollab = XLSX.utils.json_to_sheet(collabRows);
       wsCollab['!cols'] = [{ wch: 30 }, { wch: 12 }, { wch: 18 }];
@@ -170,19 +170,20 @@ Deno.serve(async (req) => {
 
       // Detalhamento
       const detailRows = data.map((r: any) => ({
-        'Data inicial': fmtDate(r.daily_start_date || r.data_abastecimento),
-        'Data final': fmtDate(r.daily_end_date || r.data_abastecimento),
+        'Data inicial': cell(fmtDate(r.daily_start_date || r.data_abastecimento)),
+        'Data final': cell(fmtDate(r.daily_end_date || r.data_abastecimento)),
         'Quantidade de diárias': r.type === 'diaria' ? Number(r.daily_quantity || 1) : '',
         'Valor unitário': r.type === 'diaria' ? fmtCurrency(Number(r.daily_value || r.valor || 0)) : '',
-        Tipo: typeLabels[r.type] || r.type,
-        Solicitante: r.profiles?.full_name || r.person_name || '',
-        Placa: r.placa || '',
-        Categoria: r.categoria || r.daily_category || '',
-        Destino: r.daily_destination || '',
+        Tipo: cell(typeLabels[r.type] || r.type),
+        Solicitante: cell(r.profiles?.full_name || r.person_name || ''),
+        Placa: cell(r.placa || ''),
+        Categoria: cell(r.categoria || r.daily_category || ''),
+        Destino: cell(r.daily_destination || ''),
         'Valor total': fmtCurrency(Number(r.valor || 0)),
-        Status: statusLabels[r.status] || r.status,
-        Motivo: r.motivo || '',
+        Status: cell(statusLabels[r.status] || r.status),
+        Motivo: cell(r.motivo || ''),
       }));
+
       const wsDetail = XLSX.utils.json_to_sheet(detailRows);
       wsDetail['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 15 }, { wch: 25 }, { wch: 10 }, { wch: 18 }, { wch: 24 }, { wch: 15 }, { wch: 15 }, { wch: 30 }];
       XLSX.utils.book_append_sheet(wb, wsDetail, 'Detalhamento');
