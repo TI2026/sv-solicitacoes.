@@ -110,6 +110,17 @@ Deno.serve(async (req) => {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
 
+    /**
+     * Spreadsheet formula-injection guard.
+     * Any user-supplied text written into an XLSX cell is neutralized so that
+     * Excel/LibreOffice/Sheets never evaluate it as a formula.
+     */
+    const cell = (v: any): string => {
+      const s = String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+      return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    };
+
+
     if (format === 'xlsx') {
       const wb = XLSX.utils.book_new();
 
