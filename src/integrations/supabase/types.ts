@@ -1498,6 +1498,12 @@ export type Database = {
           categoria: string | null
           created_at: string
           daily_category: string | null
+          daily_destination: string | null
+          daily_end_date: string | null
+          daily_end_time: string | null
+          daily_quantity: number | null
+          daily_start_date: string | null
+          daily_start_time: string | null
           daily_value: number | null
           data_abastecimento: string
           deleted_at: string | null
@@ -1538,6 +1544,12 @@ export type Database = {
           categoria?: string | null
           created_at?: string
           daily_category?: string | null
+          daily_destination?: string | null
+          daily_end_date?: string | null
+          daily_end_time?: string | null
+          daily_quantity?: number | null
+          daily_start_date?: string | null
+          daily_start_time?: string | null
           daily_value?: number | null
           data_abastecimento?: string
           deleted_at?: string | null
@@ -1578,6 +1590,12 @@ export type Database = {
           categoria?: string | null
           created_at?: string
           daily_category?: string | null
+          daily_destination?: string | null
+          daily_end_date?: string | null
+          daily_end_time?: string | null
+          daily_quantity?: number | null
+          daily_start_date?: string | null
+          daily_start_time?: string | null
           daily_value?: number | null
           data_abastecimento?: string
           deleted_at?: string | null
@@ -2874,6 +2892,15 @@ export type Database = {
         }
         Returns: Json
       }
+      _execute_entity_action_checkpoint6_previous: {
+        Args: {
+          p_action: string
+          p_entity_id: string
+          p_module_key: string
+          p_payload?: Json
+        }
+        Returns: Json
+      }
       _get_entity_action_context_checkpoint_b: {
         Args: { p_entity_id: string; p_module_key: string }
         Returns: Database["public"]["CompositeTypes"]["entity_action_context"]
@@ -2927,6 +2954,14 @@ export type Database = {
           p_payload?: Json
         }
         Returns: Json
+      }
+      fleet_storage_can_read: {
+        Args: { p_object_name: string }
+        Returns: boolean
+      }
+      fleet_storage_can_write: {
+        Args: { p_object_name: string }
+        Returns: boolean
       }
       fuel_set_status: {
         Args: {
@@ -3072,6 +3107,22 @@ export type Database = {
           _reason?: string
           _request_id: string
           _to_status: Database["public"]["Enums"]["termination_status"]
+        }
+        Returns: Json
+      }
+      update_daily_request_draft: {
+        Args: {
+          p_daily_rate: number
+          p_destination: string
+          p_end_date: string
+          p_end_time: string
+          p_entity_id: string
+          p_notes?: string
+          p_person_cpf?: string
+          p_person_name: string
+          p_service_type: string
+          p_start_date: string
+          p_start_time: string
         }
         Returns: Json
       }
