@@ -24,10 +24,17 @@ import { QuickAccessWidget } from '@/modules/dashboard/components/QuickAccessWid
 import { MyQueueWidget } from '@/modules/dashboard/components/MyQueueWidget';
 import { CriticalPendingWidget } from '@/modules/dashboard/components/CriticalPendingWidget';
 
-import { FuelMetricsBlock } from '@/modules/dashboard/components/FuelMetricsBlock';
-import { AdmissionMetricsBlock } from '@/modules/dashboard/components/AdmissionMetricsBlock';
+// Blocos com gráficos (recharts) carregados sob demanda — só quando a aba é aberta
+const FuelMetricsBlock = lazy(() =>
+  import('@/modules/dashboard/components/FuelMetricsBlock').then((m) => ({ default: m.FuelMetricsBlock })),
+);
+const AdmissionMetricsBlock = lazy(() =>
+  import('@/modules/dashboard/components/AdmissionMetricsBlock').then((m) => ({ default: m.AdmissionMetricsBlock })),
+);
 // B5 Fix Sprint 15: PurchaseMetricsBlock reativado — dados já existem em get_dashboard_metrics()
-import { PurchaseMetricsBlock } from '@/modules/dashboard/components/PurchaseMetricsBlock';
+const PurchaseMetricsBlock = lazy(() =>
+  import('@/modules/dashboard/components/PurchaseMetricsBlock').then((m) => ({ default: m.PurchaseMetricsBlock })),
+);
 import { FlowControlPanel } from '@/modules/dashboard/components/FlowControlPanel';
 import { mapDashboardMetrics } from '@/modules/dashboard/adapters/mapDashboardMetrics';
 
@@ -265,11 +272,13 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-6">
+              <Suspense fallback={<Skeleton className="h-64 rounded-lg" />}>
               <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={false} />
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={false} />
               )}
               <PurchaseMetricsBlock metrics={metrics?.purchases} canSeeFinancials={false} />
+              </Suspense>
             </div>
           )}
         </TabsContent>
@@ -283,10 +292,12 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-6">
+                <Suspense fallback={<Skeleton className="h-64 rounded-lg" />}>
                 <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials />
                 {isRH && (
                   <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials />
                 )}
+                </Suspense>
               </div>
             )}
           </TabsContent>
@@ -324,11 +335,13 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-6">
+              <Suspense fallback={<Skeleton className="h-64 rounded-lg" />}>
               <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={canSeeFinancials} />
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={canSeeFinancials} />
               )}
               <PurchaseMetricsBlock metrics={metrics?.purchases} canSeeFinancials={canSeeFinancials} />
+              </Suspense>
             </div>
           )}
           <section className="space-y-3">
