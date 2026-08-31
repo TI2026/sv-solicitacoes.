@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { FiltersBar } from '@/components/FiltersBar';
-import { requestDetailRoute, requestNewRoute } from '../requestRoutes';
+import { requestDetailRoute, requestNewRoute, isFleetBusinessModule } from '../requestRoutes';
 import { normalizeDailyPeriod } from '../dailyPeriod';
 import { usePermission } from '@/hooks/usePermission';
 
@@ -142,24 +142,21 @@ export default function FleetListPage({ requestType }: { requestType?: string })
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const canSeeDiaria = usePermission('diaria', 'view', { fallbackAuthenticated: true }).allowed;
   const navigate = useNavigate();
-  const initialTab = requestType || 'abastecimento';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  // O módulo é definido pela rota (requestType). Nunca pode ser trocado por efeito colateral.
+  const lockedModule = isFleetBusinessModule(requestType) ? requestType : null;
+  const [internalTab, setInternalTab] = useState<string>('abastecimento');
+  const activeTab = lockedModule ?? internalTab;
   const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'aprovadas' | 'concluidos'>('pendentes');
   const abastLimit = useDailyLimitForRole(user?.roles, 'abastecimento');
   const reembolsoLimit = useDailyLimitForRole(user?.roles, 'reembolso');
 
-  // If activeTab is diaria but user can't see it, force to abastecimento
+  // Sem rota fixa: se o usuário não pode ver Diária, cai para Abastecimento.
   useEffect(() => {
-    if (activeTab === 'diaria' && !canSeeDiaria) {
-      setActiveTab('abastecimento');
+    if (!lockedModule && internalTab === 'diaria' && !canSeeDiaria) {
+      setInternalTab('abastecimento');
     }
-  }, [activeTab, canSeeDiaria]);
+  }, [lockedModule, internalTab, canSeeDiaria]);
 
-  useEffect(() => {
-    if (requestType) {
-      setActiveTab(requestType);
-    }
-  }, [requestType]);
 
   // Sem paginação manual (RC Final — Onda B): busca ampla, filtragem via tabs/subfilter.
   const { data: abastRes, isLoading: abastLoading } = useFuelRequests(
@@ -177,7 +174,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
     200,
   );
   const { data: diariaRes, isLoading: diariaLoading } = useFuelRequests(
-    activeTab === 'diaria' && canSeeDiaria ? user?.id : undefined,
+    activeTab === 'diaria' ? user?.id : undefined,
     isAdmin,
     'diaria',
     1,
@@ -279,7 +276,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
           )}
         </TabsContent>
 
-        {canSeeDiaria && (
+        {(canSeeDiaria || lockedModule === 'diaria') && (
           <TabsContent value="diaria" className="space-y-3 mt-3">
             <InfoCard title="Como funciona a Diária?">
               <p>• Disponível apenas para Administração e Diretores</p>
