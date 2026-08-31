@@ -1,12 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { ExportReportDialog } from '@/components/ExportReportDialog';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/contexts/PresenceContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Loader2, ShieldAlert, Download, ArrowUp, AlertTriangle, Clock, CheckCircle2, DollarSign, Users, Activity } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+
+// Carregado sob demanda: puxa xlsx/jspdf (~500 kB) apenas ao exportar
+const ExportReportDialog = lazy(() =>
+  import('@/components/ExportReportDialog').then((m) => ({ default: m.ExportReportDialog })),
+);
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -19,10 +24,17 @@ import { QuickAccessWidget } from '@/modules/dashboard/components/QuickAccessWid
 import { MyQueueWidget } from '@/modules/dashboard/components/MyQueueWidget';
 import { CriticalPendingWidget } from '@/modules/dashboard/components/CriticalPendingWidget';
 
-import { FuelMetricsBlock } from '@/modules/dashboard/components/FuelMetricsBlock';
-import { AdmissionMetricsBlock } from '@/modules/dashboard/components/AdmissionMetricsBlock';
+// Blocos com gráficos (recharts) carregados sob demanda — só quando a aba é aberta
+const FuelMetricsBlock = lazy(() =>
+  import('@/modules/dashboard/components/FuelMetricsBlock').then((m) => ({ default: m.FuelMetricsBlock })),
+);
+const AdmissionMetricsBlock = lazy(() =>
+  import('@/modules/dashboard/components/AdmissionMetricsBlock').then((m) => ({ default: m.AdmissionMetricsBlock })),
+);
 // B5 Fix Sprint 15: PurchaseMetricsBlock reativado — dados já existem em get_dashboard_metrics()
-import { PurchaseMetricsBlock } from '@/modules/dashboard/components/PurchaseMetricsBlock';
+const PurchaseMetricsBlock = lazy(() =>
+  import('@/modules/dashboard/components/PurchaseMetricsBlock').then((m) => ({ default: m.PurchaseMetricsBlock })),
+);
 import { FlowControlPanel } from '@/modules/dashboard/components/FlowControlPanel';
 import { mapDashboardMetrics } from '@/modules/dashboard/adapters/mapDashboardMetrics';
 
@@ -166,7 +178,11 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {isAdmin && <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} />}
+      {isAdmin && exportOpen && (
+        <Suspense fallback={null}>
+          <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} />
+        </Suspense>
+      )}
 
       {/* ── Aviso de compatibilidade da RPC ───────────────────────────────── */}
       {metricsError && (
@@ -256,11 +272,13 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-6">
+              <Suspense fallback={<Skeleton className="h-64 rounded-lg" />}>
               <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={false} />
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={false} />
               )}
               <PurchaseMetricsBlock metrics={metrics?.purchases} canSeeFinancials={false} />
+              </Suspense>
             </div>
           )}
         </TabsContent>
@@ -274,10 +292,12 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-6">
+                <Suspense fallback={<Skeleton className="h-64 rounded-lg" />}>
                 <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials />
                 {isRH && (
                   <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials />
                 )}
+                </Suspense>
               </div>
             )}
           </TabsContent>
@@ -315,11 +335,13 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-6">
+              <Suspense fallback={<Skeleton className="h-64 rounded-lg" />}>
               <FuelMetricsBlock metrics={metrics?.fuel} canSeeFinancials={canSeeFinancials} />
               {isRH && (
                 <AdmissionMetricsBlock metrics={metrics?.admission} canSeeFinancials={canSeeFinancials} />
               )}
               <PurchaseMetricsBlock metrics={metrics?.purchases} canSeeFinancials={canSeeFinancials} />
+              </Suspense>
             </div>
           )}
           <section className="space-y-3">
