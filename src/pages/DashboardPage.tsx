@@ -1,12 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { ExportReportDialog } from '@/components/ExportReportDialog';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePresence } from '@/contexts/PresenceContext';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { Loader2, ShieldAlert, Download, ArrowUp, AlertTriangle, Clock, CheckCircle2, DollarSign, Users, Activity } from 'lucide-react';
 import { ROLE_LABELS } from '@/types';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+
+// Carregado sob demanda: puxa xlsx/jspdf (~500 kB) apenas ao exportar
+const ExportReportDialog = lazy(() =>
+  import('@/components/ExportReportDialog').then((m) => ({ default: m.ExportReportDialog })),
+);
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -166,7 +171,11 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {isAdmin && <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} />}
+      {isAdmin && exportOpen && (
+        <Suspense fallback={null}>
+          <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} />
+        </Suspense>
+      )}
 
       {/* ── Aviso de compatibilidade da RPC ───────────────────────────────── */}
       {metricsError && (
