@@ -142,24 +142,22 @@ export default function FleetListPage({ requestType }: { requestType?: string })
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const canSeeDiaria = usePermission('diaria', 'view', { fallbackAuthenticated: true }).allowed;
   const navigate = useNavigate();
-  const initialTab = requestType || 'abastecimento';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  // O módulo é definido pela rota (requestType). Nunca pode ser trocado por efeito colateral.
+  const lockedModule = isFleetBusinessModule(requestType) ? requestType : null;
+  const [internalTab, setInternalTab] = useState<string>('abastecimento');
+  const activeTab = lockedModule ?? internalTab;
+  const setActiveTab = setInternalTab;
   const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'aprovadas' | 'concluidos'>('pendentes');
   const abastLimit = useDailyLimitForRole(user?.roles, 'abastecimento');
   const reembolsoLimit = useDailyLimitForRole(user?.roles, 'reembolso');
 
-  // If activeTab is diaria but user can't see it, force to abastecimento
+  // Sem rota fixa: se o usuário não pode ver Diária, cai para Abastecimento.
   useEffect(() => {
-    if (activeTab === 'diaria' && !canSeeDiaria) {
-      setActiveTab('abastecimento');
+    if (!lockedModule && internalTab === 'diaria' && !canSeeDiaria) {
+      setInternalTab('abastecimento');
     }
-  }, [activeTab, canSeeDiaria]);
+  }, [lockedModule, internalTab, canSeeDiaria]);
 
-  useEffect(() => {
-    if (requestType) {
-      setActiveTab(requestType);
-    }
-  }, [requestType]);
 
   // Sem paginação manual (RC Final — Onda B): busca ampla, filtragem via tabs/subfilter.
   const { data: abastRes, isLoading: abastLoading } = useFuelRequests(
