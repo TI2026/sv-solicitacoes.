@@ -65,4 +65,40 @@ describe('MVP 1.0 release regressions', () => {
       expect(config).toContain(`[functions.${name}]\nverify_jwt = false`);
     }
   });
+
+  it('renders a configuration error instead of throwing before React mounts', () => {
+    const client = read('src/integrations/supabase/client.ts');
+    const app = read('src/App.tsx');
+    const screen = read('src/components/ConfigurationErrorScreen.tsx');
+
+    expect(client).not.toContain("throw new Error('Supabase não configurado");
+    expect(client).toContain('export const missingSupabaseEnvironment');
+    expect(app).toContain('if (missingSupabaseEnvironment.length > 0)');
+    expect(app).toContain('<ConfigurationErrorScreen missingVariables={missingSupabaseEnvironment} />');
+    expect(screen).toContain('Aplicação temporariamente indisponível');
+    expect(screen).toContain('Nenhum dado foi enviado.');
+  });
+
+  it('keeps the legacy new-request route neutral across business modules', () => {
+    const app = read('src/App.tsx');
+    expect(app).toContain('<Route path="/nova-solicitacao" element={<Navigate to="/dashboard" replace />} />');
+    expect(app).not.toContain('<Route path="/nova-solicitacao" element={<Navigate to="/abastecimento/new"');
+  });
+
+  it('locks all shared fleet list routes to an explicit business module', () => {
+    const app = read('src/App.tsx');
+    const fleetList = read('src/modules/fleet/pages/FleetListPage.tsx');
+
+    expect(app).toContain('<FleetListPage requestType="abastecimento" />');
+    expect(fleetList).toContain('{ requestType: FleetBusinessModule }');
+    expect(fleetList).toContain('const activeTab = requestType;');
+    expect(fleetList).not.toContain('const internalTab');
+  });
+
+  it('ships only the public Supabase browser configuration to the production build', () => {
+    const env = read('.env.production');
+    expect(env).toContain('VITE_SUPABASE_URL=');
+    expect(env).toContain('VITE_SUPABASE_PUBLISHABLE_KEY=');
+    expect(env).not.toMatch(/SERVICE_ROLE|DB_PASSWORD|ACCESS_TOKEN|JWT_SECRET/);
+  });
 });

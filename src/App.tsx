@@ -10,8 +10,9 @@ import { PermissionGuard, RoleGuard } from "@/lib/roleGuard";
 import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
 import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { missingSupabaseEnvironment, supabase } from "@/integrations/supabase/client";
 import { isFleetBusinessModule, requestDetailRoute } from "@/modules/fleet/requestRoutes";
+import { ConfigurationErrorScreen } from "@/components/ConfigurationErrorScreen";
 
 // Lazy-loaded route pages — enables code splitting and reduces initial bundle
 const LoginPage = lazy(() => import("@/pages/LoginPage"));
@@ -161,7 +162,7 @@ const AppRoutes = () => (
     <Route path="/diarias/:id" element={<ProtectedRoute><PermissionGuard moduleCode="diaria" fallbackAuthenticated><FleetDetailPage requestType="diaria" /></PermissionGuard></ProtectedRoute>} />
 
     {/* Abastecimento */}
-    <Route path="/abastecimento" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetListPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/abastecimento" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetListPage requestType="abastecimento" /></PermissionGuard></ProtectedRoute>} />
     <Route path="/abastecimento/new" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetNewPage /></PermissionGuard></ProtectedRoute>} />
     <Route path="/abastecimento/vehicles-admin" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><VehiclesAdminPage /></RoleGuard></ProtectedRoute>} />
     <Route path="/abastecimento/:id" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetDetailPage requestType="abastecimento" /></PermissionGuard></ProtectedRoute>} />
@@ -195,7 +196,7 @@ const AppRoutes = () => (
 
     {/* Redirects */}
     <Route path="/" element={<Navigate to="/dashboard" replace />} />
-    <Route path="/nova-solicitacao" element={<Navigate to="/abastecimento/new" replace />} />
+    <Route path="/nova-solicitacao" element={<Navigate to="/dashboard" replace />} />
     <Route path="/solicitacao/:id" element={<LegacyRequestDetailRedirect />} />
     <Route path="/fleet" element={<Navigate to="/abastecimento" replace />} />
     <Route path="/fleet/new" element={<Navigate to="/abastecimento/new" replace />} />
@@ -206,22 +207,28 @@ const AppRoutes = () => (
   </Suspense>
 );
 
-const App = () => (
-  <ErrorBoundary>
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <PresenceProvider>
-            <AppRoutes />
-          </PresenceProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-  </ErrorBoundary>
-);
+const App = () => {
+  if (missingSupabaseEnvironment.length > 0) {
+    return <ConfigurationErrorScreen missingVariables={missingSupabaseEnvironment} />;
+  }
+
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <PresenceProvider>
+                <AppRoutes />
+              </PresenceProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;

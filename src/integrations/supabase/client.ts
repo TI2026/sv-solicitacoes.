@@ -9,14 +9,22 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
   || (isTest ? 'test-publishable-key' : '');
 
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error('Supabase não configurado: defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY.');
-}
+export const missingSupabaseEnvironment = [
+  !SUPABASE_URL ? 'VITE_SUPABASE_URL' : null,
+  !SUPABASE_PUBLISHABLE_KEY ? 'VITE_SUPABASE_PUBLISHABLE_KEY' : null,
+].filter((name): name is string => Boolean(name));
+
+// Keep module initialization safe so React can render an actionable
+// configuration screen instead of failing before the root ErrorBoundary.
+// These placeholders are never used for an authenticated request because App
+// stops before mounting providers whenever a required variable is missing.
+const CLIENT_URL = SUPABASE_URL || 'http://127.0.0.1:54321';
+const CLIENT_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY || 'configuration-missing';
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(CLIENT_URL, CLIENT_PUBLISHABLE_KEY, {
   auth: {
     storage: brokeredPreviewStorage(),
     persistSession: true,
