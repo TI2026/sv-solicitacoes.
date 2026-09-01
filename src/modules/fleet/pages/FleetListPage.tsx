@@ -9,13 +9,13 @@ import { FUEL_STATUS_LABELS, REQUEST_TYPE_LABELS } from '@/lib/constants';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlusCircle, Fuel, Calendar, Info, ChevronDown, Receipt, Briefcase, AlertTriangle, CheckCircle } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { FiltersBar } from '@/components/FiltersBar';
-import { requestDetailRoute, requestNewRoute, isFleetBusinessModule } from '../requestRoutes';
+import { requestDetailRoute, requestNewRoute, type FleetBusinessModule } from '../requestRoutes';
 import { normalizeDailyPeriod } from '../dailyPeriod';
 import { usePermission } from '@/hooks/usePermission';
 
@@ -137,26 +137,16 @@ function RequestList({ requests, isAdmin, isLoading, navigate, emptyIcon: EmptyI
   );
 }
 
-export default function FleetListPage({ requestType }: { requestType?: string }) {
+export default function FleetListPage({ requestType }: { requestType: FleetBusinessModule }) {
   const { user, hasAnyRole } = useAuth();
   const isAdmin = hasAnyRole(['diretoria', 'administrativo']);
   const canSeeDiaria = usePermission('diaria', 'view', { fallbackAuthenticated: true }).allowed;
   const navigate = useNavigate();
-  // O módulo é definido pela rota (requestType). Nunca pode ser trocado por efeito colateral.
-  const lockedModule = isFleetBusinessModule(requestType) ? requestType : null;
-  const [internalTab, setInternalTab] = useState<string>('abastecimento');
-  const activeTab = lockedModule ?? internalTab;
+  // O módulo é obrigatório e definido pela rota. Não existe fallback ou troca interna.
+  const activeTab = requestType;
   const [subFilter, setSubFilter] = useState<'pendentes' | 'negados' | 'aprovadas' | 'concluidos'>('pendentes');
   const abastLimit = useDailyLimitForRole(user?.roles, 'abastecimento');
   const reembolsoLimit = useDailyLimitForRole(user?.roles, 'reembolso');
-
-  // Sem rota fixa: se o usuário não pode ver Diária, cai para Abastecimento.
-  useEffect(() => {
-    if (!lockedModule && internalTab === 'diaria' && !canSeeDiaria) {
-      setInternalTab('abastecimento');
-    }
-  }, [lockedModule, internalTab, canSeeDiaria]);
-
 
   // Sem paginação manual (RC Final — Onda B): busca ampla, filtragem via tabs/subfilter.
   const { data: abastRes, isLoading: abastLoading } = useFuelRequests(
@@ -276,7 +266,7 @@ export default function FleetListPage({ requestType }: { requestType?: string })
           )}
         </TabsContent>
 
-        {(canSeeDiaria || lockedModule === 'diaria') && (
+        {(canSeeDiaria || requestType === 'diaria') && (
           <TabsContent value="diaria" className="space-y-3 mt-3">
             <InfoCard title="Como funciona a Diária?">
               <p>• Disponível apenas para Administração e Diretores</p>

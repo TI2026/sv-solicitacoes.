@@ -65,12 +65,14 @@ describe('Checkpoint B — separação das rotas empresariais', () => {
     expect(source).toContain("activeTab === 'diaria' ? user?.id : undefined");
   });
 
-  it('trava o módulo pela rota — Diária/Reembolso nunca caem em Abastecimento', () => {
+  it('trava o módulo pela rota — nenhum processo compartilhado usa fallback para Abastecimento', () => {
     const source = readFileSync(resolve('src/modules/fleet/pages/FleetListPage.tsx'), 'utf8');
-    expect(source).toContain('const lockedModule = isFleetBusinessModule(requestType)');
-    expect(source).toContain('const activeTab = lockedModule ?? internalTab;');
-    // O fallback para abastecimento só pode ocorrer quando não há módulo travado pela rota
-    expect(source).toContain("if (!lockedModule && internalTab === 'diaria' && !canSeeDiaria)");
+    const app = readFileSync(resolve('src/App.tsx'), 'utf8');
+    expect(source).toContain('{ requestType: FleetBusinessModule }');
+    expect(source).toContain('const activeTab = requestType;');
+    expect(source).not.toContain('internalTab');
+    expect(source).not.toContain('lockedModule');
+    expect(app).toContain('<FleetListPage requestType="abastecimento" />');
   });
 });
 

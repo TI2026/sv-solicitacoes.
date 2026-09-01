@@ -85,6 +85,16 @@ describe('MVP 1.0 release regressions', () => {
     expect(app).not.toContain('<Route path="/nova-solicitacao" element={<Navigate to="/abastecimento/new"');
   });
 
+  it('locks all shared fleet list routes to an explicit business module', () => {
+    const app = read('src/App.tsx');
+    const fleetList = read('src/modules/fleet/pages/FleetListPage.tsx');
+
+    expect(app).toContain('<FleetListPage requestType="abastecimento" />');
+    expect(fleetList).toContain('{ requestType: FleetBusinessModule }');
+    expect(fleetList).toContain('const activeTab = requestType;');
+    expect(fleetList).not.toContain('const internalTab');
+  });
+
   it('ships only the public Supabase browser configuration to the production build', () => {
     const env = read('.env.production');
     expect(env).toContain('VITE_SUPABASE_URL=');
