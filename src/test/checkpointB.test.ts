@@ -311,7 +311,11 @@ describe('Checkpoint B — fronteiras de segurança empresarial', () => {
       'confirm_purchase_payment',
       'confirm_purchase_receipt',
     ]) {
-      expect(finalMigration).toContain(`FUNCTION public.${name}`);
+      expect(finalMigration).toContain(`public.${name}(`);
     }
+    expect(finalMigration).toContain('to_regprocedure(v_signature)');
+    expect(finalMigration).toContain(
+      'REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated',
+    );
   });
 });
