@@ -35,6 +35,20 @@ const ACTION_LABELS: Record<string, string> = {
   return: 'Devolvido',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Rascunho',
+  awaiting_step: 'Aguardando aprovação',
+  waiting_operational: 'Aguardando ação operacional',
+  returned: 'Devolvido ao solicitante',
+  rejected: 'Recusado',
+  cancelled: 'Cancelado',
+  completed: 'Concluído',
+  approved: 'Aprovado',
+  pending_approval: 'Aguardando aprovação',
+  returned_for_adjustment: 'Devolvido para ajuste',
+  returned_to_requester: 'Devolvido ao solicitante',
+};
+
 export function ApprovalStatusBlock({ approvalRequest, previousCycles }: ApprovalStatusBlockProps) {
   const ar = approvalRequest;
 
@@ -59,23 +73,24 @@ export function ApprovalStatusBlock({ approvalRequest, previousCycles }: Approva
 
   const steps = (ar.approval_request_steps || []).sort((a: any, b: any) => a.step_order - b.step_order);
   const status = String(ar.status || '');
-  const isAwaitingApprover = !ar.ended_at && !!ar.current_approver_user_id && (status.startsWith('awaiting_step_') || status === 'pending_approval');
-  const statusLabel = status === 'approved' ? 'Aprovado'
-    : status === 'rejected' ? 'Recusado'
-    : status === 'returned_for_adjustment' ? 'Devolvido para ajuste'
-    : status === 'returned_to_requester' ? 'Devolvido ao solicitante'
-    : status.startsWith('awaiting_step_') ? `Etapa ${ar.current_step_order}`
-    : status;
+  const isAwaitingApprover = !ar.ended_at
+    && !!ar.current_approver_user_id
+    && (status === 'awaiting_step' || status.startsWith('awaiting_step_') || status === 'pending_approval');
+  const statusLabel = STATUS_LABELS[status]
+    || (status.startsWith('awaiting_step_') ? `Aguardando aprovação — etapa ${ar.current_step_order}` : status);
+  const isRejected = status === 'rejected';
+  const isCompleted = status === 'completed' || status === 'approved';
+  const isReturned = status === 'returned' || status === 'returned_for_adjustment' || status === 'returned_to_requester';
 
   return (
     <div className="space-y-2">
-      <Card className={`border-l-4 ${status === 'rejected' ? 'border-l-destructive' : status === 'approved' ? 'border-l-green-500' : 'border-l-primary'}`}>
+      <Card className={`border-l-4 ${isRejected ? 'border-l-destructive' : isCompleted ? 'border-l-green-500' : 'border-l-primary'}`}>
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
             <GitBranch className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold text-foreground">Fluxo de Aprovação</h3>
             <Badge
-              variant={status === 'approved' ? 'default' : status === 'rejected' ? 'destructive' : (status === 'returned_for_adjustment' || status === 'returned_to_requester') ? 'secondary' : 'outline'}
+              variant={isCompleted ? 'default' : isRejected ? 'destructive' : isReturned ? 'secondary' : 'outline'}
               className="text-xs"
             >
               {statusLabel}
@@ -141,7 +156,7 @@ export function ApprovalStatusBlock({ approvalRequest, previousCycles }: Approva
             </div>
           )}
 
-          {status === 'returned_to_requester' && (
+          {isReturned && (
             <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2">
               Esta solicitação foi devolvida ao solicitante e não está aguardando aprovação neste momento.
             </div>
@@ -197,10 +212,7 @@ export function ApprovalStatusBlock({ approvalRequest, previousCycles }: Approva
             <div className="mt-2 space-y-2">
               {previousCycles.map((cycle: any) => {
                 const cStatus = String(cycle.status || '');
-                const cLabel = cStatus === 'approved' ? 'Aprovado'
-                  : cStatus === 'rejected' ? 'Recusado'
-                  : cStatus === 'returned_to_requester' ? 'Devolvido'
-                  : cStatus;
+                const cLabel = STATUS_LABELS[cStatus] || cStatus;
                 return (
                   <Card key={cycle.id} className="opacity-60">
                     <CardContent className="p-3">

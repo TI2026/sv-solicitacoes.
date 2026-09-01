@@ -331,20 +331,21 @@ SELECT is(
 SELECT throws_ok(
   $$INSERT INTO public.audit_logs(user_id,action,entity_type,entity_id)
     VALUES ('bd000000-0000-0000-0000-000000000001','APPROVAL_FAKE','purchases','fake')$$,
-  'AUDIT_AUTHORITATIVE_EVENT_DENIED',
+  'permission denied for table audit_logs',
   'cliente não forja evento autoritativo no audit log'
 );
-SELECT lives_ok(
+SELECT throws_ok(
   $$INSERT INTO public.audit_logs(user_id,action,entity_type,entity_id)
     VALUES ('bd000000-0000-0000-0000-000000000002','profile_view','profiles','self')$$,
-  'telemetria cliente não crítica permanece compatível'
+  'permission denied for table audit_logs',
+  'checkpoint autoritativo posterior também impede telemetria direta do cliente'
 );
 SELECT set_config('role','postgres',true);
 SELECT is(
-  (SELECT details->>'audit_source' FROM public.audit_logs
+  (SELECT count(*)::integer FROM public.audit_logs
    WHERE action='profile_view' AND entity_id='self'),
-  'client_telemetry',
-  'telemetria cliente é marcada como não autoritativa'
+  0,
+  'nenhuma telemetria do navegador entra na trilha autoritativa'
 );
 
 -- Readiness remains blocked without invented assignments and V2 stays inactive.

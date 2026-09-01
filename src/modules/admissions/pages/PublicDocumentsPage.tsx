@@ -195,11 +195,20 @@ export default function PublicDocumentsPage() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, bank_info: { banco: bankName, agencia: bankInfo.agencia.replace(/\D/g, ''), conta: bankInfo.conta.replace(/\D/g, ''), tipo: bankInfo.tipo } }),
+          body: JSON.stringify({
+            token,
+            has_dependents: hasDependents,
+            bank_info: {
+              banco: bankName,
+              agencia: bankInfo.agencia.replace(/\D/g, ''),
+              conta: bankInfo.conta.replace(/\D/g, ''),
+              tipo: bankInfo.tipo,
+            },
+          }),
         }
       );
       const result = await res.json().catch(() => ({}));
-      if (!res.ok || result.error) {
+      if (!res.ok || result.success !== true) {
         throw new Error(result.error || 'Falha ao finalizar documentos');
       }
       setSubmitted(true);

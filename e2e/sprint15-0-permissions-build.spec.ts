@@ -67,6 +67,9 @@ test.describe('Sprint 15.0 - Permissions Build', () => {
   };
 
   test('Master abre a página de Permissões com sucesso e sem erro de import', async ({ page }) => {
+    // The first Vite request compiles the largest administrative route on demand.
+    // Keep functional assertions strict while allowing that one-time cold start.
+    test.slow();
     const jsErrors: string[] = [];
     page.on('pageerror', (error) => jsErrors.push(error.message));
     page.on('console', (msg) => {
@@ -78,7 +81,7 @@ test.describe('Sprint 15.0 - Permissions Build', () => {
     await setupMockSession(page, 'diretoria', true);
     
     // 1. Master abre a página de Permissões
-    await page.goto('/permissoes', { waitUntil: 'domcontentloaded' });
+    await page.goto('/permissoes', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Espera a rota resolver e o componente montar
     // 2. título e conteúdo aparecem

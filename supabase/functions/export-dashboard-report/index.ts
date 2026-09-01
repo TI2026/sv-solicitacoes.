@@ -116,8 +116,13 @@ Deno.serve(async (req) => {
      * Excel/LibreOffice/Sheets never evaluate it as a formula.
      */
     const cell = (v: any): string => {
-      const s = String(v ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
-      return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+      const s = Array.from(String(v ?? ''))
+        .filter((char) => {
+          const code = char.charCodeAt(0);
+          return code === 9 || code === 10 || code === 13 || code >= 32;
+        })
+        .join('');
+      return /^[=+\-@]/.test(s.trimStart()) ? `'${s}` : s;
     };
 
 

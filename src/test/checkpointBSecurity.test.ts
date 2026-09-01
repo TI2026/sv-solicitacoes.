@@ -15,7 +15,7 @@ describe('Checkpoint B - authoritative security freeze', () => {
     expect(page).toContain("formData.append('file_type', docKey)");
     expect(page).toContain('body: formData');
     expect(page).not.toContain('signedUrl');
-    expect(page).toContain('if (!res.ok || result.error)');
+    expect(page).toContain('if (!res.ok || result.success !== true)');
 
     expect(edge).toContain('const formData = await req.formData()');
     expect(edge).toContain('getMagicBytesMime');
