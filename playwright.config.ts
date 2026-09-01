@@ -38,7 +38,7 @@ export default defineConfig({
 
   // Inicia o dev server antes dos testes
   webServer: {
-    command: 'npm run dev -- --mode test --host 127.0.0.1 --port 4173',
+    command: 'npm run dev -- --configLoader runner --mode test --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
     timeout: 120000,
