@@ -28,11 +28,11 @@ export default defineConfig({
     },
     {
       name: 'chromium-tablet',
-      use: { ...devices['iPad Pro'] },
+      use: { ...devices['iPad Pro'], browserName: 'chromium' },
     },
     {
       name: 'chromium-mobile',
-      use: { ...devices['iPhone 13'] },
+      use: { ...devices['iPhone 13'], browserName: 'chromium' },
     },
   ],
 

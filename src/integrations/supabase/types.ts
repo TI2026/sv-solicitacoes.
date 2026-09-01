@@ -897,12 +897,17 @@ export type Database = {
       candidates: {
         Row: {
           admission_request_id: string
+          bank_account: string | null
+          bank_account_type: string | null
+          bank_agency: string | null
+          bank_name: string | null
           cidade: string | null
           cpf: string | null
           created_at: string
           curriculo_path: string | null
           email: string | null
           experiencia: string | null
+          has_dependents: boolean | null
           id: string
           indicacao_interna: boolean
           interview_address: string | null
@@ -926,12 +931,17 @@ export type Database = {
         }
         Insert: {
           admission_request_id: string
+          bank_account?: string | null
+          bank_account_type?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
           cidade?: string | null
           cpf?: string | null
           created_at?: string
           curriculo_path?: string | null
           email?: string | null
           experiencia?: string | null
+          has_dependents?: boolean | null
           id?: string
           indicacao_interna?: boolean
           interview_address?: string | null
@@ -955,12 +965,17 @@ export type Database = {
         }
         Update: {
           admission_request_id?: string
+          bank_account?: string | null
+          bank_account_type?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
           cidade?: string | null
           cpf?: string | null
           created_at?: string
           curriculo_path?: string | null
           email?: string | null
           experiencia?: string | null
+          has_dependents?: boolean | null
           id?: string
           indicacao_interna?: boolean
           interview_address?: string | null

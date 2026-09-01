@@ -1,0 +1,3 @@
+-- Remote history bridge: 20260722172107 was applied by the legacy Lovable migration path.
+-- Its effective schema is consolidated by 20260723090000_remote_baseline.sql.
+-- Keep this no-op version so local replay and linked migration history remain compatible.

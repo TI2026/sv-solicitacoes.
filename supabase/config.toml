@@ -1,1 +1,21 @@
 project_id = "zeaerqlvhrbcuubueolh"
+
+# Capability-token endpoints: authentication is performed by hashing and
+# validating the short-lived public token inside each function.
+[functions.admissions-validate-token]
+verify_jwt = false
+
+[functions.admissions-create-signed-upload]
+verify_jwt = false
+
+[functions.public-link-lookup]
+verify_jwt = false
+
+[functions.public-documents-submit]
+verify_jwt = false
+
+[functions.public-signature-submit]
+verify_jwt = false
+
+[functions.admissions-finalize-signed-docs]
+verify_jwt = false

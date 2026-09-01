@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -24,9 +24,13 @@ interface RealtimeConfig {
  */
 export function useRealtimeSubscription({ channelName, tables, enabled = true }: RealtimeConfig) {
   const queryClient = useQueryClient();
+  const tablesSignature = JSON.stringify(tables);
+  const tablesRef = useRef(tables);
+  tablesRef.current = tables;
 
   useEffect(() => {
-    if (!enabled || tables.length === 0) return;
+    const subscriptionTables = tablesRef.current;
+    if (!enabled || subscriptionTables.length === 0) return;
 
     let channel: RealtimeChannel = supabase.channel(channelName);
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -39,7 +43,7 @@ export function useRealtimeSubscription({ channelName, tables, enabled = true }:
       }, 300));
     };
 
-    for (const t of tables) {
+    for (const t of subscriptionTables) {
       channel = (channel as any).on(
         'postgres_changes',
         {
@@ -61,5 +65,5 @@ export function useRealtimeSubscription({ channelName, tables, enabled = true }:
       timers.clear();
       supabase.removeChannel(channel);
     };
-  }, [channelName, enabled, queryClient]);
+  }, [channelName, enabled, queryClient, tablesSignature]);
 }

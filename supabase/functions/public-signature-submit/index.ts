@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { SIGNATURE_FILE_TYPES } from '../_shared/admissionPublicContracts.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,7 +36,6 @@ function getMagicBytesMime(bytes: Uint8Array): string {
   if (hex.startsWith('25504446')) return 'application/pdf';
   if (hex.startsWith('FFD8FF')) return 'image/jpeg';
   if (hex.startsWith('89504E47')) return 'image/png';
-  if (hex.startsWith('52494646')) return 'image/webp';
   return 'unknown';
 }
 
@@ -62,8 +62,15 @@ Deno.serve(async (req) => {
     const doc_key = formData.get('doc_key') as string | null;
     const filename = (formData.get('filename') as string | null) || file?.name || '';
 
-    if (!token || !file || !filename) {
+    if (!token || !file || !filename || !doc_key) {
       return new Response(JSON.stringify({ error: 'Parâmetros obrigatórios faltando' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!SIGNATURE_FILE_TYPES.has(doc_key)) {
+      return new Response(JSON.stringify({ error: 'Tipo de documento assinado não permitido' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -133,33 +140,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Record in admission_files
-    const fileType = doc_key || 'signed_doc';
+    const { data: existing } = await supabase
+      .from('admission_files')
+      .select('id, storage_path')
+      .eq('candidate_id', link.candidate_id)
+      .eq('file_type', doc_key)
+      .eq('uploaded_by', 'CANDIDATE')
+      .eq('link_type', 'SIGNATURE');
 
-    // For candidate uploads with doc_key, remove previous file for same doc_key (1 file per type)
-    if (doc_key) {
-      const { data: existing } = await supabase
-        .from('admission_files')
-        .select('id, storage_path')
-        .eq('candidate_id', link.candidate_id)
-        .eq('file_type', doc_key)
-        .eq('uploaded_by', 'CANDIDATE')
-        .eq('link_type', 'SIGNATURE');
-      for (const old of (existing || [])) {
-        await supabase.storage.from('admissions').remove([old.storage_path]);
-        await supabase.from('admission_files').delete().eq('id', old.id);
-      }
-    }
-
-    await supabase.from('admission_files').insert({
+    // Persist the replacement before removing any prior document.
+    const { error: fileInsertError } = await supabase.from('admission_files').insert({
       admission_request_id: link.admission_request_id,
       candidate_id: link.candidate_id,
-      file_type: fileType,
+      file_type: doc_key,
       storage_path: storagePath,
       original_filename: sanitizedFilename,
       uploaded_by: 'CANDIDATE',
       link_type: 'SIGNATURE',
     });
+
+    if (fileInsertError) {
+      console.error('Signature file insert error:', fileInsertError);
+      await supabase.storage.from('admissions').remove([storagePath]);
+      return new Response(JSON.stringify({ error: 'Falha ao registrar o documento assinado' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    for (const old of (existing || [])) {
+      await supabase.storage.from('admissions').remove([old.storage_path]);
+      await supabase.from('admission_files').delete().eq('id', old.id);
+    }
 
     // Log
     await supabase.from('audit_logs').insert({

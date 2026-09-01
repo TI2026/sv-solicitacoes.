@@ -38,6 +38,7 @@ export default function PublicSignaturePage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SignatureData | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   // Track uploaded signed files per doc_key
   const [uploadedKeys, setUploadedKeys] = useState<Record<string, string>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
@@ -88,9 +89,9 @@ export default function PublicSignaturePage() {
       toast({ title: 'Arquivo muito grande', description: 'Máximo 10MB', variant: 'destructive' });
       return;
     }
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'] as const;
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png'] as const;
     if (!allowed.includes(file.type as any)) {
-      toast({ title: 'Tipo de arquivo não permitido', description: 'Use PDF, JPEG, PNG ou WebP', variant: 'destructive' });
+      toast({ title: 'Tipo de arquivo não permitido', description: 'Use PDF, JPEG ou PNG', variant: 'destructive' });
       return;
     }
     
@@ -128,10 +129,10 @@ export default function PublicSignaturePage() {
   };
 
   const handleFinalize = async () => {
-    if (!token) return;
-    setSubmitted(true);
+    if (!token || finalizing) return;
+    setFinalizing(true);
     try {
-      await fetch(
+      const res = await fetch(
         `${supabaseUrl}/functions/v1/admissions-finalize-signed-docs`,
         {
           method: 'POST',
@@ -139,9 +140,16 @@ export default function PublicSignaturePage() {
           body: JSON.stringify({ token }),
         }
       );
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || result.success !== true) {
+        throw new Error(result.error || 'Falha ao finalizar documentos assinados');
+      }
+      setSubmitted(true);
       toast({ title: 'Documentos assinados enviados com sucesso!' });
-    } catch {
-      toast({ title: 'Erro ao finalizar', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao finalizar', description: error.message, variant: 'destructive' });
+    } finally {
+      setFinalizing(false);
     }
   };
 
@@ -290,8 +298,9 @@ export default function PublicSignaturePage() {
         </Card>
 
         {/* Finalize */}
-        <Button onClick={handleFinalize} disabled={!allUploaded || availableDocs.length === 0} className="w-full gap-2">
-          <CheckCircle className="w-4 h-4" /> Finalizar Envio dos Documentos Assinados
+        <Button onClick={handleFinalize} disabled={!allUploaded || availableDocs.length === 0 || finalizing} className="w-full gap-2">
+          {finalizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+          {finalizing ? 'Finalizando...' : 'Finalizar Envio dos Documentos Assinados'}
         </Button>
         {!allUploaded && availableDocs.length > 0 && (
           <p className="text-xs text-center text-muted-foreground">

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { DOCUMENT_FILE_TYPES } from '../_shared/admissionPublicContracts.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,8 +60,15 @@ Deno.serve(async (req) => {
     const file = formData.get('file') as File;
     const file_type = formData.get('file_type') as string;
 
-    if (!token || !file) {
+    if (!token || !file || !file_type) {
       return new Response(JSON.stringify({ error: 'Parâmetros obrigatórios faltando' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!DOCUMENT_FILE_TYPES.has(file_type)) {
+      return new Response(JSON.stringify({ error: 'Tipo de documento não permitido' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -136,23 +144,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Record in admission_files
-    await supabase.from('admission_files').insert({
+    // Record in admission_files. Roll storage back if metadata persistence fails.
+    const { error: fileInsertError } = await supabase.from('admission_files').insert({
       admission_request_id: link.admission_request_id,
       candidate_id: link.candidate_id,
-      file_type: file_type || 'generic',
+      file_type,
       storage_path: storagePath,
       original_filename: file.name.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 100), // Keep sanitized original name for display only
       uploaded_by: 'CANDIDATE',
       link_type: 'DOCUMENTS',
     });
 
+    if (fileInsertError) {
+      console.error('Admission file insert error:', fileInsertError);
+      await supabase.storage.from('admissions').remove([storagePath]);
+      return new Response(JSON.stringify({ error: 'Falha ao registrar o documento' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Log
     await supabase.from('audit_logs').insert({
       action: 'document_upload',
       entity_type: 'candidates',
       entity_id: link.candidate_id,
-      details: { ip: clientIp, user_agent: userAgent, filename: storageFilename, file_type: file_type || 'generic', realMime }
+      details: { ip: clientIp, user_agent: userAgent, filename: storageFilename, file_type, realMime }
     });
 
     return new Response(JSON.stringify({

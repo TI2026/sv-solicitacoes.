@@ -37,6 +37,13 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Método não permitido' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Allow': 'POST' },
+    });
+  }
+
   const clientIp = getClientIp(req);
 
   if (isRateLimited(clientIp)) {
@@ -47,7 +54,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { token } = await req.json();
+    const body = await req.json();
+    const token = typeof body?.token === 'string' ? body.token : '';
+    const bankInfo = body?.bank_info ?? null;
+    const hasDependents = typeof body?.has_dependents === 'boolean' ? body.has_dependents : null;
 
     if (!token) {
       return new Response(JSON.stringify({ error: 'Token obrigatório' }), {
@@ -62,68 +72,32 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Try admission_public_links first (new system)
-    const { data: link } = await supabase
-      .from('admission_public_links')
-      .select('id, candidate_id, link_type, expires_at, used_at')
-      .eq('token_hash', tokenHash)
-      .maybeSingle();
+    const { data: result, error: finalizeError } = await supabase.rpc(
+      'finalize_admission_public_link',
+      {
+        p_token_hash: tokenHash,
+        p_bank_info: bankInfo,
+        p_has_dependents: hasDependents,
+        p_client_ip: clientIp,
+      },
+    );
 
-    if (link) {
-      if (link.used_at || new Date(link.expires_at) < new Date()) {
-        return new Response(JSON.stringify({ error: 'Token inválido ou expirado' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Mark as used
-      await supabase.from('admission_public_links').update({
-        used_at: new Date().toISOString(),
-        candidate_uploaded_at: new Date().toISOString(),
-      }).eq('id', link.id);
-
-      // Log
-      await supabase.from('audit_logs').insert({
-        action: 'finalize_public_link',
-        entity_type: 'candidates',
-        entity_id: link.candidate_id,
-        details: { ip: clientIp, link_type: link.link_type, finalized_at: new Date().toISOString() },
-      });
-
-      console.log(`Public link finalized from IP ${clientIp} for candidate ${link.candidate_id}, type ${link.link_type}`);
-
-      return new Response(JSON.stringify({ success: true }), {
+    if (finalizeError) {
+      const code = finalizeError.message || 'PUBLIC_LINK_FINALIZATION_FAILED';
+      const invalidToken = code.includes('PUBLIC_LINK_INVALID');
+      console.warn(`Public link finalization rejected from IP ${clientIp}: ${code}`);
+      return new Response(JSON.stringify({
+        error: invalidToken
+          ? 'Token inválido ou expirado'
+          : code.replace(/^.*?(BANK_DATA_|REQUIRED_|ADMIN_|SIGNED_|PUBLIC_LINK_)/, '$1'),
+      }), {
+        status: invalidToken ? 401 : 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Fallback: try old public_tokens table
-    const { data: tokenRow } = await supabase
-      .from('public_tokens')
-      .select('id, candidate_id, expires_at, used_at')
-      .eq('token_hash', tokenHash)
-      .maybeSingle();
-
-    if (!tokenRow || tokenRow.used_at || new Date(tokenRow.expires_at) < new Date()) {
-      return new Response(JSON.stringify({ error: 'Token inválido ou expirado' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    await supabase.from('public_tokens').update({ used_at: new Date().toISOString() }).eq('id', tokenRow.id);
-
-    await supabase.from('audit_logs').insert({
-      action: 'finalize_signed_docs',
-      entity_type: 'candidates',
-      entity_id: tokenRow.candidate_id,
-      details: { ip: clientIp, finalized_at: new Date().toISOString() },
-    });
-
-    console.log(`Signed docs finalized from IP ${clientIp} for candidate ${tokenRow.candidate_id}`);
-
-    return new Response(JSON.stringify({ success: true }), {
+    console.log(`Public link finalized from IP ${clientIp}`);
+    return new Response(JSON.stringify(result ?? { success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
