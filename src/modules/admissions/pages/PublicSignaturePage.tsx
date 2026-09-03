@@ -319,7 +319,12 @@ export default function PublicSignaturePage() {
           {finalizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
           {finalizing ? 'Finalizando...' : 'Finalizar Envio dos Documentos Assinados'}
         </Button>
-        {!allUploaded && availableDocs.length > 0 && (
+        {missingAdminRequired.length > 0 && (
+          <p className="text-xs text-center text-muted-foreground">
+            O RH ainda não enviou {missingAdminRequired.length === 1 ? 'o documento obrigatório' : 'os documentos obrigatórios'}: {missingAdminRequired.map(d => d.label).join(', ')}. Aguarde o envio para poder finalizar.
+          </p>
+        )}
+        {!allUploaded && missingAdminRequired.length === 0 && availableDocs.length > 0 && (
           <p className="text-xs text-center text-muted-foreground">
             Envie todos os documentos assinados para finalizar.
           </p>
