@@ -89,7 +89,7 @@ export function AdmissionDetailContent() {
   const [workflowReason, setWorkflowReason] = useState('');
 
   const confirmWorkflowReason = async () => {
-    if (!workflowReasonAction || workflowReason.trim().length < 5) return;
+    if (!workflowReasonAction || workflowReason.trim().length < 10) return;
     await handleWorkflowAction(workflowReasonAction, workflowReason.trim());
     setWorkflowReasonAction(null);
     setWorkflowReason('');
@@ -596,11 +596,14 @@ export function AdmissionDetailContent() {
           <DialogHeader><DialogTitle>{workflowReasonAction === 'rejeitar' ? 'Rejeitar Admissão' : 'Devolver Admissão'}</DialogTitle></DialogHeader>
           <div className="space-y-2 py-2">
             <Label>Justificativa *</Label>
-            <Textarea value={workflowReason} onChange={event => setWorkflowReason(event.target.value)} rows={4} />
+            <Textarea value={workflowReason} onChange={event => setWorkflowReason(event.target.value)} rows={4} placeholder="Descreva o motivo (mínimo 10 caracteres)" />
+            {workflowReason.trim().length > 0 && workflowReason.trim().length < 10 && (
+              <p className="text-xs text-destructive">A justificativa deve ter pelo menos 10 caracteres.</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setWorkflowReasonAction(null); setWorkflowReason(''); }}>Cancelar</Button>
-            <Button onClick={() => void confirmWorkflowReason()} disabled={workflowReason.trim().length < 5}>Confirmar</Button>
+            <Button onClick={() => void confirmWorkflowReason()} disabled={workflowReason.trim().length < 10}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
