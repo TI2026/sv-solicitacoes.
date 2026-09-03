@@ -128,6 +128,19 @@ export default function PublicSignaturePage() {
     }
   };
 
+  const describeFinalizeError = (raw: string) => {
+    if (raw.startsWith('ADMIN_SIGNATURE_DOCUMENTS_MISSING')) {
+      return 'O RH ainda não anexou todos os documentos obrigatórios. Aguarde o envio para concluir a assinatura.';
+    }
+    if (raw.startsWith('SIGNED_DOCUMENTS_MISSING')) {
+      return 'Ainda faltam documentos assinados. Envie todos os arquivos antes de finalizar.';
+    }
+    if (raw.startsWith('PUBLIC_LINK_INVALID') || raw.includes('Token')) {
+      return 'Link inválido ou expirado. Solicite um novo link ao RH.';
+    }
+    return 'Não foi possível finalizar agora. Tente novamente ou contate o RH.';
+  };
+
   const handleFinalize = async () => {
     if (!token || finalizing) return;
     setFinalizing(true);
@@ -142,7 +155,7 @@ export default function PublicSignaturePage() {
       );
       const result = await res.json().catch(() => ({}));
       if (!res.ok || result.success !== true) {
-        throw new Error(result.error || 'Falha ao finalizar documentos assinados');
+        throw new Error(describeFinalizeError(String(result.error || '')));
       }
       setSubmitted(true);
       toast({ title: 'Documentos assinados enviados com sucesso!' });
@@ -152,6 +165,7 @@ export default function PublicSignaturePage() {
       setFinalizing(false);
     }
   };
+
 
   if (loading) {
     return (
