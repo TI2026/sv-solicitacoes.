@@ -209,9 +209,12 @@ export default function PublicSignaturePage() {
     return adminFile != null; // Only docs the admin actually uploaded
   });
 
+  // Mandatory internal documents the RH must attach before the candidate can finalize
+  const missingAdminRequired = ADMIN_DOC_KEYS.filter(d => !d.optional && !findFileForKey(d.key));
+
   const requiredUploaded = availableDocs.filter(d => !d.optional).every(d => !!uploadedKeys[d.key]);
   const optionalWithFileUploaded = availableDocs.filter(d => d.optional).every(d => !!uploadedKeys[d.key]);
-  const allUploaded = requiredUploaded && optionalWithFileUploaded;
+  const allUploaded = requiredUploaded && optionalWithFileUploaded && missingAdminRequired.length === 0;
 
   return (
     <div className="min-h-screen bg-background p-4">
