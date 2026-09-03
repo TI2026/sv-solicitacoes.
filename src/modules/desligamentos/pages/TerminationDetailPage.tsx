@@ -301,13 +301,16 @@ export default function TerminationDetailPage() {
           <DialogHeader><DialogTitle>{reasonAction === 'rejeitar' ? 'Rejeitar Desligamento' : 'Devolver Desligamento'}</DialogTitle></DialogHeader>
           <div className="space-y-2 py-2">
             <Label>Justificativa *</Label>
-            <Textarea value={reason} onChange={event => setReason(event.target.value)} rows={4} />
+            <Textarea value={reason} onChange={event => setReason(event.target.value)} rows={4} placeholder="Descreva o motivo (mínimo 10 caracteres)" />
+            {reason.trim().length > 0 && reason.trim().length < 10 && (
+              <p className="text-xs text-destructive">A justificativa deve ter pelo menos 10 caracteres.</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setReasonAction(null); setReason(''); }}>Cancelar</Button>
             <Button
               onClick={() => { if (reasonAction) void handleApprovalAction(reasonAction, reason.trim()); }}
-              disabled={reason.trim().length < 5 || setStatusMutation.isPending}
+              disabled={reason.trim().length < 10 || setStatusMutation.isPending}
             >Confirmar</Button>
           </DialogFooter>
         </DialogContent>

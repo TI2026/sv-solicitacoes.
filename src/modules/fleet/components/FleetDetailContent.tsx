@@ -581,7 +581,10 @@ export function FleetDetailContent() {
             </Alert>
             <div className="space-y-2">
               <Label>Motivo do cancelamento (obrigatório para auditoria)</Label>
-              <Textarea placeholder="Descreva por que esta solicitação está sendo cancelada..." value={deleteReason} onChange={e => setDeleteReason(e.target.value)} rows={3} />
+              <Textarea placeholder="Descreva por que esta solicitação está sendo cancelada (mínimo 10 caracteres)..." value={deleteReason} onChange={e => setDeleteReason(e.target.value)} rows={3} />
+              {deleteReason.trim().length > 0 && deleteReason.trim().length < 10 && (
+                <p className="text-xs text-destructive">O motivo deve ter pelo menos 10 caracteres.</p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -590,7 +593,7 @@ export function FleetDetailContent() {
                 cancelRequest.mutateAsync({ requestId: id!, moduleKey: reqType, reason: deleteReason }).then(() => {
                   toast({ title: 'Cancelada com sucesso' }); navigate(routeBase);
                 });
-              }} disabled={isPending || deleteReason.trim().length < 5}>Cancelar solicitação</Button>
+              }} disabled={isPending || deleteReason.trim().length < 10}>Cancelar solicitação</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

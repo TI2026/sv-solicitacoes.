@@ -165,7 +165,7 @@ export default function MyApprovalsTab() {
   });
 
   const handleActionConfirm = () => {
-    if (!actionDialog || actionReason.trim().length < 5) return;
+    if (!actionDialog || actionReason.trim().length < 10) return;
     processAction.mutate(
       { moduleKey: actionDialog.moduleKey, entityId: actionDialog.entityId, action: actionDialog.type === 'reject' ? 'reject' : 'return', comments: actionReason },
       { onSuccess: () => { setActionDialog(null); setActionReason(''); } }
@@ -302,16 +302,16 @@ export default function MyApprovalsTab() {
               value={actionReason}
               onChange={e => setActionReason(e.target.value)}
               placeholder={actionDialog?.type === 'reject'
-                ? 'Informe o motivo da recusa (mínimo 5 caracteres)'
-                : 'Informe o motivo da devolução (mínimo 5 caracteres)'}
+                ? 'Informe o motivo da recusa (mínimo 10 caracteres)'
+                : 'Informe o motivo da devolução (mínimo 10 caracteres)'}
               rows={4}
             />
-            {actionReason.length > 0 && actionReason.length < 5 && (
-              <p className="text-xs text-destructive">O motivo deve ter pelo menos 5 caracteres.</p>
+            {actionReason.trim().length > 0 && actionReason.trim().length < 10 && (
+              <p className="text-xs text-destructive">O motivo deve ter pelo menos 10 caracteres.</p>
             )}
             <Button
               onClick={handleActionConfirm}
-              disabled={processAction.isPending || actionReason.trim().length < 5}
+              disabled={processAction.isPending || actionReason.trim().length < 10}
               variant={actionDialog?.type === 'reject' ? 'destructive' : 'default'}
               className="w-full"
             >
