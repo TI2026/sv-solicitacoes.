@@ -128,6 +128,19 @@ export default function PublicSignaturePage() {
     }
   };
 
+  const describeFinalizeError = (raw: string) => {
+    if (raw.startsWith('ADMIN_SIGNATURE_DOCUMENTS_MISSING')) {
+      return 'O RH ainda não anexou todos os documentos obrigatórios. Aguarde o envio para concluir a assinatura.';
+    }
+    if (raw.startsWith('SIGNED_DOCUMENTS_MISSING')) {
+      return 'Ainda faltam documentos assinados. Envie todos os arquivos antes de finalizar.';
+    }
+    if (raw.startsWith('PUBLIC_LINK_INVALID') || raw.includes('Token')) {
+      return 'Link inválido ou expirado. Solicite um novo link ao RH.';
+    }
+    return 'Não foi possível finalizar agora. Tente novamente ou contate o RH.';
+  };
+
   const handleFinalize = async () => {
     if (!token || finalizing) return;
     setFinalizing(true);
@@ -142,7 +155,7 @@ export default function PublicSignaturePage() {
       );
       const result = await res.json().catch(() => ({}));
       if (!res.ok || result.success !== true) {
-        throw new Error(result.error || 'Falha ao finalizar documentos assinados');
+        throw new Error(describeFinalizeError(String(result.error || '')));
       }
       setSubmitted(true);
       toast({ title: 'Documentos assinados enviados com sucesso!' });
@@ -152,6 +165,7 @@ export default function PublicSignaturePage() {
       setFinalizing(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -195,9 +209,12 @@ export default function PublicSignaturePage() {
     return adminFile != null; // Only docs the admin actually uploaded
   });
 
+  // Mandatory internal documents the RH must attach before the candidate can finalize
+  const missingAdminRequired = ADMIN_DOC_KEYS.filter(d => !d.optional && !findFileForKey(d.key));
+
   const requiredUploaded = availableDocs.filter(d => !d.optional).every(d => !!uploadedKeys[d.key]);
   const optionalWithFileUploaded = availableDocs.filter(d => d.optional).every(d => !!uploadedKeys[d.key]);
-  const allUploaded = requiredUploaded && optionalWithFileUploaded;
+  const allUploaded = requiredUploaded && optionalWithFileUploaded && missingAdminRequired.length === 0;
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -302,7 +319,12 @@ export default function PublicSignaturePage() {
           {finalizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
           {finalizing ? 'Finalizando...' : 'Finalizar Envio dos Documentos Assinados'}
         </Button>
-        {!allUploaded && availableDocs.length > 0 && (
+        {missingAdminRequired.length > 0 && (
+          <p className="text-xs text-center text-muted-foreground">
+            O RH ainda não enviou {missingAdminRequired.length === 1 ? 'o documento obrigatório' : 'os documentos obrigatórios'}: {missingAdminRequired.map(d => d.label).join(', ')}. Aguarde o envio para poder finalizar.
+          </p>
+        )}
+        {!allUploaded && missingAdminRequired.length === 0 && availableDocs.length > 0 && (
           <p className="text-xs text-center text-muted-foreground">
             Envie todos os documentos assinados para finalizar.
           </p>
