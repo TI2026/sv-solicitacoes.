@@ -3,23 +3,27 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
+// Public (publishable) project configuration. These values are safe to ship in
+// the browser bundle — data access is protected by Row Level Security. They are
+// hardcoded as a fallback so a missing build environment can never take the
+// published app offline.
+const FALLBACK_SUPABASE_URL = 'https://zeaerqlvhrbcuubueolh.supabase.co';
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplYWVycWx2aHJiY3V1YnVlb2xoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NzgyMjMsImV4cCI6MjA4ODA1NDIyM30.NjYxq4HgiCBBA5ll39h620NzmnKzau41GMDAEdWIR7c';
+
 const isTest = import.meta.env.MODE === 'test';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-  || (isTest ? 'http://127.0.0.1:54321' : '');
+  || (isTest ? 'http://127.0.0.1:54321' : FALLBACK_SUPABASE_URL);
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  || (isTest ? 'test-publishable-key' : '');
+  || (isTest ? 'test-publishable-key' : FALLBACK_SUPABASE_PUBLISHABLE_KEY);
 
 export const missingSupabaseEnvironment = [
   !SUPABASE_URL ? 'VITE_SUPABASE_URL' : null,
   !SUPABASE_PUBLISHABLE_KEY ? 'VITE_SUPABASE_PUBLISHABLE_KEY' : null,
 ].filter((name): name is string => Boolean(name));
 
-// Keep module initialization safe so React can render an actionable
-// configuration screen instead of failing before the root ErrorBoundary.
-// These placeholders are never used for an authenticated request because App
-// stops before mounting providers whenever a required variable is missing.
-const CLIENT_URL = SUPABASE_URL || 'http://127.0.0.1:54321';
-const CLIENT_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY || 'configuration-missing';
+const CLIENT_URL = SUPABASE_URL;
+const CLIENT_PUBLISHABLE_KEY = SUPABASE_PUBLISHABLE_KEY;
+
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
