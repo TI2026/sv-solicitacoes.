@@ -50,13 +50,14 @@ export function useUpsertVehicle() {
         ...input,
         placa: input.placa.toUpperCase().replace(/[^A-Z0-9]/g, ''),
       };
-      if (input.id) {
-        const { error } = await (supabase as any).from('vehicles').update(payload).eq('id', input.id);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any).from('vehicles').insert(payload);
-        if (error) throw error;
-      }
+      // Só confirmamos sucesso após o banco devolver a linha persistida.
+      const query = input.id
+        ? (supabase as any).from('vehicles').update(payload).eq('id', input.id)
+        : (supabase as any).from('vehicles').insert(payload);
+      const { data, error } = await query.select().single();
+      if (error) throw error;
+      if (!data?.id) throw new Error('O veículo não foi confirmado pelo banco de dados.');
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vehicles'] });
