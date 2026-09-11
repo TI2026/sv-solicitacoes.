@@ -377,6 +377,13 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
     } catch (error: any) {
       if (editId && !dataSaved) {
         toast({ title: 'Não foi possível atualizar a Diária', description: error?.message, variant: 'destructive' });
+      } else if (dataSaved) {
+        // A solicitação foi gravada, mas uma etapa posterior falhou (anexo/envio).
+        toast({
+          title: 'Solicitação salva, mas uma etapa falhou',
+          description: error?.message ?? 'Verifique o anexo e o envio na tela de detalhes.',
+          variant: 'destructive',
+        });
       }
       if (persistedRequestId && sendImmediately) {
         navigate(requestDetailRoute(type, persistedRequestId));
