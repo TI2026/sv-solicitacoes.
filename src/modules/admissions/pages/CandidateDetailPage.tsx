@@ -120,7 +120,17 @@ export default function CandidateDetailPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
-      <Button variant="ghost" className="gap-2" onClick={() => navigate(-1)}>
+      <Button
+        variant="ghost"
+        className="gap-2"
+        onClick={() =>
+          navigate(
+            candidate.admission_request_id
+              ? `/admissions/${candidate.admission_request_id}`
+              : '/admissions',
+          )
+        }
+      >
         <ArrowLeft className="w-4 h-4" /> Voltar
       </Button>
 
