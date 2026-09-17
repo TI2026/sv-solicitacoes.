@@ -269,19 +269,54 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
     return false;
   };
 
+  /**
+   * Lista explícita do que falta para o envio. O backend continua sendo a
+   * autoridade — isto apenas explica ao usuário por que o envio não avança.
+   */
+  const missingRequirements = (forSend = false): string[] => {
+    const missing: string[] = [];
+    if (type === 'diaria') {
+      if (!dailyStartDate || !dailyEndDate) missing.push('Informe o período da diária');
+      else if (!isDateValid()) missing.push('Ajuste as datas e horários (a diária não pode começar no passado)');
+      if (!dailyCategory) missing.push('Selecione a finalidade');
+      if (!personName.trim()) missing.push('Informe o nome do prestador');
+      if (!dailyDestination.trim()) missing.push('Informe o destino');
+      if (!notes.trim()) missing.push('Preencha a justificativa');
+      if (!(dailyValueNum > 0)) missing.push('Informe o valor unitário');
+      if (dailyTotal > 50000) missing.push('O valor total excede o limite permitido');
+    } else if (type === 'reembolso') {
+      if (!data) missing.push('Informe a data da despesa');
+      else if (!isDateValid()) missing.push('A data da despesa não pode ser futura');
+      if (!(valorNum > 0)) missing.push('Informe o valor');
+      if (valorNum > 50000) missing.push('O valor excede o limite permitido');
+      if (!categoria) missing.push('Selecione a categoria');
+      if (paymentMethod === 'pix' ? !isPixValid() : !(bankName.trim() && bankAgency && bankAccount)) {
+        missing.push('Complete os dados de pagamento');
+      }
+      if (!notes.trim()) missing.push('Preencha a descrição / justificativa');
+      if (forSend && !reimbursementProof) missing.push('Anexe o comprovante da despesa');
+    } else {
+      if (!data) missing.push('Informe a data do abastecimento');
+      else if (!isDateValid()) missing.push('A data do abastecimento não pode ser passada');
+      if (!(valorNum > 0)) missing.push('Informe o valor');
+      if (valorNum > 50000) missing.push('O valor excede o limite permitido');
+      if (!placa || !isValidPlate(placa)) missing.push('Informe uma placa válida');
+      if (!motivo.trim()) missing.push('Informe o motivo');
+    }
+    return missing;
+  };
+
   const handleSubmit = async (sendImmediately: boolean) => {
     if (!user || !isValid(sendImmediately)) {
+      const missing = missingRequirements(sendImmediately);
       toast({
         title: 'Revise os campos obrigatórios',
-        description: type === 'reembolso' && sendImmediately && !reimbursementProof
-          ? 'Anexe o comprovante da despesa antes de enviar.'
-          : type === 'diaria'
-            ? 'Informe período, horários, finalidade, destino, justificativa e valor unitário válidos.'
-          : 'Preencha os campos destacados e verifique a data informada.',
+        description: missing.length ? missing.join(' • ') : 'Preencha os campos destacados e verifique a data informada.',
         variant: 'destructive',
       });
       return;
     }
+
     let persistedRequestId = editId;
     let dataSaved = false;
     setSubmitting(true);
