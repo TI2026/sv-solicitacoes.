@@ -833,7 +833,17 @@ export default function FleetNewPage({ requestType }: { requestType?: 'abastecim
             <p className="text-xs text-muted-foreground text-right">{notes.length}/500</p>
           </div>
 
+          {!isValid(true) && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              <p className="font-medium">Para enviar, falta:</p>
+              <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                {missingRequirements(true).map(item => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
+
             <Button variant="outline" onClick={() => handleSubmit(false)} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {editId ? 'Salvar alterações' : 'Salvar Rascunho'}
