@@ -39,7 +39,7 @@ export function brokeredPreviewStorage() {
       const finish = (r: { ok: boolean; value?: string | null } | null) => {
         if (done) return;
         done = true;
-        clearTimeout(timer);
+        if (timers.id) clearTimeout(timers.id);
         window.removeEventListener('message', onMessage);
         resolve(r);
       };
