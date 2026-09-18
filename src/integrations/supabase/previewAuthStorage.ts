@@ -35,11 +35,11 @@ export function brokeredPreviewStorage() {
     new Promise((resolve) => {
       const requestId = newId();
       let done = false;
-      let timer: ReturnType<typeof setTimeout>;
+      const state: { timer?: ReturnType<typeof setTimeout> } = {};
       const finish = (r: { ok: boolean; value?: string | null } | null) => {
         if (done) return;
         done = true;
-        clearTimeout(timer);
+        clearTimeout(state.timer);
         window.removeEventListener('message', onMessage);
         resolve(r);
       };
