@@ -178,6 +178,9 @@ export default function PublicSignaturePage() {
         throw new Error(describeFinalizeError(String(result.error || '')));
       }
       setSubmitted(true);
+      if (progressKey && typeof window !== 'undefined') {
+        try { window.localStorage.removeItem(progressKey); } catch { /* ignore */ }
+      }
       toast({ title: 'Documentos assinados enviados com sucesso!' });
     } catch (error: any) {
       toast({ title: 'Erro ao finalizar', description: error.message, variant: 'destructive' });
