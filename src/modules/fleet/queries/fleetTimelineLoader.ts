@@ -40,6 +40,8 @@ export interface TimelineEvent {
 
 export interface FleetTimelineParams {
   requestId: string;
+  /** Módulo canônico V2 da solicitação (abastecimento | diaria | reembolso). */
+  moduleKey: FleetBusinessModule;
   req: any;
   approvalRequestId?: string;
 }
@@ -55,13 +57,14 @@ const APPROVAL_ICON: Record<string, TimelineEvent['icon']> = {
 /**
  * Carrega o histórico de transições de status para um request específico.
  */
-export async function loadHistory(requestId: string) {
+export async function loadHistory(requestId: string, moduleKey: FleetBusinessModule) {
+  // O Motor V2 grava module = abastecimento|diaria|reembolso.
+  // Registros anteriores ao V2 foram gravados com module = 'fleet'.
   const { data, error } = await supabase
     .from('status_history')
     .select('id, from_status, to_status, changed_by, created_at, reason')
     .eq('entity_id', requestId)
-    .eq('entity_type', 'fuel_requests')
-    .eq('module', 'fleet')
+    .in('module', [moduleKey, 'fleet'])
     .order('created_at', { ascending: true });
 
   if (error) throw error;
