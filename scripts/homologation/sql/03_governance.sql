@@ -238,15 +238,18 @@ BEGIN
   PERFORM public.hom_check('SEGURANCA','U não lê catálogo de documentos de admissão', n = 0, n::text);
   PERFORM public.hom_reset_auth();
 
-  -- Alteração direta de status pelo cliente
+  -- Alteração direta de status pelo cliente: bloqueada por RLS (0 linhas) ou por trigger (exceção)
   PERFORM public.hom_auth('A');
   BEGIN
     UPDATE public.fuel_requests SET status = 'pago' WHERE id = public.hom_uid('abast_e2e');
-    ok := false;
+    ok := NOT EXISTS (
+      SELECT 1 FROM public.fuel_requests
+       WHERE id = public.hom_uid('abast_e2e') AND status::text = 'pago');
   EXCEPTION WHEN OTHERS THEN ok := true;
   END;
   PERFORM public.hom_reset_auth();
   PERFORM public.hom_check('SEGURANCA','solicitante não altera status diretamente', ok);
+
 
   PERFORM public.hom_auth('U');
   BEGIN
