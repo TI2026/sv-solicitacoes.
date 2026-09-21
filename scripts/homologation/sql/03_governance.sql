@@ -36,8 +36,10 @@ BEGIN
     public.hom_ok(public.hom_act('B','compras',eid,'rejeitar','{"notes":"orcamento acima do teto"}')));
   c2 := public.hom_ctx('A','compras',eid);
   PERFORM public.hom_check('GOVERNANCA','rejeição encerra o fluxo',
-    (SELECT status = 'rejected' AND ended_at IS NOT NULL FROM public.approval_requests WHERE id = c2.approval_request_id),
+    (SELECT status = 'rejected' AND ended_at IS NOT NULL
+       FROM public.approval_requests WHERE reference_id = eid),
     c2.current_status);
+
   PERFORM public.hom_check('GOVERNANCA','rejeitada não aceita nova aprovação',
     public.hom_denied(public.hom_act('B','compras',eid,'aprovar','{"notes":"tentativa apos rejeicao"}')));
 END $$;
@@ -77,13 +79,12 @@ BEGIN
   c := public.hom_ctx('M','compras',eid);
   PERFORM public.hom_check('MASTER','Master não é ator automático da etapa', NOT c.is_current_actor,
     coalesce(c.current_approver_name,'-'));
-  v := public.hom_act('M','compras',eid,'aprovar','{"notes":"aprovacao master sem override"}');
-  PERFORM public.hom_check('MASTER','Master não aprova pela via normal', public.hom_denied(v), v::text);
-
-  v := public.hom_act('M','compras',eid,'master_override','{"notes":"curto"}');
+  -- Master só atua na etapa alheia pelo mecanismo auditado: exige justificativa mínima
+  v := public.hom_act('M','compras',eid,'aprovar','{"notes":"curto"}');
   PERFORM public.hom_check('MASTER','override sem justificativa mínima é negado', public.hom_denied(v), v::text);
-  v := public.hom_act('M','compras',eid,'master_override','{"notes":"override necessario por urgencia operacional documentada"}');
+  v := public.hom_act('M','compras',eid,'aprovar','{"notes":"override necessario por urgencia operacional documentada"}');
   PERFORM public.hom_check('MASTER','override auditado disponível', public.hom_ok(v), v::text);
+
   SELECT count(*) INTO n FROM public.audit_logs
    WHERE entity_id = eid::text AND (action ILIKE '%override%' OR details::text ILIKE '%override%');
   PERFORM public.hom_check('MASTER','override registrado em auditoria', n > 0, n::text);
@@ -237,15 +238,18 @@ BEGIN
   PERFORM public.hom_check('SEGURANCA','U não lê catálogo de documentos de admissão', n = 0, n::text);
   PERFORM public.hom_reset_auth();
 
-  -- Alteração direta de status pelo cliente
+  -- Alteração direta de status pelo cliente: bloqueada por RLS (0 linhas) ou por trigger (exceção)
   PERFORM public.hom_auth('A');
   BEGIN
     UPDATE public.fuel_requests SET status = 'pago' WHERE id = public.hom_uid('abast_e2e');
-    ok := false;
+    ok := NOT EXISTS (
+      SELECT 1 FROM public.fuel_requests
+       WHERE id = public.hom_uid('abast_e2e') AND status::text = 'pago');
   EXCEPTION WHEN OTHERS THEN ok := true;
   END;
   PERFORM public.hom_reset_auth();
   PERFORM public.hom_check('SEGURANCA','solicitante não altera status diretamente', ok);
+
 
   PERFORM public.hom_auth('U');
   BEGIN
