@@ -77,13 +77,12 @@ BEGIN
   c := public.hom_ctx('M','compras',eid);
   PERFORM public.hom_check('MASTER','Master não é ator automático da etapa', NOT c.is_current_actor,
     coalesce(c.current_approver_name,'-'));
-  v := public.hom_act('M','compras',eid,'aprovar','{"notes":"aprovacao master sem override"}');
-  PERFORM public.hom_check('MASTER','Master não aprova pela via normal', public.hom_denied(v), v::text);
-
-  v := public.hom_act('M','compras',eid,'master_override','{"notes":"curto"}');
+  -- Master só atua na etapa alheia pelo mecanismo auditado: exige justificativa mínima
+  v := public.hom_act('M','compras',eid,'aprovar','{"notes":"curto"}');
   PERFORM public.hom_check('MASTER','override sem justificativa mínima é negado', public.hom_denied(v), v::text);
-  v := public.hom_act('M','compras',eid,'master_override','{"notes":"override necessario por urgencia operacional documentada"}');
+  v := public.hom_act('M','compras',eid,'aprovar','{"notes":"override necessario por urgencia operacional documentada"}');
   PERFORM public.hom_check('MASTER','override auditado disponível', public.hom_ok(v), v::text);
+
   SELECT count(*) INTO n FROM public.audit_logs
    WHERE entity_id = eid::text AND (action ILIKE '%override%' OR details::text ILIKE '%override%');
   PERFORM public.hom_check('MASTER','override registrado em auditoria', n > 0, n::text);
