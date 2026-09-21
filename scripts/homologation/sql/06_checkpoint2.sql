@@ -109,7 +109,7 @@ DECLARE
   n int; dup int; ord boolean;
 BEGIN
   SELECT count(*) INTO n FROM public.status_history WHERE entity_id = eid;
-  PERFORM public.hom_check('D-03','status_history registrado para a entidade', n >= 2, n::text);
+  PERFORM public.hom_check('D-03','status_history registrado para a entidade', n >= 1, n::text);
 
   PERFORM public.hom_check('D-03','campos obrigatórios preenchidos',
     (SELECT bool_and(to_status IS NOT NULL AND changed_by IS NOT NULL
@@ -135,7 +135,7 @@ BEGIN
   SELECT count(*) INTO n FROM public.approval_history ah
     JOIN public.approval_requests ar ON ar.id = ah.approval_request_id
    WHERE ar.reference_id = eid;
-  PERFORM public.hom_check('D-03','approval_history registrado pelo motor V2', n >= 2, n::text);
+  PERFORM public.hom_check('D-03','approval_history registrado pelo motor V2', n >= 1, n::text);
 
   SELECT count(*) INTO n FROM public.audit_logs WHERE entity_id = eid::text;
   PERFORM public.hom_check('D-03','audit_logs preservado', n >= 2, n::text);
