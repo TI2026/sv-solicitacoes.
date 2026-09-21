@@ -204,11 +204,12 @@ export function mergeTimeline({
  */
 export async function loadFleetTimeline({
   requestId,
+  moduleKey,
   req,
   approvalRequestId,
 }: FleetTimelineParams): Promise<TimelineEvent[]> {
   const [history, steps] = await Promise.all([
-    loadHistory(requestId),
+    loadHistory(requestId, moduleKey),
     approvalRequestId
       ? loadApprovalEvents(approvalRequestId)
       : Promise.resolve([] as any[]),
