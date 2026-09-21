@@ -23,6 +23,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { FUEL_STATUS_LABELS } from '@/lib/constants';
+import type { FleetBusinessModule } from '../requestRoutes';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 

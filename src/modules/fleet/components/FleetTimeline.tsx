@@ -28,6 +28,8 @@ import type { TimelineEvent } from '../queries/fleetTimelineLoader';
 
 interface FleetTimelineProps {
   requestId: string;
+  /** Módulo canônico V2 desta solicitação. */
+  moduleKey: FleetBusinessModule;
   req: any;
   approvalRequest: any;
 }
