@@ -148,8 +148,16 @@ BEGIN
     c.current_approver_user_id = public.hom_uid('B'), coalesce(c.current_approver_name,'-'));
   PERFORM public.hom_check('DIARIA','B autoriza',
     public.hom_ok(public.hom_act('B','diaria',eid,'aprovar','{"notes":"diaria autorizada"}')));
+  -- Fase operacional: execução da diária e envio dos comprovantes pelo solicitante
+  PERFORM public.hom_auth('A');
+  INSERT INTO public.fuel_attachments (fuel_request_id, type, file_path)
+  VALUES (eid, 'nota_fiscal', 'homolog/diaria_e2e/comprovante.pdf');
+  PERFORM public.hom_reset_auth();
+  PERFORM public.hom_check('DIARIA','A envia comprovantes da execução',
+    public.hom_ok(public.hom_act('A','diaria',eid,'enviar_comprovantes')));
   PERFORM public.hom_check('DIARIA','C confirma horas',
     public.hom_ok(public.hom_act('C','diaria',eid,'confirmar_horas','{"notes":"horas confirmadas"}')));
+
   PERFORM public.hom_check('DIARIA','D paga',
     public.hom_ok(public.hom_act('D','diaria',eid,'pagar','{"notes":"diaria paga"}')));
   c := public.hom_ctx('A','diaria',eid);
