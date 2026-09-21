@@ -110,18 +110,23 @@ interface FleetDetailContextData {
 
 const FleetDetailContext = createContext<FleetDetailContextData | undefined>(undefined);
 
-export function FleetDetailProvider({ children, expectedType }: { children: React.ReactNode; expectedType?: FleetBusinessModule }) {
+export function FleetDetailProvider({ children, expectedType }: { children: React.ReactNode; expectedType: FleetBusinessModule }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, hasAnyRole, isMaster } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const { data: req, isLoading, refetch } = useFuelRequest(id!);
-  const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!);
-  const approvalModule = expectedType ?? ((req as any)?.type as FleetBusinessModule | undefined) ?? 'abastecimento';
-  const { data: approvalRequest } = useApprovalRequestForReference(approvalModule, id);
-  const { data: allApprovalCycles } = useApprovalRequestsForReference(approvalModule, id);
+  // [Checkpoint A] O módulo vem da rota e é obrigatório: nenhum dado de outro
+  // processo é carregado nesta tela, nem antes do redirecionamento.
+  const approvalModule: FleetBusinessModule = expectedType;
+  const { data: actualModule } = useFuelRequestModule(id);
+  const moduleMismatch = isFleetBusinessModule(actualModule) && actualModule !== approvalModule;
+
+  const { data: req, isLoading, refetch } = useFuelRequest(id!, approvalModule);
+  const { data: attachments, refetch: refetchAttachments } = useFuelAttachments(id!, { enabled: !moduleMismatch && !!req });
+  const { data: approvalRequest } = useApprovalRequestForReference(approvalModule, moduleMismatch ? undefined : id);
+  const { data: allApprovalCycles } = useApprovalRequestsForReference(approvalModule, moduleMismatch ? undefined : id);
   const previousCycles = (allApprovalCycles || []).slice(1);
   
   const statusMutation = useEntityAction();
@@ -129,18 +134,16 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
   const approvalAction = useApprovalAction();
 
   // [Sprint 2 — Onda 1] Fonte canônica — carrega o contexto do Motor para este request.
-  const reqType_raw = (req as any)?.type;
   const {
     data: approvalCtx,
     isLoading: approvalCtxLoading,
     error: approvalCtxError,
-  } = useApprovalContext(reqType_raw ? id : undefined, reqType_raw);
+  } = useApprovalContext(!moduleMismatch && req ? id : undefined, approvalModule);
 
   useEffect(() => {
-    const actualType = (req as any)?.type;
-    if (!id || !expectedType || !isFleetBusinessModule(actualType) || actualType === expectedType) return;
-    navigate(requestDetailRoute(actualType, id), { replace: true });
-  }, [expectedType, id, navigate, req]);
+    if (!id || !moduleMismatch || !isFleetBusinessModule(actualModule)) return;
+    navigate(requestDetailRoute(actualModule, id), { replace: true });
+  }, [actualModule, id, moduleMismatch, navigate]);
 
   const [uploading, setUploading] = useState(false);
   const [actionReason, setActionReason] = useState('');
