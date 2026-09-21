@@ -29,15 +29,10 @@ export interface QueueItem {
 
 export interface QueueSummary {
   total: number;
-  /** Criadas há mais de 48h e ainda pendentes */
+  /** Etapa vencida ou a vencer conforme o SLA real da etapa (sla_deadline). */
   urgent: number;
   /** returned_to_requester ou returned_for_adjustment */
   returned: number;
-}
-
-function isUrgent(createdAt: string): boolean {
-  const diffMs = Date.now() - new Date(createdAt).getTime();
-  return diffMs > 48 * 60 * 60 * 1000;
 }
 
 const RETURNED_STATUSES = new Set(['returned_to_requester', 'returned_for_adjustment']);
