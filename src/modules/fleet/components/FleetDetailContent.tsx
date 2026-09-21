@@ -539,7 +539,7 @@ export function FleetDetailContent() {
         {/* Timeline */}
         <Card className="lg:col-span-3">
           <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2">Histórico de Movimentações</CardTitle></CardHeader>
-          <CardContent><FleetTimeline requestId={id!} req={req} approvalRequest={approvalRequest} /></CardContent>
+          <CardContent><FleetTimeline requestId={id!} moduleKey={reqType} req={req} approvalRequest={approvalRequest} /></CardContent>
         </Card>
       </div>
 
