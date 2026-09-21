@@ -25,6 +25,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS } from '@/lib/constants';
 import { useFleetTimeline } from '../hooks/useFleetTimeline';
 import type { TimelineEvent } from '../queries/fleetTimelineLoader';
+import type { FleetBusinessModule } from '../requestRoutes';
 
 interface FleetTimelineProps {
   requestId: string;
