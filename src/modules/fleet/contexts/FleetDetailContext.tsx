@@ -10,6 +10,7 @@ import { validateFileMagicNumber } from '@/lib/fileValidation';
 import { useVehicleByPlate } from '../hooks/useVehicles';
 import { 
   useFuelRequest, 
+  useFuelRequestModule,
   useFuelAttachments, 
   useCancelFleetRequest
 } from '../hooks/useFleetQueries';
@@ -181,10 +182,8 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
 
   // isOwner removido (Sprint 5): era duplicata de approvalCtx.
   // Mantido apenas inline nas condições de upload (regra de negócio de UX, não de aprovação).
-  const reqTypeCandidate = (req as any)?.type || expectedType;
-  const reqType: FleetBusinessModule = isFleetBusinessModule(reqTypeCandidate)
-    ? reqTypeCandidate
-    : 'abastecimento';
+  // Sem fallback: o módulo da tela é o módulo da rota.
+  const reqType: FleetBusinessModule = approvalModule;
   const vehicle = useVehicleByPlate((req as any)?.placa);
 
   useEffect(() => {

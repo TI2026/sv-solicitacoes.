@@ -163,7 +163,7 @@ const AppRoutes = () => (
 
     {/* Abastecimento */}
     <Route path="/abastecimento" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetListPage requestType="abastecimento" /></PermissionGuard></ProtectedRoute>} />
-    <Route path="/abastecimento/new" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetNewPage /></PermissionGuard></ProtectedRoute>} />
+    <Route path="/abastecimento/new" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetNewPage requestType="abastecimento" /></PermissionGuard></ProtectedRoute>} />
     <Route path="/abastecimento/vehicles-admin" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><VehiclesAdminPage /></RoleGuard></ProtectedRoute>} />
     <Route path="/abastecimento/:id" element={<ProtectedRoute><PermissionGuard moduleCode="abastecimento" fallbackAuthenticated><FleetDetailPage requestType="abastecimento" /></PermissionGuard></ProtectedRoute>} />
 
