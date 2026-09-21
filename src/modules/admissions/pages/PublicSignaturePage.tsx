@@ -39,11 +39,31 @@ export default function PublicSignaturePage() {
   const [data, setData] = useState<SignatureData | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
-  // Track uploaded signed files per doc_key
-  const [uploadedKeys, setUploadedKeys] = useState<Record<string, string>>({});
+  // Track uploaded signed files per doc_key.
+  // [Checkpoint A] O progresso é preservado por link: recarregar a página não
+  // obriga o candidato a reenviar documentos já assinados nesta sessão.
+  const progressKey = token ? `admission-signature-progress:${token}` : null;
+  const [uploadedKeys, setUploadedKeys] = useState<Record<string, string>>(() => {
+    if (!progressKey || typeof window === 'undefined') return {};
+    try {
+      const saved = window.localStorage.getItem(progressKey);
+      const parsed = saved ? JSON.parse(saved) : null;
+      return parsed && typeof parsed === 'object' ? parsed as Record<string, string> : {};
+    } catch {
+      return {};
+    }
+  });
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+  useEffect(() => {
+    if (!progressKey || typeof window === 'undefined') return;
+    try {
+      if (Object.keys(uploadedKeys).length === 0) window.localStorage.removeItem(progressKey);
+      else window.localStorage.setItem(progressKey, JSON.stringify(uploadedKeys));
+    } catch { /* armazenamento indisponível: segue apenas em memória */ }
+  }, [progressKey, uploadedKeys]);
 
   useEffect(() => {
     if (!token) { setError('Token não fornecido'); setLoading(false); return; }
@@ -158,6 +178,9 @@ export default function PublicSignaturePage() {
         throw new Error(describeFinalizeError(String(result.error || '')));
       }
       setSubmitted(true);
+      if (progressKey && typeof window !== 'undefined') {
+        try { window.localStorage.removeItem(progressKey); } catch { /* ignore */ }
+      }
       toast({ title: 'Documentos assinados enviados com sucesso!' });
     } catch (error: any) {
       toast({ title: 'Erro ao finalizar', description: error.message, variant: 'destructive' });

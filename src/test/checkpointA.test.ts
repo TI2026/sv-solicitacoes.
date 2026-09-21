@@ -30,10 +30,21 @@ describe('Checkpoint A — rotas canônicas de frota', () => {
     expect(detail).toContain('navigate(routeBase)');
   });
 
-  it('filtra as listas pelo type real', () => {
+  it('isola cada módulo no servidor, nunca no navegador', () => {
     const queries = read('src/modules/fleet/hooks/useFleetQueries.ts');
-    expect(queries).toContain("query = query.eq('type', type)");
-    expect(queries).toContain('items.filter((r: any) => r.type === type)');
+    // Todas as consultas de lista, detalhe e edição filtram o módulo no Supabase.
+    expect(queries.match(/\.eq\('type', module\)/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
+    // Nenhuma filtragem de módulo no cliente.
+    expect(queries).not.toContain('r.type === type');
+    // Query keys escopadas por módulo.
+    expect(queries).toContain("queryKey: ['fuel_request', id, module]");
+  });
+
+  it('a tela de detalhe não aceita módulo opcional nem fallback', () => {
+    const context = read('src/modules/fleet/contexts/FleetDetailContext.tsx');
+    expect(context).toContain('expectedType: FleetBusinessModule');
+    expect(context).not.toContain("?? 'abastecimento'");
+    expect(context).toContain('moduleMismatch');
   });
 });
 

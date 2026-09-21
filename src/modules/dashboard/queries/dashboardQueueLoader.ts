@@ -29,15 +29,10 @@ export interface QueueItem {
 
 export interface QueueSummary {
   total: number;
-  /** Criadas há mais de 48h e ainda pendentes */
+  /** Etapa vencida ou a vencer conforme o SLA real da etapa (sla_deadline). */
   urgent: number;
   /** returned_to_requester ou returned_for_adjustment */
   returned: number;
-}
-
-function isUrgent(createdAt: string): boolean {
-  const diffMs = Date.now() - new Date(createdAt).getTime();
-  return diffMs > 48 * 60 * 60 * 1000;
 }
 
 const RETURNED_STATUSES = new Set(['returned_to_requester', 'returned_for_adjustment']);
@@ -74,6 +69,20 @@ export async function loadDashboardQueue(userId: string): Promise<{
 
   if (error) throw error;
 
+  // [Checkpoint A] Urgência vem do SLA real da etapa pendente, não de "48h desde a criação".
+  const { data: steps, error: stepsError } = await supabase
+    .from('approval_request_steps')
+    .select('approval_request_id, status, sla_deadline, overdue')
+    .in('approval_request_id', ids)
+    .eq('status', 'pending');
+  if (stepsError) throw stepsError;
+
+  const now = Date.now();
+  const urgentRequestIds = new Set(
+    (Array.isArray(steps) ? steps : [])
+      .filter((s: any) => s.overdue === true || (s.sla_deadline && new Date(s.sla_deadline).getTime() <= now))
+      .map((s: any) => s.approval_request_id as string),
+  );
 
   const items: QueueItem[] = (Array.isArray(data) ? data : []).map((row: any) => ({
     id: row.id,
@@ -88,7 +97,7 @@ export async function loadDashboardQueue(userId: string): Promise<{
 
   const summary: QueueSummary = {
     total: items.length,
-    urgent: items.filter(i => isUrgent(i.created_at)).length,
+    urgent: items.filter(i => urgentRequestIds.has(i.id)).length,
     returned: items.filter(i => RETURNED_STATUSES.has(i.status)).length,
   };
 

@@ -26,16 +26,17 @@ import { requestDetailRoute, requestListRoute } from '../requestRoutes';
 import { validateFileMagicNumber } from '@/lib/fileValidation';
 import { calculateDailyQuantity, calculateDailyTotal, isDailyDateTimeRangeValid, normalizeDailyPeriod } from '../dailyPeriod';
 
-export default function FleetNewPage({ requestType }: { requestType?: 'abastecimento' | 'diaria' | 'reembolso' }) {
+export default function FleetNewPage({ requestType }: { requestType: 'abastecimento' | 'diaria' | 'reembolso' }) {
   const { user, hasAnyRole } = useAuth();
   const { id: editId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const initialType = requestType || 'abastecimento';
+  const initialType = requestType;
   const createMutation = useCreateFuelRequest();
   const statusMutation = useEntityAction();
   const [submitting, setSubmitting] = useState(false);
-  const { data: editRequest } = useFuelRequest(editId || '');
+  // [Checkpoint A] edição sempre escopada ao módulo da rota.
+  const { data: editRequest } = useFuelRequest(editId || '', requestType);
 
   const [type] = useState(initialType);
   const backRoute = requestListRoute(type);

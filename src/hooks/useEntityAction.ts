@@ -16,6 +16,8 @@ import { refreshApprovalData } from '@/lib/refreshApprovalData';
 /** Ações canônicas V2 — o frontend não pode inventar alias. */
 export type CanonicalAction =
   | 'enviar'
+  /** Transição operacional pós-aprovação (Admissões) — validada pelo backend. */
+  | 'avancar_etapa'
   | 'aprovar'
   | 'devolver'
   | 'rejeitar'
