@@ -48,11 +48,12 @@ function renderIcon(kind: TimelineEvent['icon']) {
   }
 }
 
-export function FleetTimeline({ requestId, req, approvalRequest }: FleetTimelineProps) {
+export function FleetTimeline({ requestId, moduleKey, req, approvalRequest }: FleetTimelineProps) {
   const queryClient = useQueryClient();
 
   const { data: events = [], isLoading } = useFleetTimeline({
     requestId,
+    moduleKey,
     req,
     approvalRequestId: approvalRequest?.id,
   });
