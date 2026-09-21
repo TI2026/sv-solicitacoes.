@@ -25,9 +25,12 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { FUEL_STATUS_LABELS } from '@/lib/constants';
 import { useFleetTimeline } from '../hooks/useFleetTimeline';
 import type { TimelineEvent } from '../queries/fleetTimelineLoader';
+import type { FleetBusinessModule } from '../requestRoutes';
 
 interface FleetTimelineProps {
   requestId: string;
+  /** Módulo canônico V2 desta solicitação. */
+  moduleKey: FleetBusinessModule;
   req: any;
   approvalRequest: any;
 }
@@ -46,11 +49,12 @@ function renderIcon(kind: TimelineEvent['icon']) {
   }
 }
 
-export function FleetTimeline({ requestId, req, approvalRequest }: FleetTimelineProps) {
+export function FleetTimeline({ requestId, moduleKey, req, approvalRequest }: FleetTimelineProps) {
   const queryClient = useQueryClient();
 
   const { data: events = [], isLoading } = useFleetTimeline({
     requestId,
+    moduleKey,
     req,
     approvalRequestId: approvalRequest?.id,
   });
