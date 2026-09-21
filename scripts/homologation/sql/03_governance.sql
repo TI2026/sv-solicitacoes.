@@ -36,8 +36,10 @@ BEGIN
     public.hom_ok(public.hom_act('B','compras',eid,'rejeitar','{"notes":"orcamento acima do teto"}')));
   c2 := public.hom_ctx('A','compras',eid);
   PERFORM public.hom_check('GOVERNANCA','rejeição encerra o fluxo',
-    (SELECT status = 'rejected' AND ended_at IS NOT NULL FROM public.approval_requests WHERE id = c2.approval_request_id),
+    (SELECT status = 'rejected' AND ended_at IS NOT NULL
+       FROM public.approval_requests WHERE reference_id = eid),
     c2.current_status);
+
   PERFORM public.hom_check('GOVERNANCA','rejeitada não aceita nova aprovação',
     public.hom_denied(public.hom_act('B','compras',eid,'aprovar','{"notes":"tentativa apos rejeicao"}')));
 END $$;
