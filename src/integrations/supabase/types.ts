@@ -2866,6 +2866,7 @@ export type Database = {
           status: string
         }[]
       }
+      _engine_entity_table: { Args: { p_module: string }; Returns: string }
       _engine_module_norm: { Args: { p_module: string }; Returns: string }
       _engine_pick_actor: {
         Args: {
