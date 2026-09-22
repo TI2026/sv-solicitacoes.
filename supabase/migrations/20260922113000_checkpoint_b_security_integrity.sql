@@ -1,7 +1,7 @@
 -- ============================================================================
 -- CHECKPOINT B — Segurança, integridade de dados e retenção
--- Migration incremental. NÃO APLICADA em produção: revisar + aplicar em banco
--- local/staging antes de qualquer cutover.
+-- Migration incremental oficial da cadeia (`supabase/migrations`).
+-- Validada em banco limpo local com pgTAP antes de qualquer cutover.
 --
 -- Cobre os bloqueadores P1 da auditoria independente de 21/09/2026:
 --   P1-01  trilhas (status_history / approval_history) forjáveis pelo cliente
@@ -124,6 +124,43 @@ CREATE POLICY "Admins and RH can delete admissions files"
 -- (candidato, admissão) de forma autoritativa. Um link inconsistente passa a
 -- ser impossível no banco, independentemente do que a Edge Function envie.
 
+-- ---------------------------------------------------------------------------
+-- P1-03 PREFLIGHT — pares candidato <-> admissão inconsistentes
+-- ---------------------------------------------------------------------------
+-- A FK composta abaixo só pode ser criada se os dados atuais já forem
+-- coerentes. Em vez de corrigir dados silenciosamente, a migration falha e
+-- expõe exatamente quantos vínculos divergem, para tratamento manual.
+DO $preflight$
+DECLARE
+  v_links integer;
+  v_files integer;
+BEGIN
+  SELECT count(*) INTO v_links
+  FROM public.admission_public_links l
+  WHERE l.candidate_id IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM public.candidates c
+      WHERE c.id = l.candidate_id
+        AND c.admission_request_id IS NOT DISTINCT FROM l.admission_request_id
+    );
+
+  SELECT count(*) INTO v_files
+  FROM public.admission_files f
+  WHERE f.candidate_id IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM public.candidates c
+      WHERE c.id = f.candidate_id
+        AND c.admission_request_id IS NOT DISTINCT FROM f.admission_request_id
+    );
+
+  IF v_links > 0 OR v_files > 0 THEN
+    RAISE EXCEPTION
+      'CHECKPOINT_B_PREFLIGHT: vínculos candidato<->admissão inconsistentes (links=%, files=%)',
+      v_links, v_files;
+  END IF;
+END
+$preflight$;
+
 ALTER TABLE public.candidates
   DROP CONSTRAINT IF EXISTS candidates_id_admission_request_id_key;
 ALTER TABLE public.candidates
@@ -187,5 +224,11 @@ BEGIN
   RETURN OLD;
 END;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Manutenção destrutiva permanece inalcançável pela API do cliente
+-- ---------------------------------------------------------------------------
+REVOKE EXECUTE ON FUNCTION public.admin_purge_test_data(text, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_purge_test_data(text, boolean) TO service_role;
 
 COMMIT;
