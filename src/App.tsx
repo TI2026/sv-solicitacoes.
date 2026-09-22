@@ -25,7 +25,6 @@ const PermissionsPage = lazy(() => import("@/pages/PermissionsPage"));
 const SectorsPage = lazy(() => import("@/pages/SectorsPage"));
 const CollaboratorsPage = lazy(() => import("@/pages/CollaboratorsPage"));
 const DynamicCategoriesPage = lazy(() => import("@/pages/DynamicCategoriesPage"));
-const MaintenancePage = lazy(() => import("@/pages/MaintenancePage"));
 const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -145,7 +144,6 @@ const AppRoutes = () => (
     <Route path="/auditoria" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><AuditLogsPage /></RoleGuard></ProtectedRoute>} />
     <Route path="/setores" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><SectorsPage /></RoleGuard></ProtectedRoute>} />
     <Route path="/colaboradores" element={<ProtectedRoute><RoleGuard roles={['diretoria', 'administrativo']}><CollaboratorsPage /></RoleGuard></ProtectedRoute>} />
-    <Route path="/admin/maintenance" element={<ProtectedRoute><RoleGuard roles={['diretoria']}><MaintenancePage /></RoleGuard></ProtectedRoute>} />
     
     {/* Cadastros (Dynamic Categories) */}
     <Route path="/categorias" element={<ProtectedRoute><DynamicCategoriesPage module="compras" fieldKey="category" title="Categorias" description="Gerencie a lista de categorias do módulo de compras." /></ProtectedRoute>} />
