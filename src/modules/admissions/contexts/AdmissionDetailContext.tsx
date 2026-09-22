@@ -22,6 +22,8 @@ interface AdmissionDetailContextData {
   isLoading: boolean;
   user: any;
   isRH: boolean;
+  /** Acesso a PII/documentos do candidato (RH, Diretoria, Master). Administrativo atua no lifecycle, mas não acessa documentos. */
+  canAccessCandidateDocs: boolean;
   hasAnyRole: (roles: string[]) => boolean;
 
   approvalCtx: ApprovalContextData | undefined;
@@ -108,6 +110,7 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
   const generatePublicLink = useGeneratePublicLink();
 
   const isRH = hasAnyRole(['diretoria', 'rh', 'administrativo']);
+  const canAccessCandidateDocs = hasAnyRole(['diretoria', 'rh', 'master']);
 
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [candidateForm, setCandidateForm] = useState({ nome: '', cpf: '', telefone: '', email: '', cidade: '' });
@@ -342,7 +345,7 @@ export function AdmissionDetailProvider({ children }: { children: React.ReactNod
   }, [status, approvedCandidates.length]);
 
   const value = {
-    id: id!, req, isLoading, user, isRH, hasAnyRole,
+    id: id!, req, isLoading, user, isRH, canAccessCandidateDocs, hasAnyRole,
     approvalCtx, approvalCtxLoading, approvalCtxError: approvalCtxError as Error | null,
     candidates: candidates || [], interviews: interviews || [],
     activeCandidates, approvedCandidates, hasApprovedCandidates, allActiveHaveInterviewResult,

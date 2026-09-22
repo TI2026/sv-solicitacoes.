@@ -64,7 +64,7 @@ const ADMIN_SIGNATURE_DOCS: Array<{ key: string; label: string; optional: boolea
 export function AdmissionDetailContent() {
   const navigate = useNavigate();
   const {
-    id, req, isLoading, user, isRH, hasAnyRole,
+    id, req, isLoading, user, isRH, canAccessCandidateDocs, hasAnyRole,
     candidates, interviews, activeCandidates, approvedCandidates, hasApprovedCandidates, allActiveHaveInterviewResult,
     approvalRequest, allApprovalCycles, previousCycles, status,
     showAddCandidate, setShowAddCandidate, candidateForm, setCandidateForm,
@@ -255,7 +255,7 @@ export function AdmissionDetailContent() {
       )}
 
       {/* ===== ETAPA 2: Entrevista (aguardando_documentos) ===== */}
-      {isRH && status === 'aguardando_documentos' && (
+      {isRH && canAccessCandidateDocs && status === 'aguardando_documentos' && (
         <Card>
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Etapa 2 — Entrevista</h3>
@@ -428,7 +428,7 @@ export function AdmissionDetailContent() {
         </Card>
       )}
 
-      {isRH && status === 'documentos_em_analise' && (
+      {isRH && canAccessCandidateDocs && status === 'documentos_em_analise' && (
         <Card>
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -489,7 +489,7 @@ export function AdmissionDetailContent() {
         </Card>
       )}
 
-      {isRH && (status === 'aguardando_exame' || status === 'exame_realizado') && (
+      {isRH && canAccessCandidateDocs && (status === 'aguardando_exame' || status === 'exame_realizado') && (
         <Card>
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -503,7 +503,7 @@ export function AdmissionDetailContent() {
         </Card>
       )}
 
-      {isRH && status === 'aguardando_registro' && (
+      {isRH && canAccessCandidateDocs && status === 'aguardando_registro' && (
         <Card>
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
