@@ -3083,6 +3083,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_active_member: { Args: never; Returns: boolean }
       is_master: { Args: { _uid?: string }; Returns: boolean }
       log_client_event: {
         Args: {
