@@ -144,9 +144,13 @@ SELECT lives_ok(
   'entidade que nunca entrou em workflow pode ser excluída'
 );
 
-INSERT INTO public.approval_requests(module_id,reference_id,requester_user_id,status,ended_at)
-SELECT m.id,'cb100000-0000-0000-0000-000000000001','cb000000-0000-0000-0000-000000000001','completed',now()
-FROM public.approval_modules m WHERE m.code='admissoes';
+INSERT INTO public.approval_requests(module_id,flow_id,reference_id,requester_user_id,status,ended_at)
+SELECT f.module_id,f.id,'cb100000-0000-0000-0000-000000000001','cb000000-0000-0000-0000-000000000001','completed',now()
+FROM public.approval_flows f
+JOIN public.approval_modules m ON m.id=f.module_id
+WHERE m.code='admissoes'
+ORDER BY f.created_at DESC
+LIMIT 1;
 
 SELECT throws_ok(
   $$DELETE FROM public.admission_requests WHERE id='cb100000-0000-0000-0000-000000000001'$$,
