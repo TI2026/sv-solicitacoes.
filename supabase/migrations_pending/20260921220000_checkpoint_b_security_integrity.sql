@@ -83,21 +83,23 @@ DROP POLICY IF EXISTS "Admins and RH can insert admissions files" ON storage.obj
 DROP POLICY IF EXISTS "Admins and RH can update admissions files" ON storage.objects;
 DROP POLICY IF EXISTS "Admins and RH can delete admissions files" ON storage.objects;
 
-CREATE POLICY "RH chain views admissions bucket"
+-- Os nomes canônicos das policies são preservados (contrato já homologado);
+-- apenas o escopo de papéis é reduzido (o papel Administrativo sai).
+CREATE POLICY "Admins and RH can view admissions files"
   ON storage.objects FOR SELECT TO authenticated
   USING (
     bucket_id = 'admissions'
     AND (current_has_role('rh'::app_role) OR current_has_role('diretoria'::app_role) OR current_has_role('master'::app_role))
   );
 
-CREATE POLICY "RH chain inserts admissions bucket"
+CREATE POLICY "Admins and RH can insert admissions files"
   ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (
     bucket_id = 'admissions'
     AND (current_has_role('rh'::app_role) OR current_has_role('diretoria'::app_role) OR current_has_role('master'::app_role))
   );
 
-CREATE POLICY "RH chain updates admissions bucket"
+CREATE POLICY "Admins and RH can update admissions files"
   ON storage.objects FOR UPDATE TO authenticated
   USING (
     bucket_id = 'admissions'
@@ -108,11 +110,11 @@ CREATE POLICY "RH chain updates admissions bucket"
     AND (current_has_role('rh'::app_role) OR current_has_role('diretoria'::app_role) OR current_has_role('master'::app_role))
   );
 
-CREATE POLICY "Directors delete admissions bucket"
+CREATE POLICY "Admins and RH can delete admissions files"
   ON storage.objects FOR DELETE TO authenticated
   USING (
     bucket_id = 'admissions'
-    AND (current_has_role('diretoria'::app_role) OR current_has_role('master'::app_role))
+    AND (current_has_role('rh'::app_role) OR current_has_role('diretoria'::app_role) OR current_has_role('master'::app_role))
   );
 
 -- ---------------------------------------------------------------------------
