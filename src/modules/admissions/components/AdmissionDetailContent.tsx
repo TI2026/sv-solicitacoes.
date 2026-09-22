@@ -255,7 +255,7 @@ export function AdmissionDetailContent() {
       )}
 
       {/* ===== ETAPA 2: Entrevista (aguardando_documentos) ===== */}
-      {isRH && canAccessCandidateDocs && status === 'aguardando_documentos' && (
+      {isRH && status === 'aguardando_documentos' && (
         <Card>
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Etapa 2 — Entrevista</h3>

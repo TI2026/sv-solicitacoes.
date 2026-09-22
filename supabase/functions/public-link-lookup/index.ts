@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       .eq('id', link.candidate_id)
       .single();
 
-    if (!candidate) {
+    if (!candidate || candidate.admission_request_id !== link.admission_request_id) {
       return new Response(JSON.stringify({ error: 'Token inválido ou expirado' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -114,6 +114,25 @@ Deno.serve(async (req) => {
       }
     }
 
+    // [Checkpoint C] Progresso de assinatura: o banco é a fonte da verdade.
+    // Os documentos assinados já persistidos são devolvidos ao candidato para
+    // que refresh, outro navegador ou outro dispositivo retomem o progresso.
+    let signedFiles: Array<{ file_type: string; name: string; uploaded_at: string }> = [];
+    if (link.link_type === 'SIGNATURE') {
+      const { data: signed } = await supabase
+        .from('admission_files')
+        .select('file_type, original_filename, created_at')
+        .eq('candidate_id', candidate.id)
+        .eq('admission_request_id', link.admission_request_id)
+        .eq('link_type', 'SIGNATURE')
+        .eq('uploaded_by', 'CANDIDATE');
+      signedFiles = (signed || []).map(f => ({
+        file_type: f.file_type,
+        name: f.original_filename || '',
+        uploaded_at: f.created_at,
+      }));
+    }
+
     // For DOCUMENTS type, list already uploaded files
     let uploadedFiles: Array<{ name: string; file_type: string }> = [];
     if (link.link_type === 'DOCUMENTS') {
@@ -136,6 +155,7 @@ Deno.serve(async (req) => {
       admin_uploaded_at: link.admin_uploaded_at,
       candidate_uploaded_at: link.candidate_uploaded_at,
       files_to_sign: filesToSign,
+      signed_files: signedFiles,
       uploaded_files: uploadedFiles,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
