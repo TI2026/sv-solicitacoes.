@@ -240,7 +240,7 @@ SELECT is(
 );
 SELECT lives_ok(
   $$INSERT INTO public.admission_files(admission_request_id,candidate_id,file_type,storage_path,uploaded_by,link_type)
-    VALUES ('cb100000-0000-0000-0000-000000000001','cb200000-0000-0000-0000-000000000001','CTPS','documents/cb/ctps.pdf','RH','DOCUMENTS')$$,
+    VALUES ('cb100000-0000-0000-0000-000000000001','cb200000-0000-0000-0000-000000000001','CTPS','documents/cb/ctps.pdf','ADMIN','DOCUMENTS')$$,
   'RH continua enviando documentos de admissão'
 );
 
