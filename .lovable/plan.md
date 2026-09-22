@@ -1,63 +1,55 @@
-# Motor de Aprovação V2 — Checkpoint 1
+# Fechamento operacional: limpeza, tempo real e ativação do Motor V2
 
-Contrato V2 congelado como fonte de verdade. O trabalho é backend-first (migrations incrementais) + a tela Configurações de Aprovação. Nada de redesign visual, PDF, SEO ou responsividade neste checkpoint.
+Sete frentes pedidas, executadas sem criar módulo novo e sem redesign. Reaproveitam o motor, o Action Context e os componentes já existentes.
 
-## Estado atual do banco (levantado agora)
+## 1. Limpeza dos dados de teste (produção)
 
-- 11 flows existentes (V1 + legados duplicados), com 1–11 etapas cada — nenhum corresponde ao template V2.
-- Módulo legado `admissions` ainda tem flow ativo, paralelo ao canônico `admissoes`.
-- 2 approval_requests ativas com status legado `awaiting_step_1` → **bloqueiam o cutover** enquanto não forem encerradas.
-- Setores sem responsável: Comercial, Compras, Diretoria, Financeiro, Frota, Obras, Portaria, RH. Sem eles, os steps em modo Setor ficam BLOCKED no health check.
+Apagar todos os registros operacionais de: pendências, reembolso, diárias, abastecimento, admissões, compras, veículos, histórico e alertas — incluindo os fluxos de aprovação ligados a eles, anexos e notificações.
 
-## Entregas (ordem de execução)
+Preservado: usuários, perfis, papéis e permissões, setores, categorias dinâmicas, catálogo de EPI, configuração de fluxos e limites.
 
-### Onda A — Templates V2 (migrations)
-- Criar 6 flows `*_V2` com `active = false`, versão `v2`, e as 17 etapas fixas exatamente como no contrato (Compras 2, Abastecimento 3, Diária 3, Reembolso 3, Admissões 3, Desligamentos 3), com `step_code`, `step_name`, `step_kind`, `completion_action`, `next_step_activation` (imediata vs operacional) e status de entidade por etapa.
-- V1 preservado intacto (histórico).
-- `assignment_mode` reduzido a `person` | `sector` para escritas novas; valores V1 mantidos apenas para leitura histórica.
+A limpeza roda pela rotina do próprio banco, em uma transação única, na ordem correta de dependências. Antes de apagar, mostro a contagem exata por tabela para você conferir.
 
-### Onda B — Configuração e governança
-- RPC `save_approval_step_assignment(...)` Master-only, transacional, revalidando pessoa/setor/substituto/SLA.
-- REVOKE de INSERT/UPDATE/DELETE direto em `approval_flow_steps` para `authenticated`.
-- RPC `get_approval_configuration_health()` retornando `ready | warning | blocked` por módulo/etapa com motivo textual.
+## 2. Ativação do Motor V2
 
-### Onda C — Núcleo do motor
-- `start_approval_flow`: valida toda a configuração antes de qualquer escrita; erro `WORKFLOW_NOT_READY` sem criar request/steps/notification. Snapshot completo por step (flow_version, step_code/kind/completion_action, assignment_mode, primary/substitute, resolved_approver, sla_hours).
-- Regra de autoaprovação: requester = primary → substituto; requester = ambos → `WORKFLOW_NO_ELIGIBLE_APPROVER`. Sem "primeiro usuário do cargo".
-- `process_approval_action`: avanço por `step_order` (nunca por `status = pending`), `waiting → pending`, `waiting_operational` com `current_approver_user_id = NULL`, devolver sem encerrar a request, reenvio reativando a mesma step com novo SLA, rejeitar/cancelar conforme contrato.
-- Status de request restritos a: `draft, awaiting_step, waiting_operational, returned, rejected, cancelled, completed`.
-- `execute_entity_action` como único entry point de mutação; `get_entity_action_context` devolvendo o contrato completo (44) com checagem de visibilidade (45).
-- Master override auditado (`master_override = true`, aprovador original, motivo).
-- Ações operacionais canônicas (46) por módulo, incluindo validação backend de documentos (48).
+As 18 solicitações "em andamento" são justamente os dados de teste acima. Com a limpeza feita, o bloqueio desaparece sozinho e a ativação é liberada — sem forçar nada e sem alterar regra de negócio. Executo a ativação logo em seguida e confirmo o estado final.
 
-### Onda D — Invariantes e integridade
-- UNIQUE INDEX parcial em `approval_requests (module_id, reference_id) WHERE ended_at IS NULL`.
-- `FOR UPDATE` + checagem de status em toda conclusão de step → segunda ação recebe `CONFLICT`, sem duplicar history/audit/notification/pagamento.
-- SLA: `sla_deadline` só ao entrar em `pending`; expiração reatribui ao substituto ou marca `overdue` e notifica Master — nunca autoaprova.
-- REVOKE de `_update_entity_status`, `process_approval_action`, `start_approval_flow` para PUBLIC/anon/authenticated.
-- `get_my_approval_queue` usando apenas `status = 'awaiting_step'`.
+## 3. Ações restritas ao aprovador da etapa
 
-### Onda E — Cutover
-- RPC `activate_approval_v2(...)`: atômica, exige 6 módulos `ready`, 17 steps válidas e nenhuma request V1 ativa; desativa V1 e ativa V2 na mesma transação.
-- Auditoria do módulo legado `admissions`: preservar histórico, desativar flow.
-- Escolha de um único estado canônico pós-aprovação em Admissões, após auditar os consumidores (sem manter aliases em escritas novas).
+Aprovar / rejeitar / devolver só aparecem para quem é o ator da etapa **atual**. Quem é aprovador de etapa seguinte, ou está fora do fluxo, vê apenas o andamento e o rótulo de espera.
 
-### Onda F — Tela Configurações de Aprovação
-- Seis módulos com etapas fixas; sem adicionar/excluir/reordenar.
-- Editor de step: Pessoa (responsável + substituto) ou Setor (setor + responsável/substituto em leitura), prazo em horas.
-- Nomenclatura "Pessoa" / "Setor" (nunca "Pessoa Física").
-- Health visual por módulo (Pronto / Atenção / Bloqueado) e botão "Ativar Motor V2" habilitado apenas quando tudo pronto.
+O backend já decide isso (`is_current_actor` + `allowed_actions`); o ajuste é garantir que **todas** as telas — Abastecimento, Diária, Reembolso, Compras, Admissões, Desligamentos, painel de controle de fluxos e ações em lote — obedeçam à mesma fonte, sem atalhos locais de exibição.
 
-### Onda G — Testes (pgTAP em supabase/tests/database)
-Configuração, snapshot, devolução/reenvio, SLA→substituto, multiusuário (A/B/C/S/M), caminho completo dos 6 módulos, retry duplo sem duplicidade, rollback transacional e grants.
+## 4. Anexo de comprovante na etapa financeira
 
-## Pré-condições que dependem de você
+Na confirmação de pagamento, campo de anexo (comprovante) usando o mesmo fluxo seguro de upload já existente nos módulos. O arquivo fica vinculado à solicitação e aparece nos anexos e no histórico.
 
-1. As 2 requests ativas em `awaiting_step_1` precisam ser encerradas (concluídas ou canceladas) antes da ativação do V2.
-2. Os setores sem responsável precisam de responsável e substituto — alternativamente, essas etapas ficam em modo Pessoa.
+## 5. Tempo real em todos os fluxos
 
-Ambas as pendências não bloqueiam as Ondas A–D; bloqueiam apenas o cutover (Onda E).
+Toda vez que um aprovador avança uma etapa, as telas dos demais atualizam sozinhas: lista, detalhe, andamento do fluxo, histórico, pendências e painel. Sem recarregar a página.
 
-## Observação técnica
+Implementação: uma assinatura única de eventos do banco (solicitações, etapas e notificações) que invalida exatamente as consultas afetadas.
 
-Tudo por migrations incrementais; nenhuma migration publicada será editada. Frontend limitado à tela de Configurações de Aprovação e aos hooks compartilhados de aprovação estritamente necessários.
+## 6. Desempenho em todas as telas
+
+- Consultas com cache compartilhado e sem buscas duplicadas na mesma tela.
+- Listas pedem só as colunas usadas e paginam no servidor.
+- Carregamento sob demanda das telas pesadas, com esqueleto imediato em vez de tela branca.
+- Fim do recarregamento completo a cada foco de janela.
+
+## 7. Preenchimento automático de EPI por cargo
+
+Ao escolher o colaborador na entrega, os itens do cargo/setor dele vêm preenchidos automaticamente (regras de kit já cadastradas), com quantidades e tamanhos sugeridos — tudo editável antes de confirmar.
+
+## Detalhes técnicos
+
+- Limpeza via função `admin_purge_test_data` (escopo operacional) executada por migração/SQL revisado, com contagem antes e depois; sem `DROP`, sem alterar esquema.
+- Ativação por `activate_approval_v2()` após `get_v2_cutover_status()` retornar liberado.
+- Gate de ações: `useApprovalContext` passa a expor `is_current_actor` como condição obrigatória para `approve/reject/return`; componentes de ação consomem só esse contrato.
+- Realtime: hook central sobre `fuel_requests`, `purchases`, `admission_requests`, `termination_requests`, `approval_requests`, `approval_request_steps`, `notifications`, com `removeChannel` no cleanup.
+- Anexo financeiro: reutiliza `*-create-signed-upload` + tabela de anexos do módulo; sem bucket novo.
+- EPI: `epi_kit_rules` filtradas por setor + cargo do colaborador, aplicadas como estado inicial editável do formulário de entrega.
+
+## Riscos
+
+A limpeza é irreversível. Confirmo as contagens antes de executar e sigo apenas com sua aprovação deste plano.
