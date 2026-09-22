@@ -3226,7 +3226,10 @@ export type Database = {
         | "desistente"
       doc_status: "pending" | "submitted" | "approved" | "rejected"
       exam_status: "aguardando" | "apto" | "apto_com_restricao" | "inapto"
-      fuel_attachment_type: "hodometro" | "nota_fiscal"
+      fuel_attachment_type:
+        | "hodometro"
+        | "nota_fiscal"
+        | "comprovante_pagamento"
       fuel_status:
         | "rascunho"
         | "enviado"
@@ -3453,7 +3456,11 @@ export const Constants = {
       ],
       doc_status: ["pending", "submitted", "approved", "rejected"],
       exam_status: ["aguardando", "apto", "apto_com_restricao", "inapto"],
-      fuel_attachment_type: ["hodometro", "nota_fiscal"],
+      fuel_attachment_type: [
+        "hodometro",
+        "nota_fiscal",
+        "comprovante_pagamento",
+      ],
       fuel_status: [
         "rascunho",
         "enviado",
