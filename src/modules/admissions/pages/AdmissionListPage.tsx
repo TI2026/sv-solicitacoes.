@@ -36,8 +36,13 @@ function useAdmissionListItems(filters: AdmissionsFilters, page: number) {
       if (filters.priority) q = q.eq('priority', filters.priority);
       if (filters.obra) q = q.eq('local_contratacao', filters.obra);
       if (filters.search) {
-        q = q.or(`cargo_funcao.ilike.%${filters.search}%,candidato_nome.ilike.%${filters.search}%`);
+        // Sanitiza a entrada: remove metacaracteres do filtro PostgREST (, . ( ) " \ * %)
+        const term = filters.search.replace(/[,.()"\\*%]/g, ' ').trim().slice(0, 100);
+        if (term) {
+          q = q.or(`cargo_funcao.ilike.%${term}%,candidato_nome.ilike.%${term}%`);
+        }
       }
+
 
       const { data, error } = await q;
       if (error) throw error;
