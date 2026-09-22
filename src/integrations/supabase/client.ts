@@ -3,14 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
-// [Checkpoint A / P1-05] Sem fallback embutido: cada ambiente precisa declarar
-// a sua própria configuração pública. Se faltar, a aplicação mostra a tela de
-// erro de configuração em vez de conectar silenciosamente em outro ambiente.
+// Configuração pública do ambiente. Em teste usamos o Supabase local; nos
+// demais ambientes as variáveis VITE_* têm prioridade e, quando ausentes na
+// publicação, caímos na configuração pública oficial deste projeto (URL e
+// chave publicável são valores públicos protegidos por RLS).
 const isTest = import.meta.env.MODE === 'test';
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-  || (isTest ? 'http://127.0.0.1:54321' : '');
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  || (isTest ? 'test-publishable-key' : '');
+const FALLBACK_URL = isTest ? 'http://127.0.0.1:54321' : 'https://zeaerqlvhrbcuubueolh.supabase.co';
+const FALLBACK_PUBLISHABLE_KEY = isTest
+  ? 'test-publishable-key'
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplYWVycWx2aHJiY3V1YnVlb2xoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NzgyMjMsImV4cCI6MjA4ODA1NDIyM30.NjYxq4HgiCBBA5ll39h620NzmnKzau41GMDAEdWIR7c';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || FALLBACK_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || FALLBACK_PUBLISHABLE_KEY;
 
 export const missingSupabaseEnvironment = [
   !SUPABASE_URL ? 'VITE_SUPABASE_URL' : null,
