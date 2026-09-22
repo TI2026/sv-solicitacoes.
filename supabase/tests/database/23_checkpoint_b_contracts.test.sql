@@ -158,13 +158,111 @@ SELECT throws_ok(
   'exclusão de entidade com histórico de aprovação é bloqueada'
 );
 
+-- Registro com workflow ATIVO também é bloqueado (mensagem específica)
+INSERT INTO public.approval_requests(module_id,flow_id,reference_id,requester_user_id,status)
+SELECT f.module_id,f.id,'cb100000-0000-0000-0000-000000000003','cb000000-0000-0000-0000-000000000001','awaiting_step'
+FROM public.approval_flows f
+JOIN public.approval_modules m ON m.id=f.module_id
+WHERE m.code='admissoes'
+ORDER BY f.created_at DESC
+LIMIT 1;
+
+INSERT INTO public.admission_requests(id,requester_user_id,local_contratacao,centro_custo,cargo_funcao,tipo_contrato,jornada,gestor_responsavel,motivo)
+VALUES ('cb100000-0000-0000-0000-000000000003','cb000000-0000-0000-0000-000000000001','Matriz','CC','Analista','CLT','Integral','Gestor','Checkpoint B C');
+
+SELECT throws_ok(
+  $$DELETE FROM public.admission_requests WHERE id='cb100000-0000-0000-0000-000000000003'$$,
+  'WORKFLOW_ACTIVE_DELETE_DENIED',
+  'exclusão de entidade com workflow ativo é bloqueada'
+);
+
 -- ---------------------------------------------------------------------------
--- Manutenção destrutiva permanece fora do alcance do cliente
+-- Operações reais com personas (não apenas contagem de policy)
 -- ---------------------------------------------------------------------------
-SELECT ok(
-  NOT has_function_privilege('authenticated', 'public.admin_purge_test_data(text,boolean)', 'EXECUTE')
-  AND NOT has_function_privilege('anon', 'public.admin_purge_test_data(text,boolean)', 'EXECUTE'),
-  'limpeza destrutiva não é alcançável pela API do cliente'
+INSERT INTO auth.users(id,email) VALUES
+  ('cb000000-0000-0000-0000-0000000000a1','checkpoint-b-adm@test.local'),
+  ('cb000000-0000-0000-0000-0000000000a2','checkpoint-b-rh@test.local')
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.profiles(id,full_name,email,active) VALUES
+  ('cb000000-0000-0000-0000-0000000000a1','Persona Administrativo','checkpoint-b-adm@test.local',true),
+  ('cb000000-0000-0000-0000-0000000000a2','Persona RH','checkpoint-b-rh@test.local',true)
+ON CONFLICT (id) DO UPDATE SET active=true;
+INSERT INTO public.user_roles(user_id,role) VALUES
+  ('cb000000-0000-0000-0000-0000000000a1','administrativo'),
+  ('cb000000-0000-0000-0000-0000000000a2','rh')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.admission_files(admission_request_id,candidate_id,file_type,storage_path,uploaded_by,link_type)
+VALUES ('cb100000-0000-0000-0000-000000000001','cb200000-0000-0000-0000-000000000001','CPF','documents/cb/cpf.pdf','CANDIDATE','DOCUMENTS');
+
+-- Persona Administrativo: nenhum acesso a PII/documentos
+SET LOCAL role TO authenticated;
+SET LOCAL request.jwt.claims TO '{"sub":"cb000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
+
+SELECT is(
+  (SELECT count(*)::integer FROM public.admission_files),
+  0,
+  'Administrativo não lista documentos de admissão'
+);
+SELECT throws_ok(
+  $$INSERT INTO public.admission_files(admission_request_id,candidate_id,file_type,storage_path,uploaded_by,link_type)
+    VALUES ('cb100000-0000-0000-0000-000000000001','cb200000-0000-0000-0000-000000000001','RG','documents/cb/rg.pdf','CANDIDATE','DOCUMENTS')$$,
+  '42501',
+  NULL,
+  'Administrativo não envia documentos de admissão'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM storage.objects WHERE bucket_id='admissions'),
+  0,
+  'Administrativo não enumera objetos do bucket de Admissões'
+);
+SELECT throws_ok(
+  $$INSERT INTO public.status_history(module,entity_type,entity_id,to_status)
+    VALUES ('admissoes','admission_requests','cb100000-0000-0000-0000-000000000001','forjado')$$,
+  '42501',
+  NULL,
+  'cliente autenticado não forja status_history'
+);
+SELECT throws_ok(
+  $$INSERT INTO public.audit_logs(action,entity_type,entity_id)
+    VALUES ('forjado','admission_requests','cb100000-0000-0000-0000-000000000001')$$,
+  '42501',
+  NULL,
+  'cliente autenticado não escreve audit_logs'
+);
+
+-- Persona RH: acesso previsto preservado
+SET LOCAL request.jwt.claims TO '{"sub":"cb000000-0000-0000-0000-0000000000a2","role":"authenticated"}';
+SELECT is(
+  (SELECT count(*)::integer FROM public.admission_files),
+  1,
+  'RH continua lendo documentos de admissão'
+);
+SELECT lives_ok(
+  $$INSERT INTO public.admission_files(admission_request_id,candidate_id,file_type,storage_path,uploaded_by,link_type)
+    VALUES ('cb100000-0000-0000-0000-000000000001','cb200000-0000-0000-0000-000000000001','CTPS','documents/cb/ctps.pdf','ADMIN','DOCUMENTS')$$,
+  'RH continua enviando documentos de admissão'
+);
+
+RESET role;
+RESET request.jwt.claims;
+
+-- O motor (SECURITY DEFINER / owner) continua gravando a trilha normalmente
+SELECT lives_ok(
+  $$INSERT INTO public.status_history(module,entity_type,entity_id,to_status)
+    VALUES ('admissoes','admission_requests','cb100000-0000-0000-0000-000000000001','em_triagem')$$,
+  'o motor continua gravando status_history'
+);
+
+-- ---------------------------------------------------------------------------
+-- Manutenção destrutiva sai do schema (script local/teste apenas)
+-- ---------------------------------------------------------------------------
+SELECT is(
+  (SELECT count(*)::integer FROM pg_proc p
+   JOIN pg_namespace n ON n.oid=p.pronamespace
+   WHERE n.nspname='public' AND p.proname='admin_purge_test_data'),
+  0,
+  'rotina de limpeza destrutiva não existe no schema'
 );
 
 SELECT * FROM finish();

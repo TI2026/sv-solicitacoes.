@@ -226,9 +226,12 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Manutenção destrutiva permanece inalcançável pela API do cliente
+-- Manutenção destrutiva sai do schema (script local/teste apenas)
 -- ---------------------------------------------------------------------------
-REVOKE EXECUTE ON FUNCTION public.admin_purge_test_data(text, boolean) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_purge_test_data(text, boolean) TO service_role;
+-- A rotina apagava conjuntos completos de solicitações e admissões. Restringir
+-- o EXECUTE não é barreira suficiente para um ambiente empresarial: a função
+-- deixa de existir no banco. A limpeza de fixtures permanece disponível apenas
+-- como script local em scripts/homologation/.
+DROP FUNCTION IF EXISTS public.admin_purge_test_data(text, boolean);
 
 COMMIT;

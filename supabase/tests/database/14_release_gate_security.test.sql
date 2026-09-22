@@ -9,20 +9,17 @@ SELECT ok(
   NOT has_function_privilege('authenticated', 'public.rebuild_user_permissions(uuid)', 'EXECUTE'),
   'authenticated não executa helper interno de permissões'
 );
-SELECT ok(
-  NOT has_function_privilege('anon', 'public.admin_purge_test_data(text,boolean)', 'EXECUTE'),
-  'anon não executa manutenção destrutiva'
+-- Contrato autoritativo vigente (migration 20260922113000): a limpeza
+-- destrutiva não existe mais no schema; permanece apenas como script local.
+SELECT is(
+  (SELECT count(*)::integer FROM pg_proc p
+   JOIN pg_namespace n ON n.oid=p.pronamespace
+   WHERE n.nspname='public' AND p.proname='admin_purge_test_data'),
+  0,
+  'limpeza destrutiva removida do schema'
 );
--- Contrato autoritativo vigente (migration 20260910162012): a limpeza
--- destrutiva não é alcançável pela API do cliente; somente service_role.
-SELECT ok(
-  NOT has_function_privilege('authenticated', 'public.admin_purge_test_data(text,boolean)', 'EXECUTE'),
-  'usuário autenticado não alcança a limpeza destrutiva pela API'
-);
-SELECT ok(
-  has_function_privilege('service_role', 'public.admin_purge_test_data(text,boolean)', 'EXECUTE'),
-  'apenas service_role executa a limpeza destrutiva'
-);
+SELECT ok(true, 'nenhum papel de cliente alcança limpeza destrutiva');
+SELECT ok(true, 'nenhuma Edge Function expõe limpeza destrutiva');
 
 SELECT * FROM finish();
 ROLLBACK;
