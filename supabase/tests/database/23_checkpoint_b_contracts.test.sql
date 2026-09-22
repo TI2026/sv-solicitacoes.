@@ -146,7 +146,7 @@ SELECT lives_ok(
 
 INSERT INTO public.approval_requests(module_id,reference_id,requester_user_id,status,ended_at)
 SELECT m.id,'cb100000-0000-0000-0000-000000000001','cb000000-0000-0000-0000-000000000001','completed',now()
-FROM public.approval_modules m WHERE m.code='admissao';
+FROM public.approval_modules m WHERE m.code='admissoes';
 
 SELECT throws_ok(
   $$DELETE FROM public.admission_requests WHERE id='cb100000-0000-0000-0000-000000000001'$$,
