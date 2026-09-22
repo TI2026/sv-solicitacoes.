@@ -16,6 +16,7 @@ interface SignatureData {
   admission_request_id: string;
   link_type: string;
   files_to_sign: Array<{ name: string; url: string; size: number }>;
+  signed_files?: Array<{ file_type: string; name: string; uploaded_at: string }>;
   expires_at: string;
   admin_uploaded_at: string | null;
   candidate_uploaded_at: string | null;
@@ -40,19 +41,12 @@ export default function PublicSignaturePage() {
   const [submitted, setSubmitted] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   // Track uploaded signed files per doc_key.
-  // [Checkpoint A] O progresso é preservado por link: recarregar a página não
-  // obriga o candidato a reenviar documentos já assinados nesta sessão.
-  const progressKey = token ? `admission-signature-progress:${token}` : null;
-  const [uploadedKeys, setUploadedKeys] = useState<Record<string, string>>(() => {
-    if (!progressKey || typeof window === 'undefined') return {};
-    try {
-      const saved = window.localStorage.getItem(progressKey);
-      const parsed = saved ? JSON.parse(saved) : null;
-      return parsed && typeof parsed === 'object' ? parsed as Record<string, string> : {};
-    } catch {
-      return {};
-    }
-  });
+  // [Checkpoint C] O banco é a fonte da verdade: o lookup público devolve os
+  // documentos assinados realmente persistidos, de modo que refresh, outro
+  // navegador ou outro dispositivo retomam o progresso. O armazenamento local
+  // é apenas cache secundário e é indexado pelo candidato, nunca pelo token.
+  const [uploadedKeys, setUploadedKeys] = useState<Record<string, string>>({});
+  const [progressKey, setProgressKey] = useState<string | null>(null);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -91,11 +85,33 @@ export default function PublicSignaturePage() {
           setData(result);
           setError(null);
         }
+        if (result?.candidate_id) applyServerProgress(result);
       }
     } catch {
       setError('Erro ao validar token');
     }
     setLoading(false);
+  };
+
+  /** Reconstrói o progresso a partir dos documentos persistidos no banco. */
+  const applyServerProgress = (result: SignatureData) => {
+    const key = `admission-signature-progress:${result.candidate_id}`;
+    setProgressKey(key);
+    const fromServer: Record<string, string> = {};
+    for (const f of result.signed_files || []) {
+      const adminKey = f.file_type.replace('_SIGNED', '_ADMIN');
+      fromServer[adminKey] = f.name || 'Documento assinado enviado';
+    }
+    let cached: Record<string, string> = {};
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem(key);
+        const parsed = saved ? JSON.parse(saved) : null;
+        if (parsed && typeof parsed === 'object') cached = parsed as Record<string, string>;
+      } catch { /* cache indisponível: o banco já é a fonte da verdade */ }
+    }
+    // O servidor prevalece sobre o cache local.
+    setUploadedKeys({ ...cached, ...fromServer });
   };
 
   const findFileForKey = (docKey: string) => {
