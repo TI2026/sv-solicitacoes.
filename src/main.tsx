@@ -1,6 +1,11 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { ensureStorageNamespace } from "./lib/appStorage";
+
+// Descarta sessão/cache de um ciclo de dados anterior antes de montar a app.
+ensureStorageNamespace();
+
 
 // Handler for Vite preload errors to reload the page when chunks fail
 window.addEventListener('vite:preloadError', (event) => {
