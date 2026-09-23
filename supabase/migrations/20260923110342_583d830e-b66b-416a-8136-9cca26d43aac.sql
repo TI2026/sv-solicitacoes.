@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.activate_approval_v2() TO authenticated;
