@@ -112,7 +112,10 @@ export function useApprovalContext(referenceId: string | undefined, moduleCode?:
 
       // Ações que concluem a etapa atual no motor V2 (contrato: cada etapa tem
       // uma ação canônica própria — "aprovar" é apenas o caso mais comum).
-      const isStepActor = !!result.current_step_order && !!result.approval_request_id;
+      // Aprovar/Recusar/Devolver existem SOMENTE para o ator da etapa atual:
+      // aprovadores de etapas seguintes e quem está fora do fluxo nunca veem.
+      const isCurrentActor = result.is_current_actor === true;
+      const isStepActor = isCurrentActor && !!result.current_step_order && !!result.approval_request_id;
       const stepAction: string | undefined = isStepActor
         ? allowed.find((a: string) => (STEP_COMPLETION_ACTIONS as readonly string[]).includes(a))
         : undefined;

@@ -65,9 +65,18 @@ const TerminationListPage = lazy(() => import("@/modules/desligamentos/pages/Ter
 const TerminationNewPage = lazy(() => import("@/modules/desligamentos/pages/TerminationNewPage"));
 const TerminationDetailPage = lazy(() => import("@/modules/desligamentos/pages/TerminationDetailPage"));
 
+// Desempenho: cache compartilhado mais longo, sem recarregar tudo ao focar a
+// janela (o Realtime global já mantém os dados atualizados) e menos tentativas
+// em caso de erro — telas respondem imediatamente com o dado em cache.
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 2, staleTime: 30_000 },
+    queries: {
+      retry: 1,
+      staleTime: 60_000,
+      gcTime: 10 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
   },
 });
 
