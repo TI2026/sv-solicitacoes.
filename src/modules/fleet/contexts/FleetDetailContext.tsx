@@ -69,6 +69,9 @@ interface FleetDetailContextData {
   setPaymentNotes: (v: string) => void;
   showPaymentDialog: boolean;
   setShowPaymentDialog: (v: boolean) => void;
+  /** Comprovante de pagamento anexado pelo financeiro ao confirmar a etapa. */
+  paymentFile: File | null;
+  setPaymentFile: (v: File | null) => void;
 
   // Review (Abastecimento)
   reviewKmReal: string;
@@ -154,6 +157,7 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
 
   const [paymentNotes, setPaymentNotes] = useState('');
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentFile, setPaymentFile] = useState<File | null>(null);
 
   const [reviewKmReal, setReviewKmReal] = useState('');
   const [reviewKmOk, setReviewKmOk] = useState(true);
