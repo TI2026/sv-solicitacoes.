@@ -401,7 +401,7 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
     canSendToReview, isPending, canUpload, hodometro, notaFiscal,
     uploading, setUploading, actionReason, setActionReason, showReasonDialog, setShowReasonDialog,
     showDeleteDialog, setShowDeleteDialog, deleteReason, setDeleteReason,
-    paymentNotes, setPaymentNotes,
+    paymentNotes, setPaymentNotes, paymentFile, setPaymentFile,
     showPaymentDialog, setShowPaymentDialog,
     reviewKmReal, setReviewKmReal, reviewKmOk, setReviewKmOk, reviewNfReal, setReviewNfReal,
     reviewNfOk, setReviewNfOk, reviewDivergenceReason, setReviewDivergenceReason,

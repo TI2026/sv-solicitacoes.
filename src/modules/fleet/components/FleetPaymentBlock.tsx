@@ -4,14 +4,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Paperclip } from 'lucide-react';
 
 export function FleetPaymentBlock() {
   const {
-    req, isPending,
+    req, isPending, uploading,
     // [Sprint 2 — Onda 2] Fonte canônica substitui: isCompras, isFinanceiro, hasActiveFlow
     approvalCtx,
     paymentNotes, setPaymentNotes,
+    paymentFile, setPaymentFile,
     showPaymentDialog, setShowPaymentDialog,
     handlePaymentConfirm,
   } = useFleetDetail();
