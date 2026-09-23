@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate attachment_type
-    if (!['hodometro', 'nota_fiscal'].includes(attachment_type)) {
+    if (!['hodometro', 'nota_fiscal', 'comprovante_pagamento'].includes(attachment_type)) {
       return new Response(JSON.stringify({ error: 'Tipo de anexo inválido.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
