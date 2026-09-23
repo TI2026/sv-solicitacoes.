@@ -69,6 +69,9 @@ interface FleetDetailContextData {
   setPaymentNotes: (v: string) => void;
   showPaymentDialog: boolean;
   setShowPaymentDialog: (v: boolean) => void;
+  /** Comprovante de pagamento anexado pelo financeiro ao confirmar a etapa. */
+  paymentFile: File | null;
+  setPaymentFile: (v: File | null) => void;
 
   // Review (Abastecimento)
   reviewKmReal: string;
@@ -154,6 +157,7 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
 
   const [paymentNotes, setPaymentNotes] = useState('');
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentFile, setPaymentFile] = useState<File | null>(null);
 
   const [reviewKmReal, setReviewKmReal] = useState('');
   const [reviewKmOk, setReviewKmOk] = useState(true);
@@ -250,9 +254,44 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
     setActionReason('');
   };
 
+  /** Upload validado (tipo, tamanho e assinatura do arquivo) para o bucket fleet. */
+  const uploadFleetAttachment = async (
+    file: File,
+    attachmentType: 'hodometro' | 'nota_fiscal' | 'comprovante_pagamento',
+  ) => {
+    if (!id) throw new Error('Solicitação inválida');
+    if (file.size > 10 * 1024 * 1024) throw new Error('Arquivo muito grande (máximo 10MB)');
+    const allowed = ['image/jpeg', 'image/png', 'application/pdf'] as const;
+    if (!allowed.includes(file.type as any)) throw new Error('Tipo de arquivo não permitido. Use JPEG, PNG ou PDF.');
+    const isValidMagicNumber = await validateFileMagicNumber(file, allowed as any);
+    if (!isValidMagicNumber) throw new Error('O arquivo parece estar corrompido ou ter a extensão forjada.');
+
+    const { data: signedData, error: fnError } = await supabase.functions.invoke('fleet-create-signed-upload', {
+      body: { fuel_request_id: id, file_type: file.type, file_name: file.name, file_size: file.size, attachment_type: attachmentType },
+    });
+    if (fnError || signedData?.error) throw new Error(signedData?.error || fnError?.message || 'Erro ao gerar URL');
+
+    const { error: uploadError } = await supabase.storage.from('fleet').uploadToSignedUrl(signedData.path, signedData.token, file);
+    if (uploadError) throw uploadError;
+
+    const { error: insertError } = await supabase
+      .from('fuel_attachments')
+      .insert({ fuel_request_id: id, type: attachmentType as any, file_path: signedData.path });
+    if (insertError) throw insertError;
+
+    refetchAttachments();
+  };
+
   const handlePaymentConfirm = async () => {
-    if (!id || statusMutation.isPending) return;
+    if (!id || statusMutation.isPending || uploading) return;
     try {
+      // O comprovante é anexado ANTES de concluir a etapa: se o upload falhar,
+      // o pagamento não é registrado.
+      if (paymentFile) {
+        setUploading(true);
+        await uploadFleetAttachment(paymentFile, 'comprovante_pagamento');
+        setUploading(false);
+      }
       await statusMutation.mutateAsync({
         moduleKey: reqType,
         entityId: id,
@@ -262,8 +301,11 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
       toast({ title: 'Pagamento confirmado!' });
       setShowPaymentDialog(false);
       setPaymentNotes('');
+      setPaymentFile(null);
     } catch (err: any) {
       toast({ title: 'Erro ao confirmar pagamento', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -359,7 +401,7 @@ export function FleetDetailProvider({ children, expectedType }: { children: Reac
     canSendToReview, isPending, canUpload, hodometro, notaFiscal,
     uploading, setUploading, actionReason, setActionReason, showReasonDialog, setShowReasonDialog,
     showDeleteDialog, setShowDeleteDialog, deleteReason, setDeleteReason,
-    paymentNotes, setPaymentNotes,
+    paymentNotes, setPaymentNotes, paymentFile, setPaymentFile,
     showPaymentDialog, setShowPaymentDialog,
     reviewKmReal, setReviewKmReal, reviewKmOk, setReviewKmOk, reviewNfReal, setReviewNfReal,
     reviewNfOk, setReviewNfOk, reviewDivergenceReason, setReviewDivergenceReason,

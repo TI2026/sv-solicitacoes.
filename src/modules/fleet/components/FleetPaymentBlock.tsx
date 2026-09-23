@@ -4,14 +4,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Paperclip } from 'lucide-react';
 
 export function FleetPaymentBlock() {
   const {
-    req, isPending,
+    req, isPending, uploading,
     // [Sprint 2 — Onda 2] Fonte canônica substitui: isCompras, isFinanceiro, hasActiveFlow
     approvalCtx,
     paymentNotes, setPaymentNotes,
+    paymentFile, setPaymentFile,
     showPaymentDialog, setShowPaymentDialog,
     handlePaymentConfirm,
   } = useFleetDetail();
@@ -39,13 +40,28 @@ export function FleetPaymentBlock() {
           <DialogHeader><DialogTitle>Confirmar Pagamento</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Paperclip className="w-3.5 h-3.5" /> Comprovante de pagamento (opcional)
+              </Label>
+              <Input
+                type="file"
+                accept="image/jpeg,image/png,application/pdf"
+                onChange={e => setPaymentFile(e.target.files?.[0] ?? null)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {paymentFile ? `Selecionado: ${paymentFile.name}` : 'JPEG, PNG ou PDF, até 10MB.'}
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label>Observações de Pagamento (Opcional)</Label>
-              <Textarea value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="Comprovante anexo, NSU, etc..." />
+              <Textarea value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="NSU, banco, data de liquidação..." />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancelar</Button>
-            <Button onClick={handlePaymentConfirm} disabled={isPending}>Confirmar Pagamento</Button>
+            <Button onClick={handlePaymentConfirm} disabled={isPending || uploading}>
+              {uploading ? 'Enviando comprovante...' : 'Confirmar Pagamento'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

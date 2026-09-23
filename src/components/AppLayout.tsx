@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { isFleetBusinessModule, requestDetailRoute } from '@/modules/fleet/requestRoutes';
 import { approvalQueueKeys } from '@/lib/refreshApprovalData';
 import { usePermission } from '@/hooks/usePermission';
+import { useGlobalWorkflowRealtime } from '@/hooks/useGlobalWorkflowRealtime';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut, hasAnyRole, isMaster } = useAuth();
@@ -24,6 +25,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Controle local da expansão do submenu de EPIs (independente da rota ativa,
   // permite fechar mesmo estando em /epis).
   const [epiMenuOpen, setEpiMenuOpen] = useState<boolean>(() => location.pathname.startsWith('/epis'));
+
+  // Tempo real global: qualquer avanço de etapa atualiza todas as telas abertas.
+  useGlobalWorkflowRealtime(!!user?.id);
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.id],

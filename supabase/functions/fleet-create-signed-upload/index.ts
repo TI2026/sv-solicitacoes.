@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate attachment_type
-    if (!['hodometro', 'nota_fiscal'].includes(attachment_type)) {
+    if (!['hodometro', 'nota_fiscal', 'comprovante_pagamento'].includes(attachment_type)) {
       return new Response(JSON.stringify({ error: 'Tipo de anexo inválido.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -99,8 +99,13 @@ Deno.serve(async (req) => {
     const allowedActions = Array.isArray(actionContext?.allowed_actions)
       ? actionContext.allowed_actions
       : [];
-    const canUpload = actionContext?.requester_user_id === userId
+    const isRequesterUpload = actionContext?.requester_user_id === userId
       && (actionContext?.can_edit === true || allowedActions.includes('enviar_comprovantes'));
+    // Ator financeiro da etapa atual: pode anexar o comprovante de pagamento.
+    const isPaymentReceiptUpload = attachment_type === 'comprovante_pagamento'
+      && actionContext?.is_current_actor === true
+      && allowedActions.includes('pagar');
+    const canUpload = isRequesterUpload || isPaymentReceiptUpload;
 
     if (contextError || !canUpload) {
       return new Response(JSON.stringify({ error: 'Sem permissão para este upload' }), {

@@ -96,16 +96,42 @@ export default function EpiDeliveryPage() {
     }
   }, [searchParams, collaborators]);
 
-  // When collaborator changes, auto-load kit rules
+  /**
+   * Itens que o cargo/setor do colaborador utiliza, conforme as regras de kit
+   * já cadastradas. Retorna linhas editáveis (quantidade, tamanho e motivo).
+   */
+  const buildKitLines = useCallback((collab: any, sId: string): DeliveryLineItem[] => {
+    if (!collab || !allKitRules?.length) return [];
+    const roleName = collab.role_name || '';
+    const savedSizes = (collab as any)?.uniform_sizes || {};
+    const matchingRules = allKitRules.filter((r: any) => {
+      const sectorMatch = !r.sector_id || r.sector_id === sId;
+      const roleMatch = !r.role_name || r.role_name === roleName;
+      return sectorMatch && (roleMatch || !roleName);
+    });
+    return matchingRules.map((r: any) => {
+      const line = newLine(r.epi_item_id, String(r.quantity || 1), true);
+      if (savedSizes[r.epi_item_id]) line.size = savedSizes[r.epi_item_id];
+      return line;
+    });
+  }, [allKitRules]);
+
+  // Ao escolher o colaborador, os itens do cargo/setor já vêm preenchidos
+  // (editáveis). O botão "Carregar Kit" segue disponível para recarregar.
   const handleCollaboratorChange = useCallback((id: string) => {
     setCollaboratorId(id);
     const collab = collaborators?.find((c: any) => c.id === id);
-    if (collab) {
-      setSectorId(collab.sector_id || '');
-      setWorksite(collab.worksite || '');
+    if (!collab) return;
+    const sId = collab.sector_id || '';
+    setSectorId(sId);
+    setWorksite(collab.worksite || '');
+
+    const kitLines = buildKitLines(collab, sId);
+    if (kitLines.length > 0) {
+      setLines(kitLines);
+      toast({ title: `${kitLines.length} item(ns) do cargo carregados automaticamente`, description: 'Ajuste quantidades e tamanhos antes de confirmar.' });
     }
-    // Don't auto-load kit here; user clicks "Carregar Kit" button
-  }, [collaborators]);
+  }, [collaborators, buildKitLines, toast]);
 
   // Get collaborator's saved uniform sizes
   const getCollabSizes = useCallback((): Record<string, string> => {
